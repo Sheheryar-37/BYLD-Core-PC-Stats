@@ -1,7 +1,7 @@
 <Window x:Class="PcStatsMonitor.ColorPickerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Select Color" Height="520" Width="380"
+        Title="Select Color" Height="600" Width="380"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">

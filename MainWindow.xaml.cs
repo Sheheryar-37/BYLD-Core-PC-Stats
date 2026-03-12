@@ -72,6 +72,9 @@ public partial class MainWindow : Window
         }
         else
         {
+            GaugesContainer.BeginAnimation(UIElement.OpacityProperty, null);
+            SsdScreen.BeginAnimation(UIElement.OpacityProperty, null);
+
             GaugesContainer.Opacity = showGauges ? 1.0 : 0.0;
             GaugesContainer.IsHitTestVisible = showGauges;
             GaugesContainer.Visibility = showGauges ? Visibility.Visible : Visibility.Hidden;
