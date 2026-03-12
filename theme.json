@@ -1,0 +1,61 @@
+{
+    "BackgroundColor": "#060606",
+    "ForegroundColor": "#FFFFFF",
+    "AccentColor": "#DCDCDC",
+    "TrackColor": "#252525",
+    "AlertColor": "#FF4022",
+    "LogoPath": "Assets/logo.png",
+    "BackgroundImagePath": "",
+    "BackgroundOpacity": 1.0,
+    "WindowWidth": 480,
+    "WindowHeight": 854,
+    "FontFamily": "Open Sans",
+    "TransitionDelaySeconds": 5,
+    "DisplayMode": "Auto",
+    "CriticalCpuTemp": 85.0,
+    "CriticalGpuTemp": 85.0,
+    "IsCpuEnabled": true,
+    "IsGpuEnabled": true,
+    "IsMemoryEnabled": true,
+    "IsStorageEnabled": true,
+    "IsMotherboardEnabled": false,
+    "IsNetworkEnabled": false,
+    "IsBatteryEnabled": false,
+    "SensorNames": {
+        "CpuTemp": [
+            "Core (Tctl/Tdie)",
+            "Tctl/Tdie",
+            "Core Average",
+            "CPU Package",
+            "Package",
+            "Core Max"
+        ],
+        "CpuLoad": [
+            "CPU Total",
+            "Total",
+            "CPU Core"
+        ],
+        "CpuClock": [
+            "CPU Core #1",
+            "Core #1",
+            "Core 1",
+            "CPU Core"
+        ],
+        "GpuTemp": [
+            "GPU Core",
+            "Core"
+        ],
+        "GpuLoad": [
+            "GPU Core",
+            "Core",
+            "D3D 3D"
+        ],
+        "GpuClock": [
+            "GPU Core",
+            "Core"
+        ],
+        "RamLoad": [
+            "Memory"
+        ]
+    }
+}

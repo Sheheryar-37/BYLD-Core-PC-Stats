@@ -1,0 +1,76 @@
+<UserControl x:Class="PcStatsMonitor.Controls.DualCircularGauge"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="250" d:DesignWidth="250"
+             FontFamily="{Binding Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='Segoe UI'}">
+    <Viewbox Stretch="Uniform">
+        <Grid Width="250" Height="250">
+            <!-- Background Tracks Note StrokeThickness adjusted to match client sleekness -->
+            <!-- Left Track (Middle-Left 180 to Bottom-Center 90) -->
+            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
+                <Path.Data>
+                    <PathGeometry>
+                        <PathFigure StartPoint="19, 125">
+                            <ArcSegment Point="125, 231" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
+                        </PathFigure>
+                    </PathGeometry>
+                </Path.Data>
+            </Path>
+
+            <!-- Right Track (Middle-Right 360 to Top-Center 270) -->
+            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
+                <Path.Data>
+                    <PathGeometry>
+                        <PathFigure StartPoint="231, 125">
+                            <ArcSegment Point="125, 19" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
+                        </PathFigure>
+                    </PathGeometry>
+                </Path.Data>
+            </Path>
+
+            <!-- Top Left Track (Top-Center 270 to Middle-Left 180) -->
+            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
+                <Path.Data>
+                    <PathGeometry>
+                        <PathFigure StartPoint="125, 19">
+                            <ArcSegment Point="19, 125" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
+                        </PathFigure>
+                    </PathGeometry>
+                </Path.Data>
+            </Path>
+            
+            <!-- Bottom Right Track (Bottom-Center 90 to Middle-Right 360) -->
+            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
+                <Path.Data>
+                    <PathGeometry>
+                        <PathFigure StartPoint="125, 231">
+                            <ArcSegment Point="231, 125" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
+                        </PathFigure>
+                    </PathGeometry>
+                </Path.Data>
+            </Path>
+
+            <!-- Foreground Value Tracks -->
+            <!-- We draw these dynamically in code behind on LeftValuePath/RightValuePath, matching the slightly thinner stroke -->
+            <Path x:Name="LeftValuePath" Stroke="{Binding DataContext.Theme.AccentColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#DCDCDC}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None" />
+            <Path x:Name="RightValuePath" Stroke="{Binding DataContext.Theme.AccentColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#DCDCDC}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None" />
+            
+            <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,-5,0,0">
+                <!-- Center Title, e.g., 25°C -->
+                <!-- Font weight extra bold to match mock -->
+                <TextBlock x:Name="CenterText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="62" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=SemiBold}" HorizontalAlignment="Center"/>
+                <!-- Center Description, e.g., GPU TEMP -->
+                <TextBlock x:Name="CenterLabel" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="12" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Normal}" Opacity="0.5" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+            </StackPanel>
+
+            <!-- Right Bottom text (e.g. 9% GPU LOAD) -->
+            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,75,-5,0">
+                <TextBlock x:Name="RightValueText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="9" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Normal}" Opacity="0.5" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="RightLabelText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="8" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Normal}" Opacity="0.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+            </StackPanel>
+        </Grid>
+    </Viewbox>
+</UserControl>
