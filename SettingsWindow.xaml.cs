@@ -64,7 +64,8 @@ public partial class SettingsWindow : Window
         // Images
         TxtLogo.Text = theme.LogoPath;
         TxtBgImage.Text = theme.BackgroundImagePath;
-        SldOpacity.Value = theme.BackgroundOpacity;
+        // Transition Delay
+        SldInterval.Value = theme.TransitionDelaySeconds;
 
         _isInitializing = false;
     }
@@ -99,6 +100,7 @@ public partial class SettingsWindow : Window
         theme.LogoPath = TxtLogo.Text;
         theme.BackgroundImagePath = TxtBgImage.Text;
         theme.BackgroundOpacity = SldOpacity.Value;
+        theme.TransitionDelaySeconds = (int)SldInterval.Value;
 
         _themeService.NotifyThemeUpdated();
     }
@@ -107,15 +109,12 @@ public partial class SettingsWindow : Window
     {
         if (sender is Button btn)
         {
-            using var dlg = new System.Windows.Forms.ColorDialog();
-            if (btn.Tag is string currentHex && currentHex.Length >= 7)
+            var initialHex = btn.Tag?.ToString() ?? "#FFFFFF";
+            var picker = new ColorPickerWindow(initialHex) { Owner = this };
+            
+            if (picker.ShowDialog() == true)
             {
-                try { dlg.Color = System.Drawing.ColorTranslator.FromHtml(currentHex.Substring(0, 7)); } catch { }
-            }
-
-            if (dlg.ShowDialog() == System.Windows.Forms.DialogResult.OK)
-            {
-                var hex = "#" + dlg.Color.R.ToString("X2") + dlg.Color.G.ToString("X2") + dlg.Color.B.ToString("X2");
+                var hex = picker.SelectedHex;
                 btn.Tag = hex;
                 btn.Background = new BrushConverter().ConvertFromString(hex) as SolidColorBrush;
                 UpdateThemeObject();
@@ -202,6 +201,7 @@ public partial class SettingsWindow : Window
     }
 
     private void SldOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateThemeObject();
+    private void SldInterval_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateThemeObject();
 
     private void BtnBrowseLogo_Click(object sender, RoutedEventArgs e)
     {

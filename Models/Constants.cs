@@ -13,7 +13,7 @@ public static class Constants
     // Application Defaults
     public const string DefaultThemeBackground = "#060606";
     public const string DefaultThemeForeground = "#FFFFFF";
-    public const string DefaultThemeAccent = "#DCDCDC";
+    public const string DefaultThemeAccent = "#3b82f6";
     public const string DefaultThemeTrack = "#0B0B0B";
     public const string DefaultThemeAlert = "#FF4022";
     public const string DefaultFontFamily = "Mucho Sans";

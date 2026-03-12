@@ -44,11 +44,21 @@ public partial class App : Application
         await _host.StartAsync();
 
         _notifyIcon = new System.Windows.Forms.NotifyIcon();
-        var iconUri = new Uri("pack://application:,,,/Assets/icon-black.ico");
-        var iconStream = Application.GetResourceStream(iconUri)?.Stream;
-        if (iconStream != null)
+        try
         {
-            _notifyIcon.Icon = new System.Drawing.Icon(iconStream);
+            var iconUri = new Uri("pack://application:,,,/Assets/byld-icon.png");
+            var iconInfo = Application.GetResourceStream(iconUri);
+            if (iconInfo != null)
+            {
+                using var stream = iconInfo.Stream;
+                using var bitmap = new System.Drawing.Bitmap(stream);
+                _notifyIcon.Icon = System.Drawing.Icon.FromHandle(bitmap.GetHicon());
+            }
+        }
+        catch 
+        {
+            // Fallback placeholder if icon conversion fails
+            _notifyIcon.Icon = System.Drawing.SystemIcons.Application;
         }
         _notifyIcon.Visible = true;
         _notifyIcon.Text = "BYLD Core";

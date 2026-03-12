@@ -48,8 +48,23 @@ public partial class MainWindow : Window
         string mode = vm?.Theme?.DisplayMode ?? "Auto";
 
         bool showGauges = _showingGauges;
-        if (mode.Equals("Gauges", StringComparison.OrdinalIgnoreCase)) showGauges = true;
-        else if (mode.Equals("Storage", StringComparison.OrdinalIgnoreCase)) showGauges = false;
+        if (mode.Equals("Gauges", StringComparison.OrdinalIgnoreCase))
+        {
+            showGauges = true;
+            _showingGauges = true;
+            _transitionTimer.Stop();
+        }
+        else if (mode.Equals("Storage", StringComparison.OrdinalIgnoreCase))
+        {
+            showGauges = false;
+            _showingGauges = false;
+            _transitionTimer.Stop();
+        }
+        else
+        {
+            // Auto mode
+            if (!_transitionTimer.IsEnabled) _transitionTimer.Start();
+        }
 
         if (animate)
         {
