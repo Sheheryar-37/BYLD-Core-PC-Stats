@@ -148,6 +148,47 @@ public partial class SettingsWindow : Window
         }
     }
 
+    private void LstOrder_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        PnlGaugeConfig.Visibility = LstOrder.SelectedItem is string ? Visibility.Visible : Visibility.Collapsed;
+    }
+
+    private void BtnGaugeConfig_Click(object sender, RoutedEventArgs e)
+    {
+        if (LstOrder.SelectedItem is not string selectedMonitor || sender is not Button btn) return;
+
+        var theme = _themeService.CurrentTheme;
+        if (theme.GaugeScales == null) theme.GaugeScales = new(StringComparer.OrdinalIgnoreCase);
+        if (theme.GaugeOffsetsX == null) theme.GaugeOffsetsX = new(StringComparer.OrdinalIgnoreCase);
+        if (theme.GaugeOffsetsY == null) theme.GaugeOffsetsY = new(StringComparer.OrdinalIgnoreCase);
+
+        // Ensure defaults exist
+        if (!theme.GaugeScales.ContainsKey(selectedMonitor)) theme.GaugeScales[selectedMonitor] = 1.0;
+        if (!theme.GaugeOffsetsX.ContainsKey(selectedMonitor)) theme.GaugeOffsetsX[selectedMonitor] = 0.0;
+        if (!theme.GaugeOffsetsY.ContainsKey(selectedMonitor)) theme.GaugeOffsetsY[selectedMonitor] = 0.0;
+
+        double stepScale = 0.05;
+        double stepPos = 2.0;
+
+        switch (btn.Name)
+        {
+            case "BtnGaugeScaleUp": theme.GaugeScales[selectedMonitor] += stepScale; break;
+            case "BtnGaugeScaleDown": theme.GaugeScales[selectedMonitor] = Math.Max(0.1, theme.GaugeScales[selectedMonitor] - stepScale); break;
+            case "BtnGaugeUp": theme.GaugeOffsetsY[selectedMonitor] -= stepPos; break;
+            case "BtnGaugeDown": theme.GaugeOffsetsY[selectedMonitor] += stepPos; break;
+            case "BtnGaugeLeft": theme.GaugeOffsetsX[selectedMonitor] -= stepPos; break;
+            case "BtnGaugeRight": theme.GaugeOffsetsX[selectedMonitor] += stepPos; break;
+            case "BtnGaugeReset":
+                theme.GaugeScales[selectedMonitor] = 1.0;
+                theme.GaugeOffsetsX[selectedMonitor] = 0.0;
+                theme.GaugeOffsetsY[selectedMonitor] = 0.0;
+                break;
+        }
+
+        UpdateThemeObject();
+    }
+
+
     private void OnSettingChanged(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;

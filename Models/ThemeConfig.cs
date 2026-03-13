@@ -41,10 +41,21 @@ public class ThemeConfig
     public bool IsCpuEnabled { get; set; } = true;
     public bool IsGpuEnabled { get; set; } = true;
     public bool IsMemoryEnabled { get; set; } = true;
-    //public bool IsStorageEnabled { get; set; } = true;
     public bool IsMotherboardEnabled { get; set; } = false;
     public bool IsNetworkEnabled { get; set; } = false;
     public bool IsBatteryEnabled { get; set; } = false;
+    
+    // ── Gauge Sizes & Alignment ──────────────────────────────────────────────
+    public Dictionary<string, double> GaugeScales { get; set; } = new(StringComparer.OrdinalIgnoreCase) {
+        { "GPU", 1.0 }, { "CPU", 1.0 }, { "RAM", 1.0 }, { "MOTHERBOARD", 1.0 }, { "NETWORK", 1.0 }
+    };
+    public Dictionary<string, double> GaugeOffsetsY { get; set; } = new(StringComparer.OrdinalIgnoreCase) {
+        { "GPU", 0.0 }, { "CPU", 0.0 }, { "RAM", 0.0 }, { "MOTHERBOARD", 0.0 }, { "NETWORK", 0.0 }
+    };
+    public Dictionary<string, double> GaugeOffsetsX { get; set; } = new(StringComparer.OrdinalIgnoreCase) {
+        { "GPU", 0.0 }, { "CPU", 0.0 }, { "RAM", 0.0 }, { "MOTHERBOARD", 0.0 }, { "NETWORK", 0.0 }
+    };
+
     
     // ── Simulated SSD Customization ──────────────────────────────────────────
     public string CustomSsdImagePath { get; set; } = "";

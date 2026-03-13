@@ -143,3 +143,22 @@ public partial class MainWindow : Window
         // You can add your custom loaded animations or logic here!
     }
 }
+
+public class DictionaryValueConverter : System.Windows.Data.IMultiValueConverter
+{
+    public object Convert(object[] values, Type targetType, object parameter, System.Globalization.CultureInfo culture)
+    {
+        double defaultVal = parameter != null && double.TryParse(parameter.ToString(), out double p) ? p : 0.0;
+        
+        if (values.Length >= 2 && values[0] is System.Collections.Generic.Dictionary<string, double> dict && values[1] is string key)
+        {
+            if (dict.TryGetValue(key, out double val)) return val;
+        }
+        return defaultVal;
+    }
+
+    public object[] ConvertBack(object value, Type[] targetTypes, object parameter, System.Globalization.CultureInfo culture)
+    {
+        throw new NotImplementedException();
+    }
+}

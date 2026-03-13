@@ -1,10 +1,10 @@
-﻿<Window x:Class="PcStatsMonitor.MainWindow"
+<Window x:Class="PcStatsMonitor.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:controls="clr-namespace:PcStatsMonitor.Controls"
-        mc:Ignorable="d"
+        xmlns:local="clr-namespace:PcStatsMonitor"
         Title="BYLD Core" 
         Height="{Binding Theme.WindowHeight, FallbackValue=854}" 
         Width="{Binding Theme.WindowWidth, FallbackValue=480}"
@@ -17,6 +17,7 @@
 
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
+        <local:DictionaryValueConverter x:Key="DictValConv" />
     </Window.Resources>
 
     <!-- 9:16 Scale Transform so it perfectly fits regardless of Window Width/Height -->
@@ -43,7 +44,39 @@
                     <ItemsControl ItemsSource="{Binding Theme.ActiveMonitorsOrder}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate>
-                                <ContentControl Content="{Binding}">
+                                <ContentControl Content="{Binding}" RenderTransformOrigin="0.5,0.5">
+                                    <ContentControl.RenderTransform>
+                                        <TransformGroup>
+                                            <ScaleTransform>
+                                                <ScaleTransform.ScaleX>
+                                                    <MultiBinding Converter="{StaticResource DictValConv}" ConverterParameter="1.0">
+                                                        <Binding Path="DataContext.Theme.GaugeScales" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                                        <Binding />
+                                                    </MultiBinding>
+                                                </ScaleTransform.ScaleX>
+                                                <ScaleTransform.ScaleY>
+                                                    <MultiBinding Converter="{StaticResource DictValConv}" ConverterParameter="1.0">
+                                                        <Binding Path="DataContext.Theme.GaugeScales" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                                        <Binding />
+                                                    </MultiBinding>
+                                                </ScaleTransform.ScaleY>
+                                            </ScaleTransform>
+                                            <TranslateTransform>
+                                                <TranslateTransform.X>
+                                                    <MultiBinding Converter="{StaticResource DictValConv}" ConverterParameter="0.0">
+                                                        <Binding Path="DataContext.Theme.GaugeOffsetsX" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                                        <Binding />
+                                                    </MultiBinding>
+                                                </TranslateTransform.X>
+                                                <TranslateTransform.Y>
+                                                    <MultiBinding Converter="{StaticResource DictValConv}" ConverterParameter="0.0">
+                                                        <Binding Path="DataContext.Theme.GaugeOffsetsY" RelativeSource="{RelativeSource AncestorType=ItemsControl}" />
+                                                        <Binding />
+                                                    </MultiBinding>
+                                                </TranslateTransform.Y>
+                                            </TranslateTransform>
+                                        </TransformGroup>
+                                    </ContentControl.RenderTransform>
                                     <ContentControl.Style>
                                         <Style TargetType="ContentControl">
                                             <Style.Triggers>
