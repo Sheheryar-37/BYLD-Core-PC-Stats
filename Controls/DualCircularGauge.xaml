@@ -8,46 +8,53 @@
              FontFamily="{Binding Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='Segoe UI'}">
     <Viewbox Stretch="Uniform">
         <Grid Width="250" Height="250">
-            <!-- Background Tracks Note StrokeThickness adjusted to match client sleekness -->
-            <!-- Left Track (Middle-Left 180 to Bottom-Center 90) -->
-            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
-                <Path.Data>
-                    <PathGeometry>
-                        <PathFigure StartPoint="19, 125">
-                            <ArcSegment Point="125, 231" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
-                        </PathFigure>
-                    </PathGeometry>
-                </Path.Data>
-            </Path>
+            <!-- Background Tracks Custom Two-Segment Design -->
+            <!-- Note: Gaps are approximately at Top-Left (240 deg) and Bottom-Right (120 deg) based on the image -->
+            
+            <!-- Left Primary Track (from 240 deg CCW to 120 deg) 
+                 Wait, if 0 is right (3 o'clock). 90 is bottom. 180 is left. 270 is top.
+                 Top-Left gap = ~250 deg. Bottom-Right gap = ~110 deg.
+                 Left Arc goes from 250 counter-clockwise down to 110. (Span = 140 deg)
+                 Right Arc goes from 110 counter-clockwise up to 250. (Wait, 110 to 250 is clockwise. Up is CCW so 110 to 0 to 250. No. 
+                 Let's specify coordinates.
+                 Radius = 106. Center = 125, 125.
+                 Angle 250: point = (125 + 106*cos(250), 125 + 106*sin(250)) = (125 - 36.2, 125 - 99.6) = (88.8, 25.4)
+                 Angle 110: point = (125 + 106*cos(110), 125 + 106*sin(110)) = (125 - 36.2, 125 + 99.6) = (88.8, 224.6) 
+                 Let's adjust. If it's symmetrical gaps but slanted.
+                 From 250 (CCW) -> 180 -> 110. It passes through the left side.
+                 Let's refine gap positions: Gap 1 at top-left ~240. Gap 2 at bottom-right ~100.
+                 Let's do start 240 CCW to 100. (Passes 180). This is the left arc.
+                 240 -> start point: 125 + 106*-0.5 = 72. 125 + 106*-0.866 = 33. -> (72, 33)
+                 100 -> end point: 125 + 106*-0.17 = 106. 125 + 106*0.98 = 229. -> (106, 229)
+                 Let's use 230 and 110.
+                 Cos(230) = -0.64, Sin(230) = -0.76 -> X = 125-68 = 57, Y = 125-81 = 44
+                 Cos(110) = -0.34, Sin(110) = 0.94 -> X = 125-36 = 89, Y = 125+100 = 225
+            -->
 
-            <!-- Right Track (Middle-Right 360 to Top-Center 270) -->
-            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
+            <!-- Background Tracks User-Specified Angles (Anticlockwise from Right=0) -->
+            <!-- WPF Math: East=0, South=90. Anticlockwise from East is decreasing angle (0 -> -130 or 0 -> 230). -->
+            
+            <!-- Right Segment: 0 to 130 degrees CCW -->
+            <!-- Start (0 deg): 231, 125 -->
+            <!-- End (130 deg CCW / -130 deg WPF): 125 + 106*cos(-130), 125 + 106*sin(-130) = 56.9, 43.8 -->
+            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#1A1A1A}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
                 <Path.Data>
                     <PathGeometry>
                         <PathFigure StartPoint="231, 125">
-                            <ArcSegment Point="125, 19" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
+                            <ArcSegment Point="56.9, 43.8" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
                         </PathFigure>
                     </PathGeometry>
                 </Path.Data>
             </Path>
 
-            <!-- Top Left Track (Top-Center 270 to Middle-Left 180) -->
-            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
+            <!-- Left Segment: 140 to 325 degrees CCW -->
+            <!-- Start (140 deg CCW / -140 deg WPF): 125 + 106*cos(-140), 125 + 106*sin(-140) = 43.8, 56.8 -->
+            <!-- End (325 deg CCW / -325 deg WPF): 125 + 106*cos(-325), 125 + 106*sin(-325) = 211.8, 185.8 -->
+            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#1A1A1A}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round">
                 <Path.Data>
                     <PathGeometry>
-                        <PathFigure StartPoint="125, 19">
-                            <ArcSegment Point="19, 125" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
-                        </PathFigure>
-                    </PathGeometry>
-                </Path.Data>
-            </Path>
-            
-            <!-- Bottom Right Track (Bottom-Center 90 to Middle-Right 360) -->
-            <Path Stroke="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#0B0B0B}" StrokeThickness="11" StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None">
-                <Path.Data>
-                    <PathGeometry>
-                        <PathFigure StartPoint="125, 231">
-                            <ArcSegment Point="231, 125" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="False"/>
+                        <PathFigure StartPoint="43.8, 56.8">
+                            <ArcSegment Point="211.8, 185.8" Size="106,106" SweepDirection="Counterclockwise" IsLargeArc="True"/>
                         </PathFigure>
                     </PathGeometry>
                 </Path.Data>
@@ -66,10 +73,11 @@
                 <TextBlock x:Name="CenterLabel" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="12" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Normal}" Opacity="0.5" HorizontalAlignment="Center" Margin="0,5,0,0"/>
             </StackPanel>
 
-            <!-- Right Bottom text (e.g. 9% GPU LOAD) -->
-            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,75,-5,0">
-                <TextBlock x:Name="RightValueText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="9" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Normal}" Opacity="0.5" HorizontalAlignment="Center"/>
-                <TextBlock x:Name="RightLabelText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="8" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Normal}" Opacity="0.5" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+            <!-- Right Side Metric (e.g. 5% CPU LOAD) -->
+            <!-- Positioned on the right side East, moved down and right per request -->
+            <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,55,5,0">
+                <TextBlock x:Name="RightValueText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="10" FontWeight="Bold" Opacity="0.9" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="RightLabelText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="7" FontWeight="Normal" Opacity="0.5" HorizontalAlignment="Center" Margin="0,1,0,0"/>
             </StackPanel>
         </Grid>
     </Viewbox>

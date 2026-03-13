@@ -83,25 +83,17 @@ public partial class DualCircularGauge : UserControl
         var radius = 106.0;
         var center = new Point(125, 125); 
 
-        // LEFT ARC: Starts at bottom-left (135 deg) and goes clockwise up to top (270 deg). 
-        // Total span = 135 degrees.
-        // We want it to fill from top to bottom (like the image, the gap is at top-left, and it fills downwards? 
-        // Wait, looking at the image, left arc usually starts from top (225 degrees approx?) and sweeps down?
-        // Actually, the client image shows:
-        // GPU TEMP: Left arc is nearly full. It starts at top-center and goes counter-clockwise? Or bottom-center goes clockwise?
-        // In the mockups, both arcs seem to emerge from the bottom gap or top gap? 
-        // "guage start from middle right and middle left , the midle right goes upward showing load, and left one goes downward shoeing temp"
-        // Ah! Left starts at middle-left (180 degrees) and goes downward (counter-clockwise) to bottom-left (135 degrees)? No, 180 to 90 is downward.
-        // Let's make Left arc start at 180 deg (middle left) and sweep DOWN to 90 deg. (Span = 90 deg).
-        // Let's make Right arc start at 0 deg (middle right) and sweep UP to -90/270 deg. (Span = 90 deg).
+        // 0 = Right (East). Measurement is anticlockwise (decreasing angle in WPF polar space).
+        
+        // LEFT ARC: 140 to 325 CCW. Span = 185 deg.
+        // Start -140, sweep CCW (decrease angle) by lSpan.
+        double lSpan = Math.Min(100, Math.Max(0, LeftValue)) / 100.0 * 185.0;
+        UpdateArc(LeftValuePath, center, radius, -140, -140 - lSpan, SweepDirection.Counterclockwise);
 
-        // LEFT ARC: Middle Left (180 deg) going DOWN (Counter-Clockwise) to Bottom Center (90 deg). Span = 90
-        double leftSpan = Math.Min(100, Math.Max(0, LeftValue)) / 100.0 * 90.0;
-        UpdateArc(LeftValuePath, center, radius, 180, 180 - leftSpan, SweepDirection.Counterclockwise);
-
-        // RIGHT ARC: Middle Right (0 deg = 360 deg) going UP (Counter-Clockwise) to Top Center (270 deg). Span = 90
-        double rightSpan = Math.Min(100, Math.Max(0, RightValue)) / 100.0 * 90.0;
-        UpdateArc(RightValuePath, center, radius, 360, 360 - rightSpan, SweepDirection.Counterclockwise);
+        // RIGHT ARC: 0 to 130 CCW. Span = 130 deg.
+        // Start 0, sweep CCW (decrease angle) by rSpan.
+        double rSpan = Math.Min(100, Math.Max(0, RightValue)) / 100.0 * 130.0;
+        UpdateArc(RightValuePath, center, radius, 0, 0 - rSpan, SweepDirection.Counterclockwise);
     }
 
     private void UpdateArc(System.Windows.Shapes.Path path, Point center, double radius, double startAngleDeg, double endAngleDeg, SweepDirection dir)
