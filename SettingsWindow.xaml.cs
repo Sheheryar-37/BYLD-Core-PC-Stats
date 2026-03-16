@@ -7,21 +7,52 @@ using System.Windows.Input;
 using System.Windows.Media;
 using System.Collections.ObjectModel;
 using System.Linq;
+using PcStatsMonitor.Models;
 
 namespace PcStatsMonitor;
 
 public partial class SettingsWindow : Window
 {
     private readonly IThemeService _themeService;
+    private readonly PluginManager? _pluginManager;
     private bool _isInitializing = true;
     public ObservableCollection<string> ActiveMonitors { get; set; } = new();
+    public ObservableCollection<string> ScreenRotationList { get; set; } = new();
+    public ObservableCollection<PluginToggle> PluginSettings { get; set; } = new();
 
-    public SettingsWindow(IThemeService themeService)
+    public class PluginToggle : System.ComponentModel.INotifyPropertyChanged
+    {
+        private string _name = "";
+        private bool _isEnabled;
+
+        public string Name 
+        { 
+            get => _name; 
+            set { _name = value; OnPropertyChanged(); } 
+        }
+        public bool IsEnabled 
+        { 
+            get => _isEnabled; 
+            set { _isEnabled = value; OnPropertyChanged(); } 
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+        }
+    }
+
+    public SettingsWindow(IThemeService themeService, PluginManager? pluginManager = null)
     {
         InitializeComponent();
         _themeService = themeService;
+        _pluginManager = pluginManager;
         
         LstOrder.ItemsSource = ActiveMonitors;
+        LstScreenOrder.ItemsSource = ScreenRotationList;
+        ItemsPlugins.ItemsSource = PluginSettings;
+
         LoadCurrentSettings();
     }
 
@@ -40,7 +71,7 @@ public partial class SettingsWindow : Window
         BtnBgColor.Tag = theme.BackgroundColor;
         BtnFgColor.Background = new BrushConverter().ConvertFromString(theme.ForegroundColor) as SolidColorBrush;
         BtnFgColor.Tag = theme.ForegroundColor;
-        BtnAccentColor.Background = new BrushConverter().ConvertFromString(theme.AccentColor) as SolidColorBrush; // Actually AccentColor is used for glows, but let's assume it maps
+        BtnAccentColor.Background = new BrushConverter().ConvertFromString(theme.AccentColor) as SolidColorBrush;
         BtnAccentColor.Tag = theme.AccentColor;
         BtnTrackColor.Background = new BrushConverter().ConvertFromString(theme.TrackColor) as SolidColorBrush;
         BtnTrackColor.Tag = theme.TrackColor;
@@ -54,16 +85,48 @@ public partial class SettingsWindow : Window
         ChkMotherboard.IsChecked = theme.IsMotherboardEnabled;
         ChkNetwork.IsChecked = theme.IsNetworkEnabled;
 
-        ChkGaugesScreen.IsChecked = theme.DisplayMode == "Auto" || theme.DisplayMode == "Gauges";
-        ChkStorageScreen.IsChecked = theme.DisplayMode == "Auto" || theme.DisplayMode == "Storage";
+        ChkGaugesScreen.IsChecked = theme.ShowGaugesScreen;
+        ChkStorageScreen.IsChecked = theme.ShowStorageScreen;
 
-        // Ordering List
+        // Plugins
+        PluginSettings.Clear();
+        if (_pluginManager != null)
+        {
+            foreach (var plugin in _pluginManager.LoadedPlugins)
+            {
+                bool isEnabled = theme.EnabledPlugins != null && theme.EnabledPlugins.Contains(plugin.Name);
+                PluginSettings.Add(new PluginToggle { Name = plugin.Name, IsEnabled = isEnabled });
+            }
+        }
+        else
+        {
+            // Fallback for design-time or if manager is missing
+            foreach (var pName in theme.EnabledPlugins ?? new List<string>())
+            {
+                PluginSettings.Add(new PluginToggle { Name = pName, IsEnabled = true });
+            }
+        }
+
+        // Gauges Ordering List
         ActiveMonitors.Clear();
         foreach (var m in theme.ActiveMonitorsOrder) ActiveMonitors.Add(m);
+
+        // Global Screen Rotation Sequence
+        ScreenRotationList.Clear();
+        if (theme.ScreenRotationOrder == null || theme.ScreenRotationOrder.Count == 0)
+        {
+            // Fallback default
+            theme.ScreenRotationOrder = new List<string> { "Gauges", "Storage" };
+            foreach(var p in theme.EnabledPlugins) theme.ScreenRotationOrder.Add(p);
+        }
+
+        foreach (var s in theme.ScreenRotationOrder) ScreenRotationList.Add(s);
 
         // Images
         TxtLogo.Text = theme.LogoPath;
         TxtBgImage.Text = theme.BackgroundImagePath;
+        SldOpacity.Value = theme.BackgroundOpacity;
+        
         // Transition Delay
         SldInterval.Value = theme.TransitionDelaySeconds;
 
@@ -88,12 +151,11 @@ public partial class SettingsWindow : Window
         theme.IsMotherboardEnabled = ChkMotherboard.IsChecked ?? false;
         theme.IsNetworkEnabled = ChkNetwork.IsChecked ?? false;
 
-        if (ChkGaugesScreen.IsChecked == true && ChkStorageScreen.IsChecked == true)
-            theme.DisplayMode = "Auto";
-        else if (ChkGaugesScreen.IsChecked == true)
-            theme.DisplayMode = "Gauges";
-        else
-            theme.DisplayMode = "Storage";
+        theme.ShowGaugesScreen = ChkGaugesScreen.IsChecked ?? true;
+        theme.ShowStorageScreen = ChkStorageScreen.IsChecked ?? true;
+
+        theme.EnabledPlugins = PluginSettings.Where(ps => ps.IsEnabled).Select(ps => ps.Name).ToList();
+        theme.ScreenRotationOrder = ScreenRotationList.ToList();
         
         theme.ActiveMonitorsOrder = ActiveMonitors.ToList();
 
@@ -197,8 +259,8 @@ public partial class SettingsWindow : Window
         {
             var map = new System.Collections.Generic.Dictionary<string, string>
             {
-                { "ChkCpu", "CPU" }, { "ChkGpu", "GPU" }, { "ChkMemory", "RAM" },
-                { "ChkMotherboard", "MOTHERBOARD" }, { "ChkNetwork", "NETWORK" }
+                { "ChkCpu", Constants.GaugeCpu }, { "ChkGpu", Constants.GaugeGpu }, { "ChkMemory", Constants.GaugeRam },
+                { "ChkMotherboard", Constants.GaugeMotherboard }, { "ChkNetwork", Constants.GaugeNetwork }
             };
 
             if (map.TryGetValue(chk.Name, out var monitorName))
@@ -207,7 +269,7 @@ public partial class SettingsWindow : Window
                 {
                     if (ActiveMonitors.Count >= 3)
                     {
-                        MessageBox.Show(this, "Maximum of 3 monitors can be displayed at a time.", "Limit Reached", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Maximum of 3 monitors can be displayed at a time.", "Limit Reached");
                         _isInitializing = true;
                         chk.IsChecked = false;
                         _isInitializing = false;
@@ -228,17 +290,108 @@ public partial class SettingsWindow : Window
     {
         if (_isInitializing) return;
 
-        if (ChkGaugesScreen.IsChecked == false && ChkStorageScreen.IsChecked == false)
+        // Prevent unchecking everything
+        int activeCount = (ChkGaugesScreen.IsChecked == true ? 1 : 0) + 
+                          (ChkStorageScreen.IsChecked == true ? 1 : 0) + 
+                          PluginSettings.Count(ps => ps.IsEnabled);
+
+        if (activeCount == 0)
         {
-            MessageBox.Show(this, "At least one screen must be active.", "Requirement", MessageBoxButton.OK, MessageBoxImage.Information);
+            PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "At least one screen must be active.", "Requirement");
             _isInitializing = true;
-            if (sender == ChkGaugesScreen) ChkGaugesScreen.IsChecked = true;
-            else if (sender == ChkStorageScreen) ChkStorageScreen.IsChecked = true;
+            if (sender is CheckBox cb) cb.IsChecked = true;
             _isInitializing = false;
             return;
         }
 
+        UpdateScreenRotationList();
         UpdateThemeObject();
+    }
+
+    private void OnPluginSettingChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+        
+        // Ensure the model is updated before we rebuild the list
+        if (sender is CheckBox cb && cb.DataContext is PluginToggle toggle)
+        {
+            // Temporarily store old value for rollback
+            bool oldVal = toggle.IsEnabled;
+            toggle.IsEnabled = cb.IsChecked ?? false;
+
+            // Prevent unchecking everything
+            int activeCount = (ChkGaugesScreen.IsChecked == true ? 1 : 0) + 
+                              (ChkStorageScreen.IsChecked == true ? 1 : 0) + 
+                              PluginSettings.Count(ps => ps.IsEnabled);
+
+            if (activeCount == 0)
+            {
+                PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "At least one screen must be active.", "Requirement");
+                _isInitializing = true;
+                toggle.IsEnabled = true;
+                cb.IsChecked = true;
+                _isInitializing = false;
+                return;
+            }
+        }
+
+        UpdateScreenRotationList();
+        UpdateThemeObject();
+    }
+
+    private void UpdateScreenRotationList()
+    {
+        // Add/Remove items from ScreenRotationList based on current checkboxes
+        // but preserve order if they already exist
+        var activeItems = new List<string>();
+        if (ChkGaugesScreen.IsChecked == true) activeItems.Add("Gauges");
+        if (ChkStorageScreen.IsChecked == true) activeItems.Add("Storage");
+        foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
+
+        // 1. Remove items no longer active
+        for (int i = ScreenRotationList.Count - 1; i >= 0; i--)
+        {
+            if (!activeItems.Contains(ScreenRotationList[i])) ScreenRotationList.RemoveAt(i);
+        }
+
+        // 2. Add new active items 
+        foreach(var item in activeItems)
+        {
+            if (!ScreenRotationList.Contains(item)) ScreenRotationList.Add(item);
+        }
+
+        // 3. User requested "Main Dashboard will always be first"
+        if (ScreenRotationList.Contains("Gauges") && ScreenRotationList[0] != "Gauges")
+        {
+            ScreenRotationList.Remove("Gauges");
+            ScreenRotationList.Insert(0, "Gauges");
+        }
+    }
+
+    private void BtnMoveScreenUp_Click(object sender, RoutedEventArgs e)
+    {
+        int idx = LstScreenOrder.SelectedIndex;
+        if (idx > 1) // 0 is Gauges, locked
+        {
+            var item = ScreenRotationList[idx];
+            ScreenRotationList.RemoveAt(idx);
+            ScreenRotationList.Insert(idx - 1, item);
+            LstScreenOrder.SelectedIndex = idx - 1;
+            UpdateThemeObject();
+        }
+    }
+
+    private void BtnMoveScreenDown_Click(object sender, RoutedEventArgs e)
+    {
+        int idx = LstScreenOrder.SelectedIndex;
+        if (idx >= 1 && idx < ScreenRotationList.Count - 1) // 0 is Gauges, locked
+        {
+            var item = ScreenRotationList[idx];
+            ScreenRotationList.RemoveAt(idx);
+            ScreenRotationList.Insert(idx + 1, item);
+            LstScreenOrder.SelectedIndex = idx + 1;
+            UpdateThemeObject();
+        }
     }
 
     private void SldOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateThemeObject();
@@ -263,7 +416,7 @@ public partial class SettingsWindow : Window
     {
         UpdateThemeObject();
         _themeService.SaveTheme(true);
-        MessageBox.Show(this, "Settings saved successfully!", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Settings saved successfully!", "Saved");
     }
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();

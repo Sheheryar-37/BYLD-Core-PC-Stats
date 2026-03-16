@@ -238,146 +238,176 @@
 
                 <!-- LAYOUT -->
                 <TabItem Header="Layout">
-                    <Grid Margin="5,10">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="1.1*"/>
-                            <ColumnDefinition Width="0.9*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                            <Border Style="{StaticResource SectionBorderStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="DASHBOARD TOGGLES" Style="{StaticResource SectionHeaderStyle}"/>
-                                    <CheckBox x:Name="ChkGaugesScreen" Content="Gauges Dashboard" Click="OnScreenSettingChanged"/>
-                                    <CheckBox x:Name="ChkStorageScreen" Content="Storage Dashboard" Click="OnScreenSettingChanged"/>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource SectionBorderStyle}">
-                                <StackPanel>
-                                    <TextBlock Text="SENSORS" Style="{StaticResource SectionHeaderStyle}"/>
-                                    <UniformGrid Columns="2">
-                                        <CheckBox x:Name="ChkCpu" Content="CPU" Click="OnSettingChanged"/>
-                                        <CheckBox x:Name="ChkGpu" Content="GPU" Click="OnSettingChanged"/>
-                                        <CheckBox x:Name="ChkMemory" Content="RAM" Click="OnSettingChanged"/>
-                                        <CheckBox x:Name="ChkMotherboard" Content="Board" Click="OnSettingChanged"/>
-                                        <CheckBox x:Name="ChkNetwork" Content="Network" Click="OnSettingChanged"/>
-                                    </UniformGrid>
-                                </StackPanel>
-                            </Border>
-
-                            <Border Style="{StaticResource SectionBorderStyle}" Margin="0">
-                                <StackPanel>
-                                    <TextBlock Text="ROTATION TIMING" Style="{StaticResource SectionHeaderStyle}"/>
-                                    <Grid Margin="0,5,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="40"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <TextBlock x:Name="LblInterval" Text="{Binding Value, ElementName=SldInterval, StringFormat={}{0:0}s}" Foreground="{StaticResource BrandBlue}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                        <Slider x:Name="SldInterval" Grid.Column="1" Minimum="3" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SldInterval_ValueChanged" VerticalAlignment="Center"/>
-                                    </Grid>
-                                </StackPanel>
-                            </Border>
-                        </StackPanel>
-
-                        <Border Grid.Column="1" Style="{StaticResource SectionBorderStyle}" Margin="0">
-                            <Grid>
-                                <Grid.RowDefinitions>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="*"/>
-                                    <RowDefinition Height="Auto"/>
-                                    <RowDefinition Height="Auto"/>
-                                </Grid.RowDefinitions>
-                                <TextBlock Text="ORDERING &amp; SIZING" Style="{StaticResource SectionHeaderStyle}"/>
-                                <Border Grid.Row="1" CornerRadius="6" Background="#11FFFFFF" Margin="0,0,0,15">
-                                    <ListBox x:Name="LstOrder" Background="Transparent" Foreground="#FFF" BorderThickness="0" SelectionChanged="LstOrder_SelectionChanged">
-                                        <ListBox.ItemContainerStyle>
-                                            <Style TargetType="ListBoxItem">
-                                                <Setter Property="Padding" Value="0"/>
-                                                <Setter Property="Template">
-                                                    <Setter.Value>
-                                                        <ControlTemplate TargetType="ListBoxItem">
-                                                            <Border x:Name="ItemBorder" Padding="8,6" Background="Transparent" CornerRadius="6" Margin="2">
-                                                                <ContentPresenter/>
-                                                            </Border>
-                                                            <ControlTemplate.Triggers>
-                                                                <Trigger Property="IsSelected" Value="True">
-                                                                    <Setter TargetName="ItemBorder" Property="Background" Value="#333b82f6"/>
-                                                                    <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#3b82f6"/>
-                                                                    <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1"/>
-                                                                </Trigger>
-                                                                <Trigger Property="IsMouseOver" Value="True">
-                                                                    <Setter TargetName="ItemBorder" Property="Background" Value="#11FFFFFF"/>
-                                                                </Trigger>
-                                                            </ControlTemplate.Triggers>
-                                                        </ControlTemplate>
-                                                    </Setter.Value>
-                                                </Setter>
-                                            </Style>
-                                        </ListBox.ItemContainerStyle>
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <TextBlock Text="{Binding}" Foreground="#EEE" FontSize="11" Margin="0" Cursor="Hand"/>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <Grid Margin="5,10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.1*"/>
+                                <ColumnDefinition Width="0.9*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <Border Style="{StaticResource SectionBorderStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="SCREEN TOGGLES" Style="{StaticResource SectionHeaderStyle}"/>
+                                        <CheckBox x:Name="ChkGaugesScreen" Content="Gauges Dashboard" Click="OnScreenSettingChanged"/>
+                                        <CheckBox x:Name="ChkStorageScreen" Content="Storage Dashboard" Click="OnScreenSettingChanged"/>
+                                        
+                                        <TextBlock Text="PLUGINS" Style="{StaticResource SectionHeaderStyle}" Margin="0,15,0,10" FontSize="10" Opacity="0.6"/>
+                                        <ItemsControl x:Name="ItemsPlugins">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <CheckBox Content="{Binding Name}" IsChecked="{Binding IsEnabled, Mode=TwoWay}" Click="OnPluginSettingChanged" Tag="{Binding Name}"/>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
                                 </Border>
 
-                                <!-- Size & Position Config -->
-                                <StackPanel x:Name="PnlGaugeConfig" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,15">
-                                    <TextBlock x:Name="LblConfigTitle" Text="SELECTED CONFIG" FontSize="10" Opacity="0.7" Margin="0,0,0,8" FontWeight="Bold" Foreground="{StaticResource BrandBlue}"/>
-                                    
-                                    <UniformGrid Columns="2" Margin="0,5,0,15">
-                                        <!-- Sizing Controls -->
-                                        <StackPanel Margin="0,0,10,0" VerticalAlignment="Center">
-                                            <TextBlock Text="SIZE" FontSize="9" Opacity="0.6" HorizontalAlignment="Center" Margin="0,0,0,6"/>
-                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                                                <Button x:Name="BtnGaugeScaleDown" Content="-" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0"/>
-                                                <Button x:Name="BtnGaugeScaleUp" Content="+" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0" Margin="8,0,0,0"/>
-                                            </StackPanel>
-                                        </StackPanel>
+                                <Border Style="{StaticResource SectionBorderStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="GAUGES SCREEN SENSORS" Style="{StaticResource SectionHeaderStyle}"/>
+                                        <UniformGrid Columns="2">
+                                            <CheckBox x:Name="ChkCpu" Content="CPU" Click="OnSettingChanged"/>
+                                            <CheckBox x:Name="ChkGpu" Content="GPU" Click="OnSettingChanged"/>
+                                            <CheckBox x:Name="ChkMemory" Content="RAM" Click="OnSettingChanged"/>
+                                            <CheckBox x:Name="ChkMotherboard" Content="Board" Click="OnSettingChanged"/>
+                                            <CheckBox x:Name="ChkNetwork" Content="Network" Click="OnSettingChanged"/>
+                                        </UniformGrid>
+                                    </StackPanel>
+                                </Border>
 
-                                        <!-- Positioning (Joystick D-pad) -->
-                                        <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
-                                            <Grid.RowDefinitions>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                                <RowDefinition Height="Auto"/>
-                                            </Grid.RowDefinitions>
+                                <Border Style="{StaticResource SectionBorderStyle}" Margin="0,0,0,20">
+                                    <StackPanel>
+                                        <TextBlock Text="ROTATION TIMING" Style="{StaticResource SectionHeaderStyle}"/>
+                                        <Grid Margin="0,5,0,0">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="40"/>
+                                                <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-
-                                            <!-- Up -->
-                                            <Button x:Name="BtnGaugeUp" Grid.Row="0" Grid.Column="1" Content="▲" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
-                                            <!-- Left -->
-                                            <Button x:Name="BtnGaugeLeft" Grid.Row="1" Grid.Column="0" Content="◀" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
-                                            <!-- Reset/Center -->
-                                            <Button x:Name="BtnGaugeReset" Grid.Row="1" Grid.Column="1" Content="•" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource PrimaryButtonStyle}" FontSize="14" Padding="0" ToolTip="Reset to Default"/>
-                                            <!-- Right -->
-                                            <Button x:Name="BtnGaugeRight" Grid.Row="1" Grid.Column="2" Content="▶" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
-                                            <!-- Down -->
-                                            <Button x:Name="BtnGaugeDown" Grid.Row="2" Grid.Column="1" Content="▼" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
+                                            <TextBlock x:Name="LblInterval" Text="{Binding Value, ElementName=SldInterval, StringFormat={}{0:0}s}" Foreground="{StaticResource BrandBlue}" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <Slider x:Name="SldInterval" Grid.Column="1" Minimum="3" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SldInterval_ValueChanged" VerticalAlignment="Center"/>
                                         </Grid>
-                                    </UniformGrid>
-                                    
-                                    <TextBlock Text="Tip: Select a gauge from the list above to adjust." FontSize="8" Opacity="0.4" HorizontalAlignment="Center" FontStyle="Italic"/>
-                                </StackPanel>
+                                    </StackPanel>
+                                </Border>
 
-                                <Grid Grid.Row="3">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Button Content="UP" Margin="0,0,4,0" Click="BtnMoveUp_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10"/>
-                                    <Button Grid.Column="1" Content="DOWN" Margin="4,0,0,0" Click="BtnMoveDown_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10"/>
+                                <Border Style="{StaticResource SectionBorderStyle}" Margin="0">
+                                    <StackPanel>
+                                        <TextBlock Text="SCREEN ROTATION ORDER" Style="{StaticResource SectionHeaderStyle}"/>
+                                        <Border CornerRadius="6" Background="#11FFFFFF" Height="120" Margin="0,0,0,10">
+                                            <ListBox x:Name="LstScreenOrder" Background="Transparent" Foreground="#FFF" BorderThickness="0">
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding}" Foreground="#EEE" FontSize="11" Margin="2"/>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </Border>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <Button Content="▲" Width="30" Height="25" Click="BtnMoveScreenUp_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,0,5,0"/>
+                                            <Button Content="▼" Width="30" Height="25" Click="BtnMoveScreenDown_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+
+                            <Border Grid.Column="1" Style="{StaticResource SectionBorderStyle}" Margin="0">
+                                <Grid>
+                                    <Grid.RowDefinitions>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
+                                        <RowDefinition Height="Auto"/>
+                                    </Grid.RowDefinitions>
+                                    <TextBlock Text="GAUGES SCREEN WIDGETS" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <Border Grid.Row="1" CornerRadius="6" Background="#11FFFFFF" Margin="0,0,0,15">
+                                        <ListBox x:Name="LstOrder" Background="Transparent" Foreground="#FFF" BorderThickness="0" SelectionChanged="LstOrder_SelectionChanged">
+                                            <ListBox.ItemContainerStyle>
+                                                <Style TargetType="ListBoxItem">
+                                                    <Setter Property="Padding" Value="0"/>
+                                                    <Setter Property="Template">
+                                                        <Setter.Value>
+                                                            <ControlTemplate TargetType="ListBoxItem">
+                                                                <Border x:Name="ItemBorder" Padding="8,6" Background="Transparent" CornerRadius="6" Margin="2">
+                                                                    <ContentPresenter/>
+                                                                </Border>
+                                                                <ControlTemplate.Triggers>
+                                                                    <Trigger Property="IsSelected" Value="True">
+                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="#333b82f6"/>
+                                                                        <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#3b82f6"/>
+                                                                        <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1"/>
+                                                                    </Trigger>
+                                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="#11FFFFFF"/>
+                                                                    </Trigger>
+                                                                </ControlTemplate.Triggers>
+                                                            </ControlTemplate>
+                                                        </Setter.Value>
+                                                    </Setter>
+                                                </Style>
+                                            </ListBox.ItemContainerStyle>
+                                            <ListBox.ItemTemplate>
+                                                <DataTemplate>
+                                                    <TextBlock Text="{Binding}" Foreground="#EEE" FontSize="11" Margin="0" Cursor="Hand"/>
+                                                </DataTemplate>
+                                            </ListBox.ItemTemplate>
+                                        </ListBox>
+                                    </Border>
+
+                                    <!-- Size & Position Config -->
+                                    <StackPanel x:Name="PnlGaugeConfig" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,15">
+                                        <TextBlock x:Name="LblConfigTitle" Text="SELECTED CONFIG" FontSize="10" Opacity="0.7" Margin="0,0,0,8" FontWeight="Bold" Foreground="{StaticResource BrandBlue}"/>
+                                        
+                                        <UniformGrid Columns="2" Margin="0,5,0,15">
+                                            <!-- Sizing Controls -->
+                                            <StackPanel Margin="0,0,10,0" VerticalAlignment="Center">
+                                                <TextBlock Text="SIZE" FontSize="9" Opacity="0.6" HorizontalAlignment="Center" Margin="0,0,0,6"/>
+                                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                    <Button x:Name="BtnGaugeScaleDown" Content="-" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0"/>
+                                                    <Button x:Name="BtnGaugeScaleUp" Content="+" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0" Margin="8,0,0,0"/>
+                                                </StackPanel>
+                                            </StackPanel>
+
+                                            <!-- Positioning (Joystick D-pad) -->
+                                            <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <!-- Up -->
+                                                <Button x:Name="BtnGaugeUp" Grid.Row="0" Grid.Column="1" Content="▲" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
+                                                <!-- Left -->
+                                                <Button x:Name="BtnGaugeLeft" Grid.Row="1" Grid.Column="0" Content="◀" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
+                                                <!-- Reset/Center -->
+                                                <Button x:Name="BtnGaugeReset" Grid.Row="1" Grid.Column="1" Content="•" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource PrimaryButtonStyle}" FontSize="14" Padding="0" ToolTip="Reset to Default"/>
+                                                <!-- Right -->
+                                                <Button x:Name="BtnGaugeRight" Grid.Row="1" Grid.Column="2" Content="▶" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
+                                                <!-- Down -->
+                                                <Button x:Name="BtnGaugeDown" Grid.Row="2" Grid.Column="1" Content="▼" Width="30" Height="30" Margin="2" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Padding="0"/>
+                                            </Grid>
+                                        </UniformGrid>
+                                        
+                                        <TextBlock Text="Tip: Select a gauge from the list above to adjust." FontSize="8" Opacity="0.4" HorizontalAlignment="Center" FontStyle="Italic"/>
+                                    </StackPanel>
+
+                                    <Grid Grid.Row="3">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Button Content="UP" Margin="0,0,4,0" Click="BtnMoveUp_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10"/>
+                                        <Button Grid.Column="1" Content="DOWN" Margin="4,0,0,0" Click="BtnMoveDown_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10"/>
+                                    </Grid>
                                 </Grid>
-                            </Grid>
-                        </Border>
-                    </Grid>
+                            </Border>
+                        </Grid>
+                    </ScrollViewer>
                 </TabItem>
 
                 <!-- IMAGES -->

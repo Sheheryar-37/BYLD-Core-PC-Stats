@@ -1,5 +1,12 @@
 namespace PcStatsMonitor.Models;
 
+public enum DisplayMode
+{
+    Auto,
+    Gauges,
+    Storage
+}
+
 /// <summary>
 /// Centralized constants used across the application.
 /// </summary>
@@ -17,6 +24,20 @@ public static class Constants
     public const string DefaultThemeTrack = "#0B0B0B";
     public const string DefaultThemeAlert = "#FF4022";
     public const string DefaultFontFamily = "Mucho Sans";
+    public const string DefaultFontWeight = "SemiBold";
+    
+    // Display Modes
+    public const string ModeAuto = "Auto";
+    public const string ModeGauges = "Gauges";
+    public const string ModeStorage = "Storage";
+
+    // Gauge Identifiers
+    public const string GaugeGpu = "GPU";
+    public const string GaugeCpu = "CPU";
+    public const string GaugeRam = "RAM";
+    public const string GaugeMotherboard = "MOTHERBOARD";
+    public const string GaugeNetwork = "NETWORK";
+    public const string GaugeStorage = "STORAGE";
     
     // UI Layout Defaults
     public const int DefaultWindowWidth = 480;
@@ -25,6 +46,10 @@ public static class Constants
 
     // Default Fallback Strings (For Hardware Monitoring)
     public const string DefaultMemorySensorName = "Memory";
+    
+    // Throughput labels
+    public const string NetUpload = "Upload";
+    public const string NetDownload = "Download";
     public const string FallbackDriveVendor = "NOT FOUND";
     public const string FallbackPrimaryDriveModel = "No primary drive detected";
     public const string FallbackSecondaryDriveModel = "No secondary drive detected";

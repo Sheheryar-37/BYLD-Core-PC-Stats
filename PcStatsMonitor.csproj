@@ -8,7 +8,7 @@
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\icon-black.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\byld-icon.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
@@ -26,6 +26,16 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Remove="PcStatsMonitor.PluginApi\**" />
+    <EmbeddedResource Remove="PcStatsMonitor.PluginApi\**" />
+    <None Remove="PcStatsMonitor.PluginApi\**" />
+    <Page Remove="PcStatsMonitor.PluginApi\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="PcStatsMonitor.PluginApi\PcStatsMonitor.PluginApi.csproj" />
   </ItemGroup>
   <!-- Ensure WinRing0x64.sys is in the publish output directory -->
   <Target Name="CopyWinRing0" AfterTargets="Build;Publish">

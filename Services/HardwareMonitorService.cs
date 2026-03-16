@@ -16,12 +16,15 @@ public interface IHardwareMonitorService
     event EventHandler<HardwareMetrics>? MetricsUpdated;
 }
 
-public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
-{
-    private readonly ILogger<HardwareMonitorService> _logger;
-    private readonly IThemeService _themeService;
-    private readonly Computer _computer;
-    private HardwareMetrics _currentMetrics = new();
+    /// <summary>
+    /// Background service that continuously polls hardware sensors and updates the UI metrics.
+    /// </summary>
+    public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
+    {
+        private readonly ILogger<HardwareMonitorService> _logger;
+        private readonly IThemeService _themeService;
+        private readonly Computer _computer;
+        private HardwareMetrics _currentMetrics = new();
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -54,6 +57,9 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
         }
     }
 
+    /// <summary>
+    /// Direct access to the most recently polled hardware state.
+    /// </summary>
     public HardwareMetrics GetCurrentMetrics() => _currentMetrics;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -76,6 +82,9 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
         _computer.Close();
     }
 
+    /// <summary>
+    /// Iterates through all detected hardware components and triggers sensor reads.
+    /// </summary>
     private void UpdateMetrics()
     {
         var metrics = new HardwareMetrics();
@@ -217,9 +226,13 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
                 }
             }
         }
-        else if (hardware.HardwareType == HardwareType.Memory)
+        else if (hardware.HardwareType == HardwareType.Memory || hardware.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase))
         {
-            metrics.RamLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.RamLoad) ?? 0;
+            var load = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.RamLoad) 
+                    ?? GetFirstSensorValue(hardware, SensorType.Load);
+            
+            if (load.HasValue) metrics.RamLoad = load.Value;
+
             metrics.RamUsedGb = GetSensorValue(hardware, SensorType.Data, Constants.SensorDataMemoryUsed) ?? 0;
             var available = GetSensorValue(hardware, SensorType.Data, Constants.SensorDataMemoryAvailable) ?? 0;
             metrics.RamTotalGb = metrics.RamUsedGb + available;
@@ -259,8 +272,8 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
         }
         else if (hardware.HardwareType == HardwareType.Network)
         {
-            metrics.NetworkUp += GetSensorValue(hardware, SensorType.Throughput, "Upload") ?? 0;
-            metrics.NetworkDown += GetSensorValue(hardware, SensorType.Throughput, "Download") ?? 0;
+            metrics.NetworkUp += GetSensorValue(hardware, SensorType.Throughput, Constants.NetUpload) ?? 0;
+            metrics.NetworkDown += GetSensorValue(hardware, SensorType.Throughput, Constants.NetDownload) ?? 0;
         }
     }
 

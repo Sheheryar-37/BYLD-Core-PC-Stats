@@ -24,19 +24,26 @@ public class ThemeConfig
     
     // ── Typography ───────────────────────────────────────────────────────────
     public string FontFamily { get; set; } = Constants.DefaultFontFamily; // Or exact font if provided, configurable by user
-    public string FontWeight { get; set; } = "SemiBold";
+    public string FontWeight { get; set; } = Constants.DefaultFontWeight;
 
     // ── Transition ───────────────────────────────────────────────────────────
     public int TransitionDelaySeconds { get; set; } = Constants.DefaultTransitionDelaySeconds;
-    public string DisplayMode { get; set; } = "Auto"; // "Auto", "Gauges", or "Storage"
+    public DisplayMode DisplayMode { get; set; } = DisplayMode.Auto;
+
+    // ── Screen Visibility (Rotation Toggles) ─────────────────────────────────
+    public bool ShowGaugesScreen { get; set; } = true;
+    public bool ShowStorageScreen { get; set; } = true;
+    public List<string> EnabledPlugins { get; set; } = new() { "System Clock", "Fan & RGB Controller" };
+
+    // ── Rotation Order (Identifiers: "Gauges", "Storage", or Plugin Name) ────
+    public List<string> ScreenRotationOrder { get; set; } = new() { "Gauges", "Storage" };
 
     // ── Thermal Alerts ───────────────────────────────────────────────────────
     public double CriticalCpuTemp { get; set; } = 85.0;
     public double CriticalGpuTemp { get; set; } = 85.0;
 
     // ── Hardware Toggles (configurable without recompiling) ──────────────────
-    //public List<string> ActiveMonitorsOrder { get; set; } = new() { "GPU", "CPU", "RAM", "STORAGE" };
-    public List<string> ActiveMonitorsOrder { get; set; } = new() { "GPU", "CPU", "RAM" };
+    public List<string> ActiveMonitorsOrder { get; set; } = new() { Constants.GaugeGpu, Constants.GaugeCpu, Constants.GaugeRam };
 
     public bool IsCpuEnabled { get; set; } = true;
     public bool IsGpuEnabled { get; set; } = true;
@@ -47,13 +54,13 @@ public class ThemeConfig
     
     // ── Gauge Sizes & Alignment ──────────────────────────────────────────────
     public Dictionary<string, double> GaugeScales { get; set; } = new(StringComparer.OrdinalIgnoreCase) {
-        { "GPU", 1.0 }, { "CPU", 1.0 }, { "RAM", 1.0 }, { "MOTHERBOARD", 1.0 }, { "NETWORK", 1.0 }
+        { Constants.GaugeGpu, 1.0 }, { Constants.GaugeCpu, 1.0 }, { Constants.GaugeRam, 1.0 }, { Constants.GaugeMotherboard, 1.0 }, { Constants.GaugeNetwork, 1.0 }
     };
     public Dictionary<string, double> GaugeOffsetsY { get; set; } = new(StringComparer.OrdinalIgnoreCase) {
-        { "GPU", 0.0 }, { "CPU", 0.0 }, { "RAM", 0.0 }, { "MOTHERBOARD", 0.0 }, { "NETWORK", 0.0 }
+        { Constants.GaugeGpu, 0.0 }, { Constants.GaugeCpu, 0.0 }, { Constants.GaugeRam, 0.0 }, { Constants.GaugeMotherboard, 0.0 }, { Constants.GaugeNetwork, 0.0 }
     };
     public Dictionary<string, double> GaugeOffsetsX { get; set; } = new(StringComparer.OrdinalIgnoreCase) {
-        { "GPU", 0.0 }, { "CPU", 0.0 }, { "RAM", 0.0 }, { "MOTHERBOARD", 0.0 }, { "NETWORK", 0.0 }
+        { Constants.GaugeGpu, 0.0 }, { Constants.GaugeCpu, 0.0 }, { Constants.GaugeRam, 0.0 }, { Constants.GaugeMotherboard, 0.0 }, { Constants.GaugeNetwork, 0.0 }
     };
 
     

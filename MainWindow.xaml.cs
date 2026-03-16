@@ -3,13 +3,17 @@ using System.Windows;
 using System.Windows.Input;
 using System.Windows.Threading;
 using PcStatsMonitor.ViewModels;
+using PcStatsMonitor.Services;
+using PcStatsMonitor.Models;
 
 namespace PcStatsMonitor;
 
 public partial class MainWindow : Window
 {
     private readonly DispatcherTimer _transitionTimer;
-    private bool _showingGauges = true;
+    private int _currentScreenIndex = 0; // 0 = Gauges, 1 = Storage, 2+ = Plugins
+    public PluginManager PluginManager => _pluginManager;
+    private PluginManager _pluginManager;
 
     public MainWindow(MainViewModel viewModel)
     {
@@ -37,104 +41,228 @@ public partial class MainWindow : Window
         // Start initial timer
         _transitionTimer.Interval = TimeSpan.FromSeconds(viewModel.Theme.TransitionDelaySeconds);
         _transitionTimer.Start();
-        
-        _showingGauges = true;
+        _currentScreenIndex = 0;
         EvaluateScreenVisibility(animate: false);
+        
+        // Initialize Plugins
+        _pluginManager = new PluginManager();
+        _pluginManager.LoadPlugins();
+        foreach(var plugin in _pluginManager.LoadedPlugins)
+        {
+            try
+            {
+                plugin.Initialize(_transitionTimer);
+            }
+            catch (Exception ex)
+            {
+                System.Diagnostics.Debug.WriteLine($"Error initializing plugin: {ex.Message}");
+            }
+        }
+        
+        viewModel.PropertyChanged += (s, e) =>
+        {
+            if (e.PropertyName == nameof(viewModel.Metrics))
+            {
+                if (_pluginManager?.LoadedPlugins == null) return;
+                
+                foreach(var plugin in _pluginManager.LoadedPlugins)
+                {
+                    try 
+                    { 
+                        plugin.Update(viewModel.Metrics); 
+                    } 
+                    catch (Exception ex)
+                    {
+                        System.Diagnostics.Debug.WriteLine($"Error updating plugin '{plugin.Name}': {ex.Message}");
+                    }
+                }
+            }
+        };
+
+        Loaded += (s, e) => SnapToInternalMonitor();
+    }
+
+    private void SnapToInternalMonitor()
+    {
+        var screens = System.Windows.Forms.Screen.AllScreens;
+        if (screens.Length > 1)
+        {
+            // Look for a vertical screen first, otherwise pick the first non-primary screen
+            var targetScreen = screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width) 
+                               ?? screens.FirstOrDefault(s => !s.Primary);
+
+            if (targetScreen != null)
+            {
+                this.WindowState = WindowState.Normal;
+                this.Left = targetScreen.WorkingArea.Left;
+                this.Top = targetScreen.WorkingArea.Top;
+                this.Width = targetScreen.WorkingArea.Width;
+                this.Height = targetScreen.WorkingArea.Height;
+                this.WindowState = WindowState.Maximized;
+            }
+        }
     }
 
     private void EvaluateScreenVisibility(bool animate = true)
     {
         var vm = DataContext as MainViewModel;
-        string mode = vm?.Theme?.DisplayMode ?? "Auto";
+        if (vm == null) return;
 
-        bool showGauges = _showingGauges;
-        if (mode.Equals("Gauges", StringComparison.OrdinalIgnoreCase))
+        var config = vm.Theme;
+        if (config == null) return;
+
+        // Ensure ScreenRotationOrder is initialized properly
+        if (config.ScreenRotationOrder == null || config.ScreenRotationOrder.Count == 0)
         {
-            showGauges = true;
-            _showingGauges = true;
-            _transitionTimer.Stop();
+            config.ScreenRotationOrder = new List<string> { "Gauges", "Storage" };
         }
-        else if (mode.Equals("Storage", StringComparison.OrdinalIgnoreCase))
+
+        // Synchronize missing enabled plugins into the rotation order
+        if (config.EnabledPlugins != null)
         {
-            showGauges = false;
-            _showingGauges = false;
-            _transitionTimer.Stop();
+            foreach (var p in config.EnabledPlugins)
+            {
+                if (!config.ScreenRotationOrder.Contains(p))
+                {
+                    config.ScreenRotationOrder.Add(p);
+                }
+            }
+        }
+
+        DisplayMode mode = config.DisplayMode; // We can still use this for manual overrides if needed
+
+        // If in Auto, resolve _currentScreenIndex to a screen name
+        string currentScreenName = "Gauges";
+        if (_currentScreenIndex >= 0 && _currentScreenIndex < config.ScreenRotationOrder.Count)
+        {
+            currentScreenName = config.ScreenRotationOrder[_currentScreenIndex];
+        }
+
+        // Map name to UI Elements
+        UIElement targetScreen = GaugesContainer;
+        bool currentScreenValid = false;
+
+        if (currentScreenName == "Gauges" && config.ShowGaugesScreen)
+        {
+            targetScreen = GaugesContainer;
+            currentScreenValid = true;
+        }
+        else if (currentScreenName == "Storage" && config.ShowStorageScreen)
+        {
+            targetScreen = SsdScreen;
+            currentScreenValid = true;
         }
         else
         {
-            // Auto mode
-            if (!_transitionTimer.IsEnabled) _transitionTimer.Start();
+            // Check plugins
+            var plugin = _pluginManager?.LoadedPlugins?.FirstOrDefault(p => p.Name == currentScreenName);
+            if (plugin != null && config.EnabledPlugins != null && config.EnabledPlugins.Contains(plugin.Name))
+            {
+                try
+                {
+                    PluginHost.Content = plugin.GetUI();
+                    targetScreen = PluginScreen;
+                    currentScreenValid = true;
+                }
+                catch (Exception ex)
+                {
+                    System.Diagnostics.Debug.WriteLine($"Error displaying plugin: {ex.Message}");
+                }
+            }
         }
+
+        // If current screen is hidden or invalid, try to find the FIRST valid one in the order
+        if (!currentScreenValid)
+        {
+            for (int i = 0; i < config.ScreenRotationOrder.Count; i++)
+            {
+                string name = config.ScreenRotationOrder[i];
+                if (name == "Gauges" && config.ShowGaugesScreen) { targetScreen = GaugesContainer; _currentScreenIndex = i; currentScreenValid = true; break; }
+                if (name == "Storage" && config.ShowStorageScreen) { targetScreen = SsdScreen; _currentScreenIndex = i; currentScreenValid = true; break; }
+                
+                var p = _pluginManager?.LoadedPlugins?.FirstOrDefault(pl => pl.Name == name);
+                if (p != null && config.EnabledPlugins.Contains(p.Name))
+                {
+                    try { PluginHost.Content = p.GetUI(); targetScreen = PluginScreen; _currentScreenIndex = i; currentScreenValid = true; break; } catch { }
+                }
+            }
+
+            // Absolute fallback if everything is somehow broken
+            if (!currentScreenValid) targetScreen = GaugesContainer;
+        }
+
+        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen };
 
         if (animate)
         {
-            CrossFadeScreens(showGauges);
+            var duration = new Duration(TimeSpan.FromMilliseconds(800));
+            var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(0.0, duration);
+            var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(1.0, duration);
+
+            foreach(var screen in allScreens)
+            {
+                if (screen == targetScreen)
+                {
+                    screen.Visibility = Visibility.Visible;
+                    screen.IsHitTestVisible = true;
+                    screen.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+                }
+                else
+                {
+                    if (screen.Visibility == Visibility.Visible && screen.Opacity > 0)
+                    {
+                        screen.IsHitTestVisible = false;
+                        var fadeOutAnim = fadeOut.Clone();
+                        fadeOutAnim.Completed += (s, e) => { if (screen != targetScreen) screen.Visibility = Visibility.Hidden; };
+                        screen.BeginAnimation(UIElement.OpacityProperty, fadeOutAnim);
+                    }
+                }
+            }
         }
         else
         {
-            GaugesContainer.BeginAnimation(UIElement.OpacityProperty, null);
-            SsdScreen.BeginAnimation(UIElement.OpacityProperty, null);
-
-            GaugesContainer.Opacity = showGauges ? 1.0 : 0.0;
-            GaugesContainer.IsHitTestVisible = showGauges;
-            GaugesContainer.Visibility = showGauges ? Visibility.Visible : Visibility.Hidden;
-
-            SsdScreen.Opacity = showGauges ? 0.0 : 1.0;
-            SsdScreen.IsHitTestVisible = !showGauges;
-            SsdScreen.Visibility = showGauges ? Visibility.Hidden : Visibility.Visible;
-        }
-    }
-
-    private void CrossFadeScreens(bool showGauges)
-    {
-        var duration = new Duration(TimeSpan.FromMilliseconds(800));
-
-        if (showGauges) GaugesContainer.Visibility = Visibility.Visible;
-        else SsdScreen.Visibility = Visibility.Visible;
-
-        var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(0.0, duration);
-        var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(1.0, duration);
-
-        fadeOut.Completed += (s, e) => 
-        {
-            if (showGauges) SsdScreen.Visibility = Visibility.Hidden;
-            else GaugesContainer.Visibility = Visibility.Hidden;
-        };
-
-        if (showGauges)
-        {
-            GaugesContainer.IsHitTestVisible = true;
-            SsdScreen.IsHitTestVisible = false;
-            
-            GaugesContainer.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-            SsdScreen.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-        }
-        else
-        {
-            GaugesContainer.IsHitTestVisible = false;
-            SsdScreen.IsHitTestVisible = true;
-
-            GaugesContainer.BeginAnimation(UIElement.OpacityProperty, fadeOut);
-            SsdScreen.BeginAnimation(UIElement.OpacityProperty, fadeIn);
+            foreach(var screen in allScreens)
+            {
+                screen.BeginAnimation(UIElement.OpacityProperty, null);
+                bool isActive = (screen == targetScreen);
+                screen.Opacity = isActive ? 1.0 : 0.0;
+                screen.IsHitTestVisible = isActive;
+                screen.Visibility = isActive ? Visibility.Visible : Visibility.Hidden;
+            }
         }
     }
 
     private void TransitionTimer_Tick(object? sender, EventArgs e)
     {
         var vm = DataContext as MainViewModel;
-        string mode = vm?.Theme?.DisplayMode ?? "Auto";
+        if (vm == null || vm.Theme == null) return;
 
-        // Flip bool only if we are in alternating rotation mode
-        if (mode.Equals("Auto", StringComparison.OrdinalIgnoreCase))
+        var config = vm.Theme;
+        if (config.DisplayMode != DisplayMode.Auto) return;
+
+        int totalSlots = config.ScreenRotationOrder?.Count ?? 0;
+        if (totalSlots == 0) return;
+
+        // Move to next screen in order
+        _currentScreenIndex = (_currentScreenIndex + 1) % totalSlots;
+
+        // Safety: verify the new screen is actually enabled
+        // If not, it will be skipped by EvaluateScreenVisibility falling back to Gauges,
+        // but for smooth rotation let's try to find the next valid one here.
+        for (int i = 0; i < totalSlots; i++)
         {
-            _showingGauges = !_showingGauges;
-            EvaluateScreenVisibility(animate: true);
+            string name = config.ScreenRotationOrder[_currentScreenIndex];
+            bool isValid = false;
+            if (name == "Gauges" && config.ShowGaugesScreen) isValid = true;
+            else if (name == "Storage" && config.ShowStorageScreen) isValid = true;
+            else if (config.EnabledPlugins != null && config.EnabledPlugins.Contains(name)) isValid = true;
+
+            if (isValid) break;
+
+            _currentScreenIndex = (_currentScreenIndex + 1) % totalSlots;
         }
-        else
-        {
-            // If locked in static mode, ensure visibility is forcibly applied correctly (no animation)
-            EvaluateScreenVisibility(animate: false);
-        }
+        
+        EvaluateScreenVisibility(animate: true);
     }
 
     private void DualCircularGauge_Loaded(object sender, RoutedEventArgs e)
@@ -161,4 +289,4 @@ public class DictionaryValueConverter : System.Windows.Data.IMultiValueConverter
     {
         throw new NotImplementedException();
     }
-}
+}

@@ -46,7 +46,7 @@ public partial class App : Application
         _notifyIcon = new System.Windows.Forms.NotifyIcon();
         try
         {
-            var iconUri = new Uri("pack://application:,,,/Assets/byld-icon.png");
+            var iconUri = new Uri("pack://application:,,,/Assets/byld-icon.ico");
             var iconInfo = Application.GetResourceStream(iconUri);
             if (iconInfo != null)
             {
@@ -78,6 +78,8 @@ public partial class App : Application
     private void ShowSettings()
     {
         var themeService = _host.Services.GetRequiredService<IThemeService>();
+        var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+        
         foreach (Window window in Current.Windows)
         {
             if (window is SettingsWindow)
@@ -86,7 +88,7 @@ public partial class App : Application
                 return;
             }
         }
-        var settingsWindow = new SettingsWindow(themeService);
+        var settingsWindow = new SettingsWindow(themeService, mainWindow.PluginManager);
         settingsWindow.Show();
     }
 

@@ -159,9 +159,9 @@
                                                             <DataTemplate>
                                                                 <Border Width="192" Height="60" Margin="0,0,0,20" CornerRadius="12" Background="#11FFFFFF" Visibility="{Binding DataContext.Theme.IsNetworkEnabled, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVis}}">
                                                                     <Grid Margin="15,0">
-                                                                        <TextBlock Text="NETWORK UP/DOWN" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#DCDCDC'}" Opacity="0.5" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Top" Margin="0,8,0,0"/>
-                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkDown, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=DL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="12" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkUp, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=UL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="12" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,10"/>
+                                                                        <TextBlock Text="NETWORK UP/DOWN" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#DCDCDC'}" Opacity="0.8" FontSize="11" FontWeight="Bold" VerticalAlignment="Top" Margin="0,8,0,0"/>
+                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkDown, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=DL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="14" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkUp, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=UL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="14" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,10"/>
                                                                     </Grid>
                                                                 </Border>
                                                             </DataTemplate>
@@ -177,14 +177,16 @@
                     </ItemsControl>
                 </Viewbox>
 
+
+
                 <!-- Bottom text metrics -->
                 <Grid VerticalAlignment="Bottom" Margin="30,0,30,30">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{Binding Metrics.CpuClock, StringFormat=CPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.6" FontSize="11" FontWeight="{Binding Theme.FontWeight, FallbackValue=Normal}" HorizontalAlignment="Left" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
-                    <TextBlock Grid.Column="1" Text="{Binding Metrics.GpuClock, StringFormat=GPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.6" FontSize="11" FontWeight="{Binding Theme.FontWeight, FallbackValue=Normal}" HorizontalAlignment="Right" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
+                    <TextBlock Grid.Column="0" Text="{Binding Metrics.CpuClock, StringFormat=CPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.85" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Metrics.GpuClock, StringFormat=GPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.85" FontSize="13" FontWeight="Bold" HorizontalAlignment="Right" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
                 </Grid>
             </Grid>
 
@@ -272,6 +274,13 @@
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
+            </Grid>
+
+            <!-- Screen 3: Hero Plugin Screen. Shows one plugin at a time in rotation. -->
+            <Grid x:Name="PluginScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
+                
+                <ContentControl x:Name="PluginHost" Margin="0,100,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
             </Grid>
         </Grid>
     </Viewbox>
