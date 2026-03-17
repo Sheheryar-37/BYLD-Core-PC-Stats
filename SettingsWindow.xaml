@@ -327,6 +327,7 @@
                                         <TextBlock Text="SCREEN TOGGLES" Style="{StaticResource SectionHeaderStyle}"/>
                                         <CheckBox x:Name="ChkGaugesScreen" Content="Gauges Dashboard" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkStorageScreen" Content="Storage Dashboard" Click="OnScreenSettingChanged"/>
+                                        <CheckBox x:Name="ChkClockScreen" Content="Built-in Clock" Click="OnScreenSettingChanged"/>
                                         
                                         <TextBlock Text="PLUGINS" Style="{StaticResource SectionHeaderStyle}" Margin="0,15,0,10" FontSize="10" Opacity="0.6"/>
                                         <ItemsControl x:Name="ItemsPlugins">

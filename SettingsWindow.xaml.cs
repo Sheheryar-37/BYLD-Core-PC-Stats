@@ -87,6 +87,7 @@ public partial class SettingsWindow : Window
 
         ChkGaugesScreen.IsChecked = theme.ShowGaugesScreen;
         ChkStorageScreen.IsChecked = theme.ShowStorageScreen;
+        ChkClockScreen.IsChecked = theme.ShowClockScreen;
 
         // Plugins
         PluginSettings.Clear();
@@ -156,6 +157,7 @@ public partial class SettingsWindow : Window
 
         theme.ShowGaugesScreen = ChkGaugesScreen.IsChecked ?? true;
         theme.ShowStorageScreen = ChkStorageScreen.IsChecked ?? true;
+        theme.ShowClockScreen = ChkClockScreen.IsChecked ?? true;
 
         theme.EnabledPlugins = PluginSettings.Where(ps => ps.IsEnabled).Select(ps => ps.Name).ToList();
         theme.ScreenRotationOrder = ScreenRotationList.ToList();
@@ -298,6 +300,7 @@ public partial class SettingsWindow : Window
         // Prevent unchecking everything
         int activeCount = (ChkGaugesScreen.IsChecked == true ? 1 : 0) + 
                           (ChkStorageScreen.IsChecked == true ? 1 : 0) + 
+                          (ChkClockScreen.IsChecked == true ? 1 : 0) + 
                           PluginSettings.Count(ps => ps.IsEnabled);
 
         if (activeCount == 0)
@@ -351,6 +354,7 @@ public partial class SettingsWindow : Window
         var activeItems = new List<string>();
         if (ChkGaugesScreen.IsChecked == true) activeItems.Add("Gauges");
         if (ChkStorageScreen.IsChecked == true) activeItems.Add("Storage");
+        if (ChkClockScreen.IsChecked == true) activeItems.Add("Clock");
         foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
 
         // 1. Remove items no longer active
