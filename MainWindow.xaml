@@ -286,6 +286,8 @@
             <!-- Screen 4: Built-in Clock Screen -->
             <Grid x:Name="ClockScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
                 <controls:BuiltInClockScreen x:Name="BuiltInClock"/>
+                <!-- Logo sits ON TOP of the clock background, same as Gauges/Plugin screens -->
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
             </Grid>
 
         </Grid>

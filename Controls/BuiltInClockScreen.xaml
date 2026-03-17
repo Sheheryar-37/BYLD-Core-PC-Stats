@@ -20,18 +20,12 @@
              <!-- Main Content -->
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="160"/>   <!-- Space for Logo (handled by MainWindow) -->
+                <RowDefinition Height="160"/>   <!-- Gap for logo overlay from MainWindow -->
                 <RowDefinition Height="*"/>      <!-- Analog Clock -->
                 <RowDefinition Height="Auto"/>   <!-- Digital + Date -->
                 <RowDefinition Height="80"/>     <!-- Bottom padding -->
             </Grid.RowDefinitions>
 
-            <!-- Logo Area - binds to Window DataContext, same as Gauges screen -->
-            <Image x:Name="LogoImage" Grid.Row="0"
-                   Source="{Binding DataContext.Theme.LogoPath, RelativeSource={RelativeSource AncestorType=Window}}"
-                   Height="160" Margin="20,-20,0,0"
-                   VerticalAlignment="Top" HorizontalAlignment="Center"
-                   Stretch="Uniform"/>
             <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid x:Name="ClockContainer" RenderTransformOrigin="0.5,0.5">
                     <Grid.RenderTransform>
