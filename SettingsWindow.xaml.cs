@@ -130,6 +130,9 @@ public partial class SettingsWindow : Window
         // Transition Delay
         SldInterval.Value = theme.TransitionDelaySeconds;
 
+        // Clock Settings
+        LoadClockSettings();
+
         _isInitializing = false;
     }
 
@@ -163,6 +166,8 @@ public partial class SettingsWindow : Window
         theme.BackgroundImagePath = TxtBgImage.Text;
         theme.BackgroundOpacity = SldOpacity.Value;
         theme.TransitionDelaySeconds = (int)SldInterval.Value;
+
+        SaveClockSettings();
 
         _themeService.NotifyThemeUpdated();
     }
@@ -420,4 +425,224 @@ public partial class SettingsWindow : Window
     }
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+    // ── Clock Settings ─────────────────────────────────────────────────────────
+
+    private static readonly string[] FaceNames = { "Classic", "Neon", "Minimal", "Glow", "Bold" };
+    private string _selectedFace = "Classic";
+
+    private void LoadClockSettings()
+    {
+        var clk = _themeService.CurrentTheme.Clock ?? new ClockConfig();
+        _selectedFace = clk.FaceName ?? "Classic";
+
+        // Populate face selector cards
+        PnlFaces.Children.Clear();
+        foreach (var face in FaceNames)
+        {
+            bool isSelected = face == _selectedFace;
+            var card = new Border
+            {
+                Width = 90, Height = 90, CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(0, 0, 8, 0),
+                Background = isSelected 
+                    ? new SolidColorBrush(Color.FromArgb(80, 59, 130, 246))
+                    : new SolidColorBrush(Color.FromArgb(25, 255, 255, 255)),
+                BorderBrush = isSelected
+                    ? new SolidColorBrush(Color.FromArgb(200, 59, 130, 246))
+                    : new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
+                BorderThickness = new Thickness(isSelected ? 2 : 1),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = face
+            };
+            var label = new TextBlock
+            {
+                Text = face, HorizontalAlignment = HorizontalAlignment.Center,
+                VerticalAlignment = VerticalAlignment.Center,
+                Foreground = Brushes.White, FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal,
+                FontSize = 13
+            };
+            card.Child = label;
+            card.MouseLeftButtonDown += (s, _) =>
+            {
+                if (s is Border b && b.Tag is string faceName)
+                {
+                    _selectedFace = faceName;
+                    LoadClockSettings(); // Re-render cards to show selection
+                    SaveClockSettings();
+                    _themeService.NotifyThemeUpdated();
+                }
+            };
+            PnlFaces.Children.Add(card);
+        }
+
+        // Setup color buttons
+        SetColorButton(BtnClockHourColor,  clk.HourHandColor);
+        SetColorButton(BtnClockMinColor,   clk.MinuteHandColor);
+        SetColorButton(BtnClockSecColor,   clk.SecondHandColor);
+        SetColorButton(BtnClockFaceColor,  clk.ClockFaceColor);
+        SetColorButton(BtnDigitalColor,    clk.DigitalColor);
+        SetColorButton(BtnDateColor,       clk.DateColor);
+        SetColorButton(BtnClockBgColor,    clk.CustomBackgroundColor);
+
+        // Sliders
+        SldDigitalSize.Value = clk.DigitalFontSize;
+        SldDateSize.Value =    clk.DateFontSize;
+        SldClockBgOpacity.Value = clk.CustomBackgroundOpacity;
+
+        // Position labels
+        TxtClockScale.Text  = $"{clk.ClockScale:F1}x";
+        TxtClockX.Text      = ((int)clk.ClockOffsetX).ToString();
+        TxtClockY.Text      = ((int)clk.ClockOffsetY).ToString();
+        TxtDigitalX.Text    = ((int)clk.DigitalOffsetX).ToString();
+        TxtDigitalY.Text    = ((int)clk.DigitalOffsetY).ToString();
+        TxtDateX.Text       = ((int)clk.DateOffsetX).ToString();
+        TxtDateY.Text       = ((int)clk.DateOffsetY).ToString();
+
+        // ComboBoxes
+        SetComboItem(CmbDigitalFont,   clk.DigitalFontFamily);
+        SetComboItem(CmbDateFont,      clk.DateFontFamily);
+        SetComboItem(CmbDigitalFormat, clk.DigitalFormat);
+        SetComboItem(CmbDateFormat,    clk.DateFormat);
+
+        // Background toggle
+        ChkClockCustomBg.IsChecked  = clk.UseCustomBackground;
+        PnlClockCustomBg.Visibility = clk.UseCustomBackground ? Visibility.Visible : Visibility.Collapsed;
+        TxtClockBgInfo.Visibility   = clk.UseCustomBackground ? Visibility.Collapsed : Visibility.Visible;
+        TxtClockBgImage.Text        = clk.CustomBackgroundImagePath ?? "";
+    }
+
+    private void SaveClockSettings()
+    {
+        var theme = _themeService.CurrentTheme;
+        theme.Clock ??= new ClockConfig();
+        var clk = theme.Clock;
+
+        clk.FaceName           = _selectedFace;
+        clk.HourHandColor      = BtnClockHourColor.Tag?.ToString()  ?? clk.HourHandColor;
+        clk.MinuteHandColor    = BtnClockMinColor.Tag?.ToString()    ?? clk.MinuteHandColor;
+        clk.SecondHandColor    = BtnClockSecColor.Tag?.ToString()    ?? clk.SecondHandColor;
+        clk.ClockFaceColor     = BtnClockFaceColor.Tag?.ToString()   ?? clk.ClockFaceColor;
+        clk.DigitalColor       = BtnDigitalColor.Tag?.ToString()     ?? clk.DigitalColor;
+        clk.DateColor          = BtnDateColor.Tag?.ToString()        ?? clk.DateColor;
+        clk.CustomBackgroundColor = BtnClockBgColor.Tag?.ToString()  ?? clk.CustomBackgroundColor;
+
+        clk.DigitalFontSize    = SldDigitalSize.Value;
+        clk.DateFontSize       = SldDateSize.Value;
+        clk.CustomBackgroundOpacity = SldClockBgOpacity.Value;
+
+        clk.DigitalFontFamily  = (CmbDigitalFont.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? clk.DigitalFontFamily;
+        clk.DateFontFamily     = (CmbDateFont.SelectedItem    as ComboBoxItem)?.Content?.ToString() ?? clk.DateFontFamily;
+        clk.DigitalFormat      = (CmbDigitalFormat.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? clk.DigitalFormat;
+        clk.DateFormat         = (CmbDateFormat.SelectedItem   as ComboBoxItem)?.Content?.ToString() ?? clk.DateFormat;
+
+        clk.UseCustomBackground        = ChkClockCustomBg.IsChecked ?? false;
+        clk.CustomBackgroundImagePath  = TxtClockBgImage.Text;
+    }
+
+    private void BtnClockColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var initialHex = btn.Tag?.ToString() ?? "#FFFFFF";
+        var picker = new ColorPickerWindow(initialHex) { Owner = this };
+        if (picker.ShowDialog() == true)
+        {
+            SetColorButton(btn, picker.SelectedHex);
+            SaveClockSettings();
+            _themeService.NotifyThemeUpdated();
+        }
+    }
+
+    private void BtnClockPos_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var clk = _themeService.CurrentTheme.Clock!;
+        const double step = 5.0;
+        switch (btn.Name)
+        {
+            case "BtnClockScaleUp":   clk.ClockScale    = Math.Min(3.0, clk.ClockScale + 0.1); break;
+            case "BtnClockScaleDn":   clk.ClockScale    = Math.Max(0.3, clk.ClockScale - 0.1); break;
+            case "BtnClockLeft":      clk.ClockOffsetX -= step; break;
+            case "BtnClockRight":     clk.ClockOffsetX += step; break;
+            case "BtnClockUp":        clk.ClockOffsetY -= step; break;
+            case "BtnClockDown":      clk.ClockOffsetY += step; break;
+            case "BtnDigitalLeft":    clk.DigitalOffsetX -= step; break;
+            case "BtnDigitalRight":   clk.DigitalOffsetX += step; break;
+            case "BtnDigitalUp":      clk.DigitalOffsetY -= step; break;
+            case "BtnDigitalDown":    clk.DigitalOffsetY += step; break;
+            case "BtnDateLeft":       clk.DateOffsetX -= step; break;
+            case "BtnDateRight":      clk.DateOffsetX += step; break;
+            case "BtnDateUp":         clk.DateOffsetY -= step; break;
+            case "BtnDateDown":       clk.DateOffsetY += step; break;
+        }
+        TxtClockScale.Text = $"{clk.ClockScale:F1}x";
+        TxtClockX.Text     = ((int)clk.ClockOffsetX).ToString();
+        TxtClockY.Text     = ((int)clk.ClockOffsetY).ToString();
+        TxtDigitalX.Text   = ((int)clk.DigitalOffsetX).ToString();
+        TxtDigitalY.Text   = ((int)clk.DigitalOffsetY).ToString();
+        TxtDateX.Text      = ((int)clk.DateOffsetX).ToString();
+        TxtDateY.Text      = ((int)clk.DateOffsetY).ToString();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void OnClockSettingChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+        bool customBg = ChkClockCustomBg.IsChecked ?? false;
+        PnlClockCustomBg.Visibility = customBg ? Visibility.Visible : Visibility.Collapsed;
+        TxtClockBgInfo.Visibility   = customBg ? Visibility.Collapsed : Visibility.Visible;
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void OnClockSettingChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void OnClockSettingChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isInitializing) return;
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void BtnBrowseClockBg_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Filter = "Image Files|*.png;*.jpg;*.jpeg" };
+        if (dlg.ShowDialog() == true) { TxtClockBgImage.Text = dlg.FileName; SaveClockSettings(); _themeService.NotifyThemeUpdated(); }
+    }
+
+    private void BtnClearClockBg_Click(object sender, RoutedEventArgs e)
+    {
+        TxtClockBgImage.Text = "";
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    private static void SetColorButton(Button btn, string hex)
+    {
+        try
+        {
+            btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+            btn.Tag = hex;
+        }
+        catch { btn.Tag = hex; }
+    }
+
+    private static void SetComboItem(ComboBox cmb, string value)
+    {
+        foreach (ComboBoxItem item in cmb.Items)
+        {
+            if (item.Content?.ToString()?.Equals(value, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                cmb.SelectedItem = item;
+                return;
+            }
+        }
+        if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
+    }
 }

@@ -114,19 +114,19 @@ public partial class MainWindow : Window
         // Ensure ScreenRotationOrder is initialized properly
         if (config.ScreenRotationOrder == null || config.ScreenRotationOrder.Count == 0)
         {
-            config.ScreenRotationOrder = new List<string> { "Gauges", "Storage" };
+            config.ScreenRotationOrder = new List<string> { "Gauges", "Storage", "Clock" };
         }
+
+        // Ensure built-in screens (Clock) are in the rotation order if enabled
+        if (config.ShowClockScreen && !config.ScreenRotationOrder.Contains("Clock"))
+            config.ScreenRotationOrder.Add("Clock");
 
         // Synchronize missing enabled plugins into the rotation order
         if (config.EnabledPlugins != null)
         {
             foreach (var p in config.EnabledPlugins)
-            {
                 if (!config.ScreenRotationOrder.Contains(p))
-                {
                     config.ScreenRotationOrder.Add(p);
-                }
-            }
         }
 
         DisplayMode mode = config.DisplayMode; // We can still use this for manual overrides if needed
@@ -150,6 +150,12 @@ public partial class MainWindow : Window
         else if (currentScreenName == "Storage" && config.ShowStorageScreen)
         {
             targetScreen = SsdScreen;
+            currentScreenValid = true;
+        }
+        else if (currentScreenName == "Clock" && config.ShowClockScreen)
+        {
+            BuiltInClock.ApplyConfig(config.Clock, config);
+            targetScreen = ClockScreen;
             currentScreenValid = true;
         }
         else
@@ -179,7 +185,12 @@ public partial class MainWindow : Window
                 string name = config.ScreenRotationOrder[i];
                 if (name == "Gauges" && config.ShowGaugesScreen) { targetScreen = GaugesContainer; _currentScreenIndex = i; currentScreenValid = true; break; }
                 if (name == "Storage" && config.ShowStorageScreen) { targetScreen = SsdScreen; _currentScreenIndex = i; currentScreenValid = true; break; }
-                
+                if (name == "Clock" && config.ShowClockScreen) 
+                { 
+                    BuiltInClock.ApplyConfig(config.Clock, config);
+                    targetScreen = ClockScreen; _currentScreenIndex = i; currentScreenValid = true; break; 
+                }
+
                 var p = _pluginManager?.LoadedPlugins?.FirstOrDefault(pl => pl.Name == name);
                 if (p != null && config.EnabledPlugins.Contains(p.Name))
                 {
@@ -191,7 +202,7 @@ public partial class MainWindow : Window
             if (!currentScreenValid) targetScreen = GaugesContainer;
         }
 
-        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen };
+        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen };
 
         if (animate)
         {

@@ -33,10 +33,14 @@ public class ThemeConfig
     // ── Screen Visibility (Rotation Toggles) ─────────────────────────────────
     public bool ShowGaugesScreen { get; set; } = true;
     public bool ShowStorageScreen { get; set; } = true;
+    public bool ShowClockScreen { get; set; } = true;
     public List<string> EnabledPlugins { get; set; } = new() { "System Clock", "Fan & RGB Controller" };
 
-    // ── Rotation Order (Identifiers: "Gauges", "Storage", or Plugin Name) ────
-    public List<string> ScreenRotationOrder { get; set; } = new() { "Gauges", "Storage" };
+    // ── Rotation Order (Identifiers: "Gauges", "Storage", "Clock", or Plugin Name) ────
+    public List<string> ScreenRotationOrder { get; set; } = new() { "Gauges", "Storage", "Clock" };
+
+    // ── Built-in Clock Configuration ──────────────────────────────────────────
+    public ClockConfig Clock { get; set; } = new();
 
     // ── Thermal Alerts ───────────────────────────────────────────────────────
     public double CriticalCpuTemp { get; set; } = 85.0;
@@ -69,6 +73,41 @@ public class ThemeConfig
 
     // ── Sensor Overrides ─────────────────────────────────────────────────────
     public SensorNamesConfig SensorNames { get; set; } = new();
+}
+
+public class ClockConfig
+{
+    // Analog Face
+    public string FaceName { get; set; } = "Classic"; // Classic, Neon, Minimal, Glow, Bold
+    public string HourHandColor { get; set; } = "#FFFFFF";
+    public string MinuteHandColor { get; set; } = "#FFFFFF";
+    public string SecondHandColor { get; set; } = "#3b82f6";
+    public string ClockFaceColor { get; set; } = "#1A1A1A";
+    public double ClockScale { get; set; } = 1.0;
+    public double ClockOffsetX { get; set; } = 0.0;
+    public double ClockOffsetY { get; set; } = 0.0;
+
+    // Digital Clock
+    public string DigitalColor { get; set; } = "#FFFFFF";
+    public string DigitalFontFamily { get; set; } = "Segoe UI";
+    public double DigitalFontSize { get; set; } = 80.0;
+    public string DigitalFormat { get; set; } = "12h"; // 12h or 24h
+    public double DigitalOffsetX { get; set; } = 0.0;
+    public double DigitalOffsetY { get; set; } = 0.0;
+
+    // Date
+    public string DateColor { get; set; } = "#AAAAAA";
+    public string DateFontFamily { get; set; } = "Segoe UI";
+    public double DateFontSize { get; set; } = 18.0;
+    public string DateFormat { get; set; } = "Long"; // Long, Short, Numeric
+    public double DateOffsetX { get; set; } = 0.0;
+    public double DateOffsetY { get; set; } = 0.0;
+
+    // Screen Background
+    public bool UseCustomBackground { get; set; } = false;
+    public string CustomBackgroundColor { get; set; } = "#060606";
+    public string CustomBackgroundImagePath { get; set; } = "";
+    public double CustomBackgroundOpacity { get; set; } = 1.0;
 }
 
 public class SensorNamesConfig

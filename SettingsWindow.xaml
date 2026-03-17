@@ -145,6 +145,82 @@
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Margin" Value="0,0,0,20"/>
         </Style>
+
+        <!-- ─── Modern Dark Scrollbar ─────────────────────────────────── -->
+        <Style TargetType="ScrollBar">
+            <Setter Property="Width" Value="6"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.LineUpCommand" Opacity="0"  Height="0"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border x:Name="ThumbBorder" Background="#3b82f6" CornerRadius="3"/>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#60a5fa"/>
+                                                    </Trigger>
+                                                    <Trigger Property="IsDragging" Value="True">
+                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#93c5fd"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.LineDownCommand" Opacity="0" Height="0"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Horizontal Scrollbar (face selector) -->
+        <Style x:Key="HScrollBarStyle" TargetType="ScrollBar">
+            <Setter Property="Height" Value="6"/>
+            <Setter Property="Margin" Value="0,2,0,0"/>
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ScrollBar">
+                        <Grid>
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.LineLeftCommand" Opacity="0" Width="0"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb>
+                                        <Thumb.Template>
+                                            <ControlTemplate TargetType="Thumb">
+                                                <Border x:Name="ThumbBorder" Background="#3b82f6" CornerRadius="3"/>
+                                                <ControlTemplate.Triggers>
+                                                    <Trigger Property="IsMouseOver" Value="True">
+                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#60a5fa"/>
+                                                    </Trigger>
+                                                </ControlTemplate.Triggers>
+                                            </ControlTemplate>
+                                        </Thumb.Template>
+                                    </Thumb>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="ScrollBar.LineRightCommand" Opacity="0" Width="0"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Border BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="12">
@@ -438,6 +514,224 @@
                             </StackPanel>
                         </Border>
                     </StackPanel>
+                </TabItem>
+
+                <!-- ─── CLOCK ───────────────────────────────────────────── -->
+                <TabItem Header="Clock">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="5,10">
+
+                            <!-- ANALOG FACE -->
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="ANALOG CLOCK FACE" Style="{StaticResource SectionHeaderStyle}"/>
+
+                                    <!-- Face Selector (horizontal scroll) -->
+                                    <TextBlock Text="Select Face Style" FontSize="11" Opacity="0.7" Margin="0,0,0,6"/>
+                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+                                        <StackPanel x:Name="PnlFaces" Orientation="Horizontal" Height="100"/>
+                                    </ScrollViewer>
+
+                                    <!-- Hand Colors -->
+                                    <TextBlock Text="HAND COLORS" Style="{StaticResource SectionHeaderStyle}" Margin="0,4,0,10"/>
+
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Hour Hand" VerticalAlignment="Center"/>
+                                        <Button x:Name="BtnClockHourColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Minute Hand" VerticalAlignment="Center"/>
+                                        <Button x:Name="BtnClockMinColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Second Hand" VerticalAlignment="Center"/>
+                                        <Button x:Name="BtnClockSecColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Clock Face Background" VerticalAlignment="Center"/>
+                                        <Button x:Name="BtnClockFaceColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Analog Position / Scale -->
+                                    <TextBlock Text="SIZE &amp; POSITION" Style="{StaticResource SectionHeaderStyle}" Margin="0,10,0,10"/>
+                                    <Grid x:Name="PnlClockPos">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel HorizontalAlignment="Center">
+                                            <TextBlock Text="Scale" HorizontalAlignment="Center" FontSize="11" Opacity="0.7"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="-" Width="30" Height="28" Name="BtnClockScaleDn" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                                <TextBlock x:Name="TxtClockScale" Text="1.0x" Width="40" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
+                                                <Button Content="+" Width="30" Height="28" Name="BtnClockScaleUp" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                            <TextBlock Text="Offset X" HorizontalAlignment="Center" FontSize="11" Opacity="0.7"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="◀" Width="30" Height="28" Name="BtnClockLeft" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                                <TextBlock x:Name="TxtClockX" Text="0" Width="40" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
+                                                <Button Content="▶" Width="30" Height="28" Name="BtnClockRight" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                            <TextBlock Text="Offset Y" HorizontalAlignment="Center" FontSize="11" Opacity="0.7"/>
+                                            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                                <Button Content="▲" Width="30" Height="28" Name="BtnClockUp" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                                <TextBlock x:Name="TxtClockY" Text="0" Width="40" HorizontalAlignment="Center" VerticalAlignment="Center" TextAlignment="Center"/>
+                                                <Button Content="▼" Width="30" Height="28" Name="BtnClockDown" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- DIGITAL CLOCK -->
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="DIGITAL CLOCK" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Text Color" VerticalAlignment="Center"/>
+                                        <Button x:Name="BtnDigitalColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Font" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="CmbDigitalFont" Width="160" Height="28" SelectionChanged="OnClockSettingChanged">
+                                            <ComboBoxItem Content="Segoe UI"/>
+                                            <ComboBoxItem Content="Courier New"/>
+                                            <ComboBoxItem Content="Trebuchet MS"/>
+                                            <ComboBoxItem Content="Georgia"/>
+                                            <ComboBoxItem Content="Consolas"/>
+                                        </ComboBox>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Font Size" VerticalAlignment="Center"/>
+                                        <Slider x:Name="SldDigitalSize" Width="160" Minimum="40" Maximum="120" Value="80" ValueChanged="OnClockSettingChanged"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Format" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="CmbDigitalFormat" Width="100" Height="28" SelectionChanged="OnClockSettingChanged">
+                                            <ComboBoxItem Content="12h"/>
+                                            <ComboBoxItem Content="24h"/>
+                                        </ComboBox>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Offset X / Y" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,8,0">
+                                            <Button Content="◀" Width="30" Height="28" Name="BtnDigitalLeft" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                            <TextBlock x:Name="TxtDigitalX" Text="0" Width="34" VerticalAlignment="Center" TextAlignment="Center"/>
+                                            <Button Content="▶" Width="30" Height="28" Name="BtnDigitalRight" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                            <Button Content="▲" Width="30" Height="28" Name="BtnDigitalUp" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                            <TextBlock x:Name="TxtDigitalY" Text="0" Width="34" VerticalAlignment="Center" TextAlignment="Center"/>
+                                            <Button Content="▼" Width="30" Height="28" Name="BtnDigitalDown" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- DATE -->
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="DATE" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Text Color" VerticalAlignment="Center"/>
+                                        <Button x:Name="BtnDateColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Font" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="CmbDateFont" Width="160" Height="28" SelectionChanged="OnClockSettingChanged">
+                                            <ComboBoxItem Content="Segoe UI"/>
+                                            <ComboBoxItem Content="Courier New"/>
+                                            <ComboBoxItem Content="Trebuchet MS"/>
+                                            <ComboBoxItem Content="Georgia"/>
+                                            <ComboBoxItem Content="Consolas"/>
+                                        </ComboBox>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Font Size" VerticalAlignment="Center"/>
+                                        <Slider x:Name="SldDateSize" Width="160" Minimum="10" Maximum="40" Value="18" ValueChanged="OnClockSettingChanged"/>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Format" VerticalAlignment="Center"/>
+                                        <ComboBox x:Name="CmbDateFormat" Width="130" Height="28" SelectionChanged="OnClockSettingChanged">
+                                            <ComboBoxItem Content="Long"/>
+                                            <ComboBoxItem Content="Short"/>
+                                            <ComboBoxItem Content="Numeric"/>
+                                        </ComboBox>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,4">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Offset X / Y" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="0,0,8,0">
+                                            <Button Content="◀" Width="30" Height="28" Name="BtnDateLeft" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                            <TextBlock x:Name="TxtDateX" Text="0" Width="34" VerticalAlignment="Center" TextAlignment="Center"/>
+                                            <Button Content="▶" Width="30" Height="28" Name="BtnDateRight" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" Orientation="Horizontal">
+                                            <Button Content="▲" Width="30" Height="28" Name="BtnDateUp" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                            <TextBlock x:Name="TxtDateY" Text="0" Width="34" VerticalAlignment="Center" TextAlignment="Center"/>
+                                            <Button Content="▼" Width="30" Height="28" Name="BtnDateDown" Click="BtnClockPos_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- SCREEN BACKGROUND -->
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="SCREEN BACKGROUND" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <CheckBox x:Name="ChkClockCustomBg" Content="Use custom background (instead of app theme)" Checked="OnClockSettingChanged" Unchecked="OnClockSettingChanged"/>
+                                    <StackPanel x:Name="PnlClockCustomBg" Visibility="Collapsed" Margin="0,8,0,0">
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Background Color" VerticalAlignment="Center"/>
+                                            <Button x:Name="BtnClockBgColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                                <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            </Button>
+                                        </Grid>
+                                        <TextBlock Text="Background Image" FontSize="11" Opacity="0.7" Margin="0,0,0,4"/>
+                                        <Grid Margin="0,0,0,8">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtClockBgImage" IsReadOnly="True" Margin="0,0,5,0" FontSize="10"/>
+                                            <Button Grid.Column="1" Content="Browse" Width="70" Click="BtnBrowseClockBg_Click" Margin="0,0,5,0" Style="{StaticResource ModernButtonStyle}" FontSize="11"/>
+                                            <Button Grid.Column="2" Content="✕" Width="35" Click="BtnClearClockBg_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                        </Grid>
+                                        <TextBlock Text="Opacity" FontSize="11" Opacity="0.7" Margin="0,0,0,4"/>
+                                        <Slider x:Name="SldClockBgOpacity" Minimum="0" Maximum="1" Value="1" ValueChanged="OnClockSettingChanged"/>
+                                    </StackPanel>
+                                    <TextBlock x:Name="TxtClockBgInfo" Text="✓ Inherits app theme background automatically" FontSize="11" Foreground="#88FFFFFF" Margin="0,6,0,0"/>
+                                </StackPanel>
+                            </Border>
+
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
             </TabControl>
             

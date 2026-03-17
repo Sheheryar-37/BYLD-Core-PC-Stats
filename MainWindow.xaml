@@ -282,6 +282,12 @@
                 
                 <ContentControl x:Name="PluginHost" Margin="0,100,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
             </Grid>
+
+            <!-- Screen 4: Built-in Clock Screen -->
+            <Grid x:Name="ClockScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
+                <controls:BuiltInClockScreen x:Name="BuiltInClock"/>
+            </Grid>
+
         </Grid>
     </Viewbox>
 </Window>
