@@ -13,7 +13,6 @@ namespace PcStatsMonitor.Controls
         private DispatcherTimer? _timer;
         private ClockConfig _config = new();
         private string _themeBackground = "#060606";
-        private string _logoPath = "";
 
         public BuiltInClockScreen()
         {
@@ -37,10 +36,8 @@ namespace PcStatsMonitor.Controls
         {
             _config = cfg ?? new ClockConfig();
             _themeBackground = theme?.BackgroundColor ?? "#060606";
-            _logoPath = theme?.LogoPath ?? "";
 
             ApplyBackground();
-            ApplyLogo();
             ApplyAnalogFace();
             ApplyHandColors();
             ApplyClockTransform();
@@ -94,19 +91,6 @@ namespace PcStatsMonitor.Controls
             {
                 CustomBgBlock.Visibility = Visibility.Collapsed;
                 RootClockGrid.Background = ParseBrush(_themeBackground, "#060606");
-            }
-        }
-
-        private void ApplyLogo()
-        {
-            if (!string.IsNullOrWhiteSpace(_logoPath))
-            {
-                try
-                {
-                    LogoImage.Source = new System.Windows.Media.Imaging.BitmapImage(
-                        new Uri(_logoPath, UriKind.RelativeOrAbsolute));
-                }
-                catch { LogoImage.Source = null; }
             }
         }
 
@@ -164,6 +148,16 @@ namespace PcStatsMonitor.Controls
                 case "Minimal": DrawMinimalFace(); break;
                 case "Glow":    DrawGlowFace();    break;
                 case "Bold":    DrawBoldFace();    break;
+                case "Luxury":  DrawLuxuryFace();  break;
+                case "Square":  DrawSquareFace();  break;
+                case "Techno":  DrawTechnoFace();  break;
+                case "Roman":   DrawRomanFace();   break;
+                case "Gold":    DrawGoldFace();    break;
+                case "Dot":     DrawDotFace();     break;
+                case "Orbit":   DrawOrbitFace();   break;
+                case "Industrial": DrawIndustrialFace(); break;
+                case "Retro":   DrawRetroFace();   break;
+                case "Futura":  DrawFuturaFace();  break;
                 default:        DrawClassicFace(); break;
             }
         }
@@ -265,7 +259,6 @@ namespace PcStatsMonitor.Controls
 
         private void DrawBoldFace()
         {
-            // Thick bold hour markers, dark accent color
             OuterRing.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
             OuterRing.Stroke = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246));
             OuterRing.StrokeThickness = 5;
@@ -286,6 +279,178 @@ namespace PcStatsMonitor.Controls
                 Canvas.SetLeft(rect, cx - 2);
                 Canvas.SetTop(rect,  cy - r1);
                 TickCanvas.Children.Add(rect);
+            }
+        }
+
+        private void DrawLuxuryFace()
+        {
+            // Gold ring + thin markers
+            OuterRing.Fill = Brushes.Transparent;
+            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55)); // Gold
+            OuterRing.StrokeThickness = 2;
+            OuterRing.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(212, 175, 55), BlurRadius = 15, ShadowDepth = 0, Opacity = 0.5 };
+
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r1 = 125, r2 = 110;
+                var line = new Line {
+                    X1 = cx + r1 * Math.Sin(angle), Y1 = cy - r1 * Math.Cos(angle),
+                    X2 = cx + r2 * Math.Sin(angle), Y2 = cy - r2 * Math.Cos(angle),
+                    Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55)), StrokeThickness = 1.5
+                };
+                TickCanvas.Children.Add(line);
+            }
+        }
+
+        private void DrawSquareFace()
+        {
+            // Square markers in a circle
+            OuterRing.Stroke = Brushes.Transparent;
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 120;
+                var rect = new Rectangle { Width = 6, Height = 6, Fill = Brushes.White, Opacity = 0.8 };
+                Canvas.SetLeft(rect, cx + r * Math.Sin(angle) - 3);
+                Canvas.SetTop(rect,  cy - r * Math.Cos(angle) - 3);
+                TickCanvas.Children.Add(rect);
+            }
+        }
+
+        private void DrawTechnoFace()
+        {
+            // Cyberpunk grid style
+            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(0, 255, 150));
+            OuterRing.StrokeThickness = 1;
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 130;
+                var line = new Line {
+                    X1 = cx, Y1 = cy, X2 = cx + r * Math.Sin(angle), Y2 = cy - r * Math.Cos(angle),
+                    Stroke = new SolidColorBrush(Color.FromArgb(30, 0, 255, 150)), StrokeThickness = 1
+                };
+                TickCanvas.Children.Add(line);
+                var mark = new Rectangle { Width = 10, Height = 2, Fill = new SolidColorBrush(Color.FromRgb(0, 255, 150)) };
+                mark.RenderTransform = new RotateTransform(i * 30.0);
+                Canvas.SetLeft(mark, cx + r * Math.Sin(angle) - 5);
+                Canvas.SetTop(mark,  cy - r * Math.Cos(angle) - 1);
+                TickCanvas.Children.Add(mark);
+            }
+        }
+
+        private void DrawRomanFace()
+        {
+            string[] roman = { "XII", "I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI" };
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 110;
+                var txt = new TextBlock {
+                    Text = roman[i], Foreground = Brushes.White, FontSize = 14, FontWeight = FontWeights.Bold,
+                    TextAlignment = TextAlignment.Center, Width = 30
+                };
+                Canvas.SetLeft(txt, cx + r * Math.Sin(angle) - 15);
+                Canvas.SetTop(txt,  cy - r * Math.Cos(angle) - 10);
+                TickCanvas.Children.Add(txt);
+            }
+        }
+
+        private void DrawGoldFace()
+        {
+            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(255, 215, 0));
+            OuterRing.StrokeThickness = 4;
+            for (int i = 0; i < 60; i++)
+            {
+                if (i % 5 != 0) continue;
+                double angle = i * 6.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 125;
+                var dot = new Ellipse { Width = 4, Height = 4, Fill = new SolidColorBrush(Color.FromRgb(255, 215, 0)) };
+                Canvas.SetLeft(dot, cx + r * Math.Sin(angle) - 2);
+                Canvas.SetTop(dot,  cy - r * Math.Cos(angle) - 2);
+                TickCanvas.Children.Add(dot);
+            }
+        }
+
+        private void DrawDotFace()
+        {
+            for (int i = 0; i < 60; i++)
+            {
+                double angle = i * 6.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 125;
+                bool isHour = i % 5 == 0;
+                var dot = new Ellipse {
+                    Width = isHour ? 4 : 1.5, Height = isHour ? 4 : 1.5,
+                    Fill = Brushes.White, Opacity = isHour ? 1.0 : 0.4
+                };
+                Canvas.SetLeft(dot, cx + r * Math.Sin(angle) - (isHour ? 2 : 0.75));
+                Canvas.SetTop(dot,  cy - r * Math.Cos(angle) - (isHour ? 2 : 0.75));
+                TickCanvas.Children.Add(dot);
+            }
+        }
+
+        private void DrawOrbitFace()
+        {
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140;
+                double r = 100 + (i % 3 * 12); // Pulsating orbit radius
+                var dot = new Ellipse { Width = 6, Height = 6, Fill = new SolidColorBrush(Color.FromRgb(59, 130, 246)) };
+                Canvas.SetLeft(dot, cx + r * Math.Sin(angle) - 3);
+                Canvas.SetTop(dot,  cy - r * Math.Cos(angle) - 3);
+                TickCanvas.Children.Add(dot);
+            }
+        }
+
+        private void DrawIndustrialFace()
+        {
+            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(100, 100, 100));
+            OuterRing.StrokeThickness = 8;
+            OuterRing.StrokeDashArray = new DoubleCollection { 1, 2 };
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 115;
+                var rect = new Rectangle { Width = 8, Height = 12, Fill = Brushes.Gray };
+                rect.RenderTransform = new RotateTransform(i * 30.0);
+                Canvas.SetLeft(rect, cx + r * Math.Sin(angle) - 4);
+                Canvas.SetTop(rect,  cy - r * Math.Cos(angle) - 6);
+                TickCanvas.Children.Add(rect);
+            }
+        }
+
+        private void DrawRetroFace()
+        {
+            // Orange/Yellow retro vibe
+            for (int i = 0; i < 12; i++)
+            {
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 120;
+                var rect = new Rectangle { Width = 12, Height = 4, Fill = new SolidColorBrush(Color.FromRgb(255, 100, 0)) };
+                rect.RenderTransform = new RotateTransform(i * 30.0);
+                Canvas.SetLeft(rect, cx + r * Math.Sin(angle) - 6);
+                Canvas.SetTop(rect,  cy - r * Math.Cos(angle) - 2);
+                TickCanvas.Children.Add(rect);
+            }
+        }
+
+        private void DrawFuturaFace()
+        {
+            OuterRing.Stroke = Brushes.White;
+            OuterRing.StrokeThickness = 0.5;
+            for (int i = 0; i < 4; i++)
+            {
+                double angle = i * 90.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 120;
+                var txt = new TextBlock {
+                    Text = (i == 0 ? 12 : i * 3).ToString(), Foreground = Brushes.White,
+                    FontSize = 24, FontWeight = FontWeights.ExtraBold, Width = 40, TextAlignment = TextAlignment.Center
+                };
+                Canvas.SetLeft(txt, cx + r * Math.Sin(angle) - 20);
+                Canvas.SetTop(txt,  cy - r * Math.Cos(angle) - 12);
+                TickCanvas.Children.Add(txt);
             }
         }
 

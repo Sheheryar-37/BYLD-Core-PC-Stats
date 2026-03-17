@@ -432,7 +432,11 @@ public partial class SettingsWindow : Window
 
     // ── Clock Settings ─────────────────────────────────────────────────────────
 
-    private static readonly string[] FaceNames = { "Classic", "Neon", "Minimal", "Glow", "Bold" };
+    private static readonly string[] FaceNames = { 
+        "Classic", "Neon", "Minimal", "Glow", "Bold", 
+        "Luxury", "Square", "Techno", "Roman", "Gold", 
+        "Dot", "Orbit", "Industrial", "Retro", "Futura" 
+    };
     private string _selectedFace = "Classic";
 
     private void LoadClockSettings()

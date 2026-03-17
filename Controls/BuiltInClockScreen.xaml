@@ -4,6 +4,7 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              mc:Ignorable="d"
+             UseLayoutRounding="True" SnapsToDevicePixels="True"
              d:DesignHeight="854" d:DesignWidth="480">
 
     <Grid x:Name="RootClockGrid" Width="480" Height="854">
@@ -16,20 +17,14 @@
             </Grid>
         </Border>
 
-        <!-- Main Content -->
+             <!-- Main Content -->
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="160"/>   <!-- Logo -->
+                <RowDefinition Height="160"/>   <!-- Space for Logo (handled by MainWindow) -->
                 <RowDefinition Height="*"/>      <!-- Analog Clock -->
                 <RowDefinition Height="Auto"/>   <!-- Digital + Date -->
                 <RowDefinition Height="80"/>     <!-- Bottom padding -->
             </Grid.RowDefinitions>
-
-            <!-- Logo (same as other screens) -->
-            <Image x:Name="LogoImage" Grid.Row="0"
-                   Height="100" Margin="0,30,0,0"
-                   HorizontalAlignment="Center" VerticalAlignment="Center"
-                   Stretch="Uniform"/>
 
             <!-- ─── Analog Clock Face ─────────────────────────────────────── -->
             <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -87,7 +82,7 @@
 
                         <!-- Tail of second hand (counterweight) -->
                         <Rectangle x:Name="HandSecTail"
-                                   Canvas.Left="139" Canvas.Top="145"
+                                   Canvas.Left="139" Canvas.Top="140"
                                    Width="2" Height="25"
                                    Fill="#3b82f6" RadiusX="1" RadiusY="1"
                                    RenderTransformOrigin="0.5,0">
