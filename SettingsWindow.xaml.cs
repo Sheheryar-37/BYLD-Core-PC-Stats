@@ -435,7 +435,8 @@ public partial class SettingsWindow : Window
     private static readonly string[] FaceNames = { 
         "Classic", "Neon", "Minimal", "Glow", "Bold", 
         "Luxury", "Square", "Techno", "Roman", "Gold", 
-        "Dot", "Orbit", "Industrial", "Retro", "Futura" 
+        "Dot", "Orbit", "Industrial", "Retro", "Futura",
+        "Square Minimal", "Square Luxury"
     };
     private string _selectedFace = "Classic";
 

@@ -175,6 +175,8 @@ namespace PcStatsMonitor.Controls
                 case "Industrial": DrawIndustrialFace(); break;
                 case "Retro":   DrawRetroFace();   break;
                 case "Futura":  DrawFuturaFace();  break;
+                case "Square Minimal": DrawSquareMinimalFace(); break;
+                case "Square Luxury":  DrawSquareLuxuryFace();  break;
                 default:        DrawClassicFace(); break;
             }
         }
@@ -337,22 +339,27 @@ namespace PcStatsMonitor.Controls
 
         private void DrawTechnoFace()
         {
-            // Cyberpunk grid style
+            // Cyberpunk grid style with radial markers
             OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(0, 255, 150));
             OuterRing.StrokeThickness = 1;
             for (int i = 0; i < 12; i++)
             {
-                double angle = i * 30.0 * Math.PI / 180.0;
+                double angleDeg = i * 30.0;
+                double angleRad = angleDeg * Math.PI / 180.0;
                 double cx = 140, cy = 140, r = 130;
+                
+                // Radial grid lines
                 var line = new Line {
-                    X1 = cx, Y1 = cy, X2 = cx + r * Math.Sin(angle), Y2 = cy - r * Math.Cos(angle),
+                    X1 = cx, Y1 = cy, X2 = cx + r * Math.Sin(angleRad), Y2 = cy - r * Math.Cos(angleRad),
                     Stroke = new SolidColorBrush(Color.FromArgb(30, 0, 255, 150)), StrokeThickness = 1
                 };
                 TickCanvas.Children.Add(line);
-                var mark = new Rectangle { Width = 10, Height = 2, Fill = new SolidColorBrush(Color.FromRgb(0, 255, 150)) };
-                mark.RenderTransform = new RotateTransform(i * 30.0);
-                Canvas.SetLeft(mark, cx + r * Math.Sin(angle) - 5);
-                Canvas.SetTop(mark,  cy - r * Math.Cos(angle) - 1);
+
+                // Radial markers
+                var mark = new Rectangle { Width = 2, Height = 10, Fill = new SolidColorBrush(Color.FromRgb(0, 255, 150)) };
+                mark.RenderTransform = new RotateTransform(angleDeg);
+                Canvas.SetLeft(mark, cx + (r-10) * Math.Sin(angleRad) - 1);
+                Canvas.SetTop(mark,  cy - (r-10) * Math.Cos(angleRad) - 5);
                 TickCanvas.Children.Add(mark);
             }
         }
@@ -440,15 +447,19 @@ namespace PcStatsMonitor.Controls
 
         private void DrawRetroFace()
         {
-            // Orange/Yellow retro vibe
+            // Orange/Yellow retro vibe with radial dashes
             for (int i = 0; i < 12; i++)
             {
-                double angle = i * 30.0 * Math.PI / 180.0;
+                double angleDeg = i * 30.0;
+                double angleRad = angleDeg * Math.PI / 180.0;
                 double cx = 140, cy = 140, r = 120;
-                var rect = new Rectangle { Width = 12, Height = 4, Fill = new SolidColorBrush(Color.FromRgb(255, 100, 0)) };
-                rect.RenderTransform = new RotateTransform(i * 30.0);
-                Canvas.SetLeft(rect, cx + r * Math.Sin(angle) - 6);
-                Canvas.SetTop(rect,  cy - r * Math.Cos(angle) - 2);
+                
+                var rect = new Rectangle { Width = 4, Height = 12, Fill = new SolidColorBrush(Color.FromRgb(255, 100, 0)) };
+                rect.RenderTransform = new RotateTransform(angleDeg); // Rotate the dash itself
+                
+                // Position the dash centered on the radius
+                Canvas.SetLeft(rect, cx + r * Math.Sin(angleRad) - 2);
+                Canvas.SetTop(rect,  cy - r * Math.Cos(angleRad) - 6);
                 TickCanvas.Children.Add(rect);
             }
         }
@@ -468,6 +479,45 @@ namespace PcStatsMonitor.Controls
                 Canvas.SetLeft(txt, cx + r * Math.Sin(angle) - 20);
                 Canvas.SetTop(txt,  cy - r * Math.Cos(angle) - 12);
                 TickCanvas.Children.Add(txt);
+            }
+        }
+
+        private void DrawSquareMinimalFace()
+        {
+            // Sleek white square markers
+            for (int i = 0; i < 12; i++)
+            {
+                double angleDeg = i * 30.0;
+                double angleRad = angleDeg * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 125;
+                
+                var rect = new Rectangle { Width = 8, Height = 8, Fill = Brushes.White, Opacity = 0.9 };
+                Canvas.SetLeft(rect, cx + r * Math.Sin(angleRad) - 4);
+                Canvas.SetTop(rect,  cy - r * Math.Cos(angleRad) - 4);
+                TickCanvas.Children.Add(rect);
+            }
+        }
+
+        private void DrawSquareLuxuryFace()
+        {
+            // Gold square markers + outer gold square stroke
+            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55));
+            OuterRing.StrokeThickness = 1;
+            
+            for (int i = 0; i < 12; i++)
+            {
+                double angleDeg = i * 30.0;
+                double angleRad = angleDeg * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 120;
+                
+                var rect = new Rectangle { 
+                    Width = 6, Height = 6, 
+                    Fill = new SolidColorBrush(Color.FromRgb(212, 175, 55)),
+                    Stroke = Brushes.Black, StrokeThickness = 0.5
+                };
+                Canvas.SetLeft(rect, cx + r * Math.Sin(angleRad) - 3);
+                Canvas.SetTop(rect,  cy - r * Math.Cos(angleRad) - 3);
+                TickCanvas.Children.Add(rect);
             }
         }
 
