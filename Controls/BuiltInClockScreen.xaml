@@ -26,8 +26,9 @@
                 <RowDefinition Height="80"/>     <!-- Bottom padding -->
             </Grid.RowDefinitions>
 
-            <!-- Logo Area (Same as SSD/Gauges Screens) -->
+            <!-- Logo Area - binds to Window DataContext, same as Gauges screen -->
             <Image x:Name="LogoImage" Grid.Row="0"
+                   Source="{Binding DataContext.Theme.LogoPath, RelativeSource={RelativeSource AncestorType=Window}}"
                    Height="160" Margin="20,-20,0,0"
                    VerticalAlignment="Top" HorizontalAlignment="Center"
                    Stretch="Uniform"/>
@@ -43,8 +44,9 @@
                     <!-- Outer Glow Ring (face-specific, set in code) -->
                     <Ellipse x:Name="OuterRing" Width="300" Height="300"/>
 
-                    <!-- Clock Face Background -->
+                    <!-- Clock Face Background (ellipse for circular, rect for square faces) -->
                     <Ellipse x:Name="ClockFaceEllipse" Width="280" Height="280" Fill="#1A1A1A"/>
+                    <Rectangle x:Name="ClockFaceRect" Width="280" Height="280" Fill="#1A1A1A" RadiusX="12" RadiusY="12" Visibility="Collapsed"/>
 
                     <!-- Minute Tick Marks (60 ticks drawn in code-behind) -->
                     <Canvas x:Name="TickCanvas" Width="280" Height="280"/>

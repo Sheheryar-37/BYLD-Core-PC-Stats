@@ -13,7 +13,6 @@ namespace PcStatsMonitor.Controls
         private DispatcherTimer? _timer;
         private ClockConfig _config = new();
         private string _themeBackground = "#060606";
-        private string _logoPath = "";
 
         public BuiltInClockScreen()
         {
@@ -37,10 +36,8 @@ namespace PcStatsMonitor.Controls
         {
             _config = cfg ?? new ClockConfig();
             _themeBackground = theme?.BackgroundColor ?? "#060606";
-            _logoPath = theme?.LogoPath ?? "";
 
             ApplyBackground();
-            ApplyLogo();
             ApplyAnalogFace();
             ApplyHandColors();
             ApplyClockTransform();
@@ -97,20 +94,6 @@ namespace PcStatsMonitor.Controls
             }
         }
 
-        private void ApplyLogo()
-        {
-            if (!string.IsNullOrWhiteSpace(_logoPath))
-            {
-                try
-                {
-                    LogoImage.Source = new System.Windows.Media.Imaging.BitmapImage(
-                        new Uri(_logoPath, UriKind.RelativeOrAbsolute));
-                }
-                catch { LogoImage.Source = null; }
-            }
-            else { LogoImage.Source = null; }
-        }
-
         private void ApplyHandColors()
         {
             HandHour.Fill = ParseBrush(_config.HourHandColor, "#FFFFFF");
@@ -157,7 +140,16 @@ namespace PcStatsMonitor.Controls
         private void ApplyAnalogFace()
         {
             TickCanvas.Children.Clear();
+            
+            // Default: circular face background
+            ClockFaceEllipse.Visibility = Visibility.Visible;
+            ClockFaceRect.Visibility = Visibility.Collapsed;
             ClockFaceEllipse.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+            OuterRing.Fill = Brushes.Transparent;
+            OuterRing.Stroke = Brushes.Transparent;
+            OuterRing.StrokeThickness = 0;
+            OuterRing.Effect = null;
+            OuterRing.StrokeDashArray = null;
 
             switch (_config.FaceName)
             {
@@ -324,8 +316,13 @@ namespace PcStatsMonitor.Controls
 
         private void DrawSquareFace()
         {
-            // Square markers in a circle
-            OuterRing.Stroke = Brushes.Transparent;
+            // Square face background + square dot markers
+            ClockFaceEllipse.Visibility = Visibility.Collapsed;
+            ClockFaceRect.Visibility = Visibility.Visible;
+            ClockFaceRect.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+            ClockFaceRect.Stroke = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255));
+            ClockFaceRect.StrokeThickness = 1;
+            
             for (int i = 0; i < 12; i++)
             {
                 double angle = i * 30.0 * Math.PI / 180.0;
@@ -339,28 +336,30 @@ namespace PcStatsMonitor.Controls
 
         private void DrawTechnoFace()
         {
-            // Cyberpunk grid style with radial markers
+            // Cyberpunk - radial lines from center + tick marks at edge using proper Line approach
             OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(0, 255, 150));
             OuterRing.StrokeThickness = 1;
+            
             for (int i = 0; i < 12; i++)
             {
-                double angleDeg = i * 30.0;
-                double angleRad = angleDeg * Math.PI / 180.0;
-                double cx = 140, cy = 140, r = 130;
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140;
                 
-                // Radial grid lines
-                var line = new Line {
-                    X1 = cx, Y1 = cy, X2 = cx + r * Math.Sin(angleRad), Y2 = cy - r * Math.Cos(angleRad),
+                // Faint radial grid lines from center outward
+                var gridLine = new Line {
+                    X1 = cx, Y1 = cy, 
+                    X2 = cx + 130 * Math.Sin(angle), Y2 = cy - 130 * Math.Cos(angle),
                     Stroke = new SolidColorBrush(Color.FromArgb(30, 0, 255, 150)), StrokeThickness = 1
                 };
-                TickCanvas.Children.Add(line);
-
-                // Radial markers
-                var mark = new Rectangle { Width = 2, Height = 10, Fill = new SolidColorBrush(Color.FromRgb(0, 255, 150)) };
-                mark.RenderTransform = new RotateTransform(angleDeg);
-                Canvas.SetLeft(mark, cx + (r-10) * Math.Sin(angleRad) - 1);
-                Canvas.SetTop(mark,  cy - (r-10) * Math.Cos(angleRad) - 5);
-                TickCanvas.Children.Add(mark);
+                TickCanvas.Children.Add(gridLine);
+                
+                // Radial tick marks at the edge (outer → inner, properly radial)
+                var tick = new Line {
+                    X1 = cx + 128 * Math.Sin(angle), Y1 = cy - 128 * Math.Cos(angle),
+                    X2 = cx + 114 * Math.Sin(angle), Y2 = cy - 114 * Math.Cos(angle),
+                    Stroke = new SolidColorBrush(Color.FromRgb(0, 255, 150)), StrokeThickness = 2
+                };
+                TickCanvas.Children.Add(tick);
             }
         }
 
@@ -436,31 +435,36 @@ namespace PcStatsMonitor.Controls
             for (int i = 0; i < 12; i++)
             {
                 double angle = i * 30.0 * Math.PI / 180.0;
-                double cx = 140, cy = 140, r = 115;
-                var rect = new Rectangle { Width = 8, Height = 12, Fill = Brushes.Gray };
-                rect.RenderTransform = new RotateTransform(i * 30.0);
-                Canvas.SetLeft(rect, cx + r * Math.Sin(angle) - 4);
-                Canvas.SetTop(rect,  cy - r * Math.Cos(angle) - 6);
-                TickCanvas.Children.Add(rect);
+                double cx = 140, cy = 140;
+                // Properly radial thick tick marks using Line
+                var line = new Line {
+                    X1 = cx + 125 * Math.Sin(angle), Y1 = cy - 125 * Math.Cos(angle),
+                    X2 = cx + 108 * Math.Sin(angle), Y2 = cy - 108 * Math.Cos(angle),
+                    Stroke = Brushes.Gray, StrokeThickness = 8
+                };
+                TickCanvas.Children.Add(line);
             }
         }
 
         private void DrawRetroFace()
         {
-            // Orange/Yellow retro vibe with radial dashes
+            // Orange retro vibe - properly radial thick dashes using Line approach
             for (int i = 0; i < 12; i++)
             {
-                double angleDeg = i * 30.0;
-                double angleRad = angleDeg * Math.PI / 180.0;
-                double cx = 140, cy = 140, r = 120;
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140;
+                bool isHour = true; // All are hour markers
                 
-                var rect = new Rectangle { Width = 4, Height = 12, Fill = new SolidColorBrush(Color.FromRgb(255, 100, 0)) };
-                rect.RenderTransform = new RotateTransform(angleDeg); // Rotate the dash itself
-                
-                // Position the dash centered on the radius
-                Canvas.SetLeft(rect, cx + r * Math.Sin(angleRad) - 2);
-                Canvas.SetTop(rect,  cy - r * Math.Cos(angleRad) - 6);
-                TickCanvas.Children.Add(rect);
+                // Thick radial lines properly oriented: outer to inner
+                var line = new Line {
+                    X1 = cx + 128 * Math.Sin(angle), Y1 = cy - 128 * Math.Cos(angle),
+                    X2 = cx + 108 * Math.Sin(angle), Y2 = cy - 108 * Math.Cos(angle),
+                    Stroke = new SolidColorBrush(Color.FromRgb(255, 100, 0)),
+                    StrokeThickness = 5,
+                    StrokeStartLineCap = PenLineCap.Round,
+                    StrokeEndLineCap = PenLineCap.Round
+                };
+                TickCanvas.Children.Add(line);
             }
         }
 
@@ -484,40 +488,49 @@ namespace PcStatsMonitor.Controls
 
         private void DrawSquareMinimalFace()
         {
-            // Sleek white square markers
+            // Square face background + clean white square dot markers
+            ClockFaceEllipse.Visibility = Visibility.Collapsed;
+            ClockFaceRect.Visibility = Visibility.Visible;
+            ClockFaceRect.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+            ClockFaceRect.Stroke = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+            ClockFaceRect.StrokeThickness = 1;
+            
             for (int i = 0; i < 12; i++)
             {
-                double angleDeg = i * 30.0;
-                double angleRad = angleDeg * Math.PI / 180.0;
-                double cx = 140, cy = 140, r = 125;
-                
-                var rect = new Rectangle { Width = 8, Height = 8, Fill = Brushes.White, Opacity = 0.9 };
-                Canvas.SetLeft(rect, cx + r * Math.Sin(angleRad) - 4);
-                Canvas.SetTop(rect,  cy - r * Math.Cos(angleRad) - 4);
-                TickCanvas.Children.Add(rect);
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140, r = 118;
+                bool isHour = true;
+                var rect = new Rectangle { Width = 10, Height = 3, Fill = Brushes.White, Opacity = 0.9 };
+                // Use Line instead for proper radial alignment
+                var line = new Line {
+                    X1 = cx + 126 * Math.Sin(angle), Y1 = cy - 126 * Math.Cos(angle),
+                    X2 = cx + 110 * Math.Sin(angle), Y2 = cy - 110 * Math.Cos(angle),
+                    Stroke = Brushes.White, StrokeThickness = 3, Opacity = 0.9
+                };
+                TickCanvas.Children.Add(line);
             }
         }
 
         private void DrawSquareLuxuryFace()
         {
-            // Gold square markers + outer gold square stroke
-            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55));
-            OuterRing.StrokeThickness = 1;
+            // Square face background + gold markers
+            ClockFaceEllipse.Visibility = Visibility.Collapsed;
+            ClockFaceRect.Visibility = Visibility.Visible;
+            ClockFaceRect.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+            ClockFaceRect.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55));
+            ClockFaceRect.StrokeThickness = 2;
             
             for (int i = 0; i < 12; i++)
             {
-                double angleDeg = i * 30.0;
-                double angleRad = angleDeg * Math.PI / 180.0;
-                double cx = 140, cy = 140, r = 120;
-                
-                var rect = new Rectangle { 
-                    Width = 6, Height = 6, 
-                    Fill = new SolidColorBrush(Color.FromRgb(212, 175, 55)),
-                    Stroke = Brushes.Black, StrokeThickness = 0.5
+                double angle = i * 30.0 * Math.PI / 180.0;
+                double cx = 140, cy = 140;
+                var line = new Line {
+                    X1 = cx + 126 * Math.Sin(angle), Y1 = cy - 126 * Math.Cos(angle),
+                    X2 = cx + 110 * Math.Sin(angle), Y2 = cy - 110 * Math.Cos(angle),
+                    Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55)),
+                    StrokeThickness = 2
                 };
-                Canvas.SetLeft(rect, cx + r * Math.Sin(angleRad) - 3);
-                Canvas.SetTop(rect,  cy - r * Math.Cos(angleRad) - 3);
-                TickCanvas.Children.Add(rect);
+                TickCanvas.Children.Add(line);
             }
         }
 
