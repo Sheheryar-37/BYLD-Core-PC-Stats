@@ -652,6 +652,16 @@ public partial class SettingsWindow : Window
         _themeService.NotifyThemeUpdated();
     }
 
+    private void ScrFaces_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is ScrollViewer scrollViewer)
+        {
+            if (e.Delta > 0) scrollViewer.LineLeft();
+            else scrollViewer.LineRight();
+            e.Handled = true;
+        }
+    }
+
     // ── Helpers ────────────────────────────────────────────────────────────────
     private static void SetColorButton(Button btn, string hex)
     {

@@ -600,7 +600,7 @@
                                     <!-- Face Selector (horizontal scroll) -->
                                     <!-- Face Selector (horizontal scroll) -->
                                     <TextBlock Text="Select Face Style" FontSize="11" Opacity="0.7" Margin="0,0,0,6"/>
-                                    <ScrollViewer HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,15" PanningMode="HorizontalOnly">
+                                    <ScrollViewer x:Name="ScrFaces" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,15" PanningMode="HorizontalOnly" PreviewMouseWheel="ScrFaces_PreviewMouseWheel">
                                         <StackPanel x:Name="PnlFaces" Orientation="Horizontal" Height="110" Margin="0,0,0,5"/>
                                     </ScrollViewer>
 

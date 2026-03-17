@@ -13,6 +13,7 @@ namespace PcStatsMonitor.Controls
         private DispatcherTimer? _timer;
         private ClockConfig _config = new();
         private string _themeBackground = "#060606";
+        private string _logoPath = "";
 
         public BuiltInClockScreen()
         {
@@ -36,8 +37,10 @@ namespace PcStatsMonitor.Controls
         {
             _config = cfg ?? new ClockConfig();
             _themeBackground = theme?.BackgroundColor ?? "#060606";
+            _logoPath = theme?.LogoPath ?? "";
 
             ApplyBackground();
+            ApplyLogo();
             ApplyAnalogFace();
             ApplyHandColors();
             ApplyClockTransform();
@@ -92,6 +95,20 @@ namespace PcStatsMonitor.Controls
                 CustomBgBlock.Visibility = Visibility.Collapsed;
                 RootClockGrid.Background = ParseBrush(_themeBackground, "#060606");
             }
+        }
+
+        private void ApplyLogo()
+        {
+            if (!string.IsNullOrWhiteSpace(_logoPath))
+            {
+                try
+                {
+                    LogoImage.Source = new System.Windows.Media.Imaging.BitmapImage(
+                        new Uri(_logoPath, UriKind.RelativeOrAbsolute));
+                }
+                catch { LogoImage.Source = null; }
+            }
+            else { LogoImage.Source = null; }
         }
 
         private void ApplyHandColors()

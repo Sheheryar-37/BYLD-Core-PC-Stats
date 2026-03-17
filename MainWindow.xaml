@@ -285,7 +285,6 @@
 
             <!-- Screen 4: Built-in Clock Screen -->
             <Grid x:Name="ClockScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
                 <controls:BuiltInClockScreen x:Name="BuiltInClock"/>
             </Grid>
 
