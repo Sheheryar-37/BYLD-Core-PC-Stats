@@ -266,6 +266,7 @@ public partial class MainWindow : Window
             bool isValid = false;
             if (name == "Gauges" && config.ShowGaugesScreen) isValid = true;
             else if (name == "Storage" && config.ShowStorageScreen) isValid = true;
+            else if (name == "Clock" && config.ShowClockScreen) isValid = true;
             else if (config.EnabledPlugins != null && config.EnabledPlugins.Contains(name)) isValid = true;
 
             if (isValid) break;
