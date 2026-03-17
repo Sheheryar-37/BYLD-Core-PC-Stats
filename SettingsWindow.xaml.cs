@@ -437,7 +437,9 @@ public partial class SettingsWindow : Window
 
     private void LoadClockSettings()
     {
-        var clk = _themeService.CurrentTheme.Clock ?? new ClockConfig();
+        var theme = _themeService.CurrentTheme;
+        theme.Clock ??= new ClockConfig();
+        var clk = theme.Clock;
         _selectedFace = clk.FaceName ?? "Classic";
 
         // Populate face selector cards
@@ -447,11 +449,11 @@ public partial class SettingsWindow : Window
             bool isSelected = face == _selectedFace;
             var card = new Border
             {
-                Width = 90, Height = 90, CornerRadius = new CornerRadius(10),
-                Margin = new Thickness(0, 0, 8, 0),
+                Width = 100, Height = 100, CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(0, 0, 10, 0),
                 Background = isSelected 
-                    ? new SolidColorBrush(Color.FromArgb(80, 59, 130, 246))
-                    : new SolidColorBrush(Color.FromArgb(25, 255, 255, 255)),
+                    ? new SolidColorBrush(Color.FromArgb(50, 59, 130, 246))
+                    : new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
                 BorderBrush = isSelected
                     ? new SolidColorBrush(Color.FromArgb(200, 59, 130, 246))
                     : new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
@@ -459,21 +461,39 @@ public partial class SettingsWindow : Window
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = face
             };
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            
+            // Visual Preview (Mini Clock)
+            var previewBox = new Viewbox { Width = 60, Height = 60, Margin = new Thickness(0,0,0,5) };
+            var previewClock = new PcStatsMonitor.Controls.BuiltInClockScreen();
+            var prevCfg = new ClockConfig { 
+                FaceName = face, ClockScale = 0.9,
+                HourHandColor = "#FFFFFF", MinuteHandColor = "#FFFFFF", SecondHandColor = "#3b82f6",
+                ClockFaceColor = "#1A1A1A",
+                ShowDigitalClock = false, ShowDate = false
+            };
+            previewClock.ApplyConfig(prevCfg, new ThemeConfig { BackgroundColor = "Transparent" });
+            previewBox.Child = previewClock;
+            stack.Children.Add(previewBox);
+
             var label = new TextBlock
             {
                 Text = face, HorizontalAlignment = HorizontalAlignment.Center,
-                VerticalAlignment = VerticalAlignment.Center,
-                Foreground = Brushes.White, FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal,
-                FontSize = 13
+                Foreground = Brushes.White, Opacity = isSelected ? 1.0 : 0.7,
+                FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal,
+                FontSize = 11
             };
-            card.Child = label;
+            stack.Children.Add(label);
+            card.Child = stack;
+
             card.MouseLeftButtonDown += (s, _) =>
             {
                 if (s is Border b && b.Tag is string faceName)
                 {
                     _selectedFace = faceName;
+                    SaveClockSettings(); // Save the new selection
                     LoadClockSettings(); // Re-render cards to show selection
-                    SaveClockSettings();
                     _themeService.NotifyThemeUpdated();
                 }
             };
@@ -509,11 +529,11 @@ public partial class SettingsWindow : Window
         SetComboItem(CmbDigitalFormat, clk.DigitalFormat);
         SetComboItem(CmbDateFormat,    clk.DateFormat);
 
-        // Background toggle
-        ChkClockCustomBg.IsChecked  = clk.UseCustomBackground;
-        PnlClockCustomBg.Visibility = clk.UseCustomBackground ? Visibility.Visible : Visibility.Collapsed;
-        TxtClockBgInfo.Visibility   = clk.UseCustomBackground ? Visibility.Collapsed : Visibility.Visible;
-        TxtClockBgImage.Text        = clk.CustomBackgroundImagePath ?? "";
+        // Digital / Date Toggles
+        ChkShowDigital.IsChecked = clk.ShowDigitalClock;
+        ChkShowDate.IsChecked    = clk.ShowDate;
+
+        TxtClockBgImage.Text     = clk.CustomBackgroundImagePath ?? "";
     }
 
     private void SaveClockSettings()
@@ -541,6 +561,8 @@ public partial class SettingsWindow : Window
         clk.DateFormat         = (CmbDateFormat.SelectedItem   as ComboBoxItem)?.Content?.ToString() ?? clk.DateFormat;
 
         clk.UseCustomBackground        = ChkClockCustomBg.IsChecked ?? false;
+        clk.ShowDigitalClock           = ChkShowDigital.IsChecked ?? true;
+        clk.ShowDate                  = ChkShowDate.IsChecked ?? true;
         clk.CustomBackgroundImagePath  = TxtClockBgImage.Text;
     }
 

@@ -94,6 +94,7 @@ public class ClockConfig
     public string DigitalFormat { get; set; } = "12h"; // 12h or 24h
     public double DigitalOffsetX { get; set; } = 0.0;
     public double DigitalOffsetY { get; set; } = 0.0;
+    public bool ShowDigitalClock { get; set; } = true;
 
     // Date
     public string DateColor { get; set; } = "#AAAAAA";
@@ -102,6 +103,7 @@ public class ClockConfig
     public string DateFormat { get; set; } = "Long"; // Long, Short, Numeric
     public double DateOffsetX { get; set; } = 0.0;
     public double DateOffsetY { get; set; } = 0.0;
+    public bool ShowDate { get; set; } = true;
 
     // Screen Background
     public bool UseCustomBackground { get; set; } = false;

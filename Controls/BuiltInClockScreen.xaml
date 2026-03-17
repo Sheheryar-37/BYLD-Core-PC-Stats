@@ -54,7 +54,7 @@
                     <Canvas Width="280" Height="280">
                         <!-- Hour Hand -->
                         <Rectangle x:Name="HandHour"
-                                   Canvas.Left="139" Canvas.Top="75"
+                                   Canvas.Left="137.5" Canvas.Top="75"
                                    Width="5" Height="65"
                                    Fill="White" RadiusX="3" RadiusY="3"
                                    RenderTransformOrigin="0.5,1">
@@ -65,7 +65,7 @@
 
                         <!-- Minute Hand -->
                         <Rectangle x:Name="HandMin"
-                                   Canvas.Left="139" Canvas.Top="50"
+                                   Canvas.Left="138" Canvas.Top="50"
                                    Width="4" Height="90"
                                    Fill="White" RadiusX="2" RadiusY="2"
                                    RenderTransformOrigin="0.5,1">
@@ -76,7 +76,7 @@
 
                         <!-- Second Hand -->
                         <Rectangle x:Name="HandSec"
-                                   Canvas.Left="140.5" Canvas.Top="30"
+                                   Canvas.Left="139" Canvas.Top="30"
                                    Width="2" Height="110"
                                    Fill="#3b82f6" RadiusX="1" RadiusY="1"
                                    RenderTransformOrigin="0.5,1">
@@ -87,7 +87,7 @@
 
                         <!-- Tail of second hand (counterweight) -->
                         <Rectangle x:Name="HandSecTail"
-                                   Canvas.Left="140.5" Canvas.Top="145"
+                                   Canvas.Left="139" Canvas.Top="145"
                                    Width="2" Height="25"
                                    Fill="#3b82f6" RadiusX="1" RadiusY="1"
                                    RenderTransformOrigin="0.5,0">
@@ -106,7 +106,7 @@
             </Grid>
 
             <!-- ─── Digital Time ──────────────────────────────────────────── -->
-            <StackPanel Grid.Row="2" HorizontalAlignment="Center">
+            <StackPanel x:Name="PnlDigitalClock" Grid.Row="2" HorizontalAlignment="Center">
                 <StackPanel.RenderTransform>
                     <TranslateTransform x:Name="DigitalTranslate" X="0" Y="0"/>
                 </StackPanel.RenderTransform>

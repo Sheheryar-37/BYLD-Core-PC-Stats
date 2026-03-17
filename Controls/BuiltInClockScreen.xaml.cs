@@ -129,6 +129,9 @@ namespace PcStatsMonitor.Controls
 
         private void ApplyDigitalStyle()
         {
+            PnlDigitalClock.Visibility = _config.ShowDigitalClock ? Visibility.Visible : Visibility.Collapsed;
+            if (!_config.ShowDigitalClock) return;
+
             TxtDigital.Foreground = ParseBrush(_config.DigitalColor, "#FFFFFF");
             TxtAmPm.Foreground = ParseBrush(_config.DigitalColor, "#FFFFFF");
             TxtDigital.FontSize = _config.DigitalFontSize > 0 ? _config.DigitalFontSize : 80;
@@ -139,6 +142,9 @@ namespace PcStatsMonitor.Controls
 
         private void ApplyDateStyle()
         {
+            TxtDate.Visibility = _config.ShowDate ? Visibility.Visible : Visibility.Collapsed;
+            if (!_config.ShowDate) return;
+
             TxtDate.Foreground = ParseBrush(_config.DateColor, "#AAAAAA");
             TxtDate.FontSize = _config.DateFontSize > 0 ? _config.DateFontSize : 18;
             TxtDate.FontFamily = ParseFont(_config.DateFontFamily);

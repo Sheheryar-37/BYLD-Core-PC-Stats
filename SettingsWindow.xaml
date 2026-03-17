@@ -603,6 +603,7 @@
                             <Border Style="{StaticResource SectionBorderStyle}">
                                 <StackPanel>
                                     <TextBlock Text="DIGITAL CLOCK" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <CheckBox x:Name="ChkShowDigital" Content="Show Digital Clock" Click="OnClockSettingChanged" Margin="0,0,0,10"/>
                                     <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Text Color" VerticalAlignment="Center"/>
@@ -655,6 +656,7 @@
                             <Border Style="{StaticResource SectionBorderStyle}">
                                 <StackPanel>
                                     <TextBlock Text="DATE" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <CheckBox x:Name="ChkShowDate" Content="Show Time and Day (Date)" Click="OnClockSettingChanged" Margin="0,0,0,10"/>
                                     <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Text Color" VerticalAlignment="Center"/>
