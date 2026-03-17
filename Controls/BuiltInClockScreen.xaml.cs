@@ -90,7 +90,9 @@ namespace PcStatsMonitor.Controls
             else
             {
                 CustomBgBlock.Visibility = Visibility.Collapsed;
-                RootClockGrid.Background = ParseBrush(_themeBackground, "#060606");
+                // Use Transparent so the global background image from MainWindow shows through.
+                // The Window's own Background color (from theme) is already visible underneath.
+                RootClockGrid.Background = Brushes.Transparent;
             }
         }
 
