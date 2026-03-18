@@ -222,6 +222,8 @@ public partial class SettingsWindow : Window
         {
             w.UpdateIntervalMinutes = mins;
         }
+
+        w.GlowColor = BtnWeatherGlowColor.Tag?.ToString() ?? "#3b82f6";
     }
 
     private void BtnColorPick_Click(object sender, RoutedEventArgs e)

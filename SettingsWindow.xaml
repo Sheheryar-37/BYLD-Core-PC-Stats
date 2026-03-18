@@ -633,7 +633,7 @@
                                     </ComboBox>
                                 </Grid>
 
-                                <Grid Margin="0,0,0,0">
+                                <Grid Margin="0,0,0,15">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="Update Interval" VerticalAlignment="Center"/>
                                     <ComboBox x:Name="CmbWeatherInterval" Grid.Column="1" Width="120" SelectionChanged="OnWeatherSettingChanged" Style="{StaticResource ModernComboBoxStyle}" ToolTip="How often to automatically refresh weather data from the API.">
@@ -644,6 +644,14 @@
                                         <ComboBoxItem Content="1 Hour" Tag="60"/>
                                         <ComboBoxItem Content="Manual Only" Tag="0"/>
                                     </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,15">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Weather Glow Color" VerticalAlignment="Center"/>
+                                    <Button x:Name="BtnWeatherGlowColor" Grid.Column="1" Width="100" Height="28" Click="BtnColorPick_Click" Style="{x:Null}">
+                                        <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                    </Button>
                                 </Grid>
                             </StackPanel>
                         </Border>

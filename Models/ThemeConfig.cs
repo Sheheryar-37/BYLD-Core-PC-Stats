@@ -132,6 +132,7 @@ public class WeatherConfig
     public string WeatherTheme { get; set; } = "Dark"; // Dark, Light, System
     public string TextColor { get; set; } = "#FFFFFF";
     public string AccentColor { get; set; } = "#3b82f6";
+    public string GlowColor { get; set; } = "#3b82f6";
 }
 
 public class SensorNamesConfig

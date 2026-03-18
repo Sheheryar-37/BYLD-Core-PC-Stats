@@ -8,14 +8,15 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using PcStatsMonitor.Models;
 
-namespace PcStatsMonitor.Controls;
-
-public partial class WeatherScreen : UserControl
+namespace PcStatsMonitor.Controls
 {
+    public partial class WeatherScreen : UserControl
+    {
     private WeatherConfig _config = new();
     private ThemeConfig _theme = new();
     private DispatcherTimer _refreshTimer = new();
     private static readonly HttpClient _httpClient = new();
+    private ForecastResponse _fullForecast = null;
 
     public WeatherScreen()
     {
@@ -41,50 +42,69 @@ public partial class WeatherScreen : UserControl
         await UpdateWeatherData();
     }
 
-    private void ApplyTheme()
-    {
-        string mode = _config.WeatherTheme ?? "Dark";
-        if (mode == "System")
+        private void ApplyTheme()
         {
-            mode = GetWindowsTheme();
+            string mode = _config.WeatherTheme ?? "Dark";
+            if (mode == "System")
+            {
+                mode = GetWindowsTheme();
+            }
+
+            bool isLight = mode == "Light";
+
+            // Colors
+            var bgBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(240, 240, 240) : System.Windows.Media.Color.FromRgb(18, 18, 18));
+            var cardBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Colors.White : System.Windows.Media.Color.FromRgb(30, 30, 30));
+            var textBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(20, 20, 20) : System.Windows.Media.Colors.White);
+            var subTextBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(80, 80, 80) : System.Windows.Media.Color.FromRgb(136, 136, 136));
+            var graphBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(180, 180, 180) : System.Windows.Media.Color.FromRgb(60, 60, 60));
+
+            this.Foreground = textBrush;
+            WeatherBg.Background = bgBrush;
+            HeroCard.Background = cardBrush;
+            GraphTooltip.Background = cardBrush;
+
+            // Named elements
+            TxtCity.Foreground = textBrush;
+            TxtTemp.Foreground = textBrush;
+            TxtWind.Foreground = textBrush;
+            TxtHumidity.Foreground = textBrush;
+            TxtPressure.Foreground = textBrush;
+            TxtDateHeader.Foreground = subTextBrush;
+            TxtCondition.Foreground = subTextBrush;
+            TxtWeatherIconLarge.Foreground = textBrush;
+            
+            // Forecast tab base foreground
+            TabToday.Foreground = subTextBrush;
+            TabTomorrow.Foreground = subTextBrush;
+            TabNextDays.Foreground = subTextBrush;
+
+            // Forecast card background resource update (re-assign to handle frozen states)
+            this.Resources["ForecastCardBackground"] = new System.Windows.Media.SolidColorBrush(isLight 
+                ? System.Windows.Media.Color.FromRgb(225, 225, 225) 
+                : System.Windows.Media.Color.FromArgb(20, 136, 136, 136));
+
+            this.Resources["ForecastTabActiveForeground"] = new System.Windows.Media.SolidColorBrush(isLight 
+                ? textBrush.Color 
+                : System.Windows.Media.Colors.White);
+
+            // Graph
+            GraphPath.Stroke = graphBrush;
+            GraphPoint.Fill = textBrush;
+
+            // We can refresh the forecast items since they bind to UserControl.Foreground
+            UpdateForecastUI();
         }
 
-        bool isLight = mode == "Light";
-
-        // Colors
-        var bgBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(245, 245, 245) : System.Windows.Media.Color.FromRgb(18, 18, 18));
-        var cardBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Colors.White : System.Windows.Media.Color.FromRgb(30, 30, 30));
-        var textBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(18, 18, 18) : System.Windows.Media.Colors.White);
-        var subTextBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(102, 102, 102) : System.Windows.Media.Color.FromRgb(136, 136, 136));
-        var graphBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White);
-
-        this.Foreground = textBrush;
-        WeatherBg.Background = bgBrush;
-        HeroCard.Background = cardBrush;
-        GraphTooltip.Background = cardBrush;
-
-        // Named elements also benefit from explicit setting for clarity, 
-        // though many will now inherit from 'this.Foreground'
-        TxtCity.Foreground = textBrush;
-        TxtTemp.Foreground = textBrush;
-        TxtWind.Foreground = textBrush;
-        TxtHumidity.Foreground = textBrush;
-        TxtPressure.Foreground = textBrush;
-        
-        // Titles/Dates
-        TxtDateHeader.Foreground = subTextBrush;
-        TxtCondition.Foreground = subTextBrush;
-        
-        // Graph
-        GraphPath.Stroke = graphBrush;
-        GraphPoint.Fill = graphBrush;
-
-        // We can't easily reach LstForecast card backgrounds via code-behind without visual tree walking, 
-        // so we'll handle that via a DynamicResource or by just setting a property on the items if we had a ViewModel.
-        // For now, let's refresh the ItemsSource which will trigger the template to re-bind if we use a value converter 
-        // or just accept that cards look okay as they are (dark-ish).
-        // Actually, let's just make the forecast cards semi-transparent in XAML so they work on both.
-    }
+        private void ForecastScroller_PreviewMouseWheel(object sender, System.Windows.Input.MouseWheelEventArgs e)
+        {
+            if (sender is ScrollViewer sv)
+            {
+                if (e.Delta > 0) sv.LineLeft();
+                else sv.LineRight();
+                e.Handled = true;
+            }
+        }
 
     private string GetWindowsTheme()
     {
@@ -103,7 +123,7 @@ public partial class WeatherScreen : UserControl
         {
             LoadingOverlay.Visibility = Visibility.Collapsed;
             TxtCity.Text = "MISSING CONFIG";
-            TxtDate.Text = "Set API Key & City in Settings";
+            TxtDateHeader.Text = "Set API Key & City in Settings";
             return;
         }
 
@@ -126,17 +146,17 @@ public partial class WeatherScreen : UserControl
                 if (currentResp.StatusCode == System.Net.HttpStatusCode.Unauthorized)
                 {
                     TxtCity.Text = "API ERROR";
-                    TxtDate.Text = "Invalid or Expired API Key";
+                    TxtDateHeader.Text = "Invalid or Expired API Key";
                 }
                 else if (currentResp.StatusCode == System.Net.HttpStatusCode.NotFound)
                 {
                     TxtCity.Text = "NOT FOUND";
-                    TxtDate.Text = "City Not Found";
+                    TxtDateHeader.Text = "City Not Found";
                 }
                 else
                 {
                     TxtCity.Text = "ERROR";
-                    TxtDate.Text = $"Status: {currentResp.StatusCode}";
+                    TxtDateHeader.Text = $"Status: {currentResp.StatusCode}";
                 }
                 return;
             }
@@ -145,20 +165,20 @@ public partial class WeatherScreen : UserControl
             var forecastJson = await forecastResp.Content.ReadAsStringAsync();
 
             var current = JsonSerializer.Deserialize<WeatherResponse>(currentJson);
-            var forecast = JsonSerializer.Deserialize<ForecastResponse>(forecastJson);
+            _fullForecast = JsonSerializer.Deserialize<ForecastResponse>(forecastJson);
 
             // ONLY update UI if we successfully got everything
             if (current != null) UpdateCurrentUI(current);
-            if (forecast != null) UpdateForecastUI(forecast);
+            UpdateForecastUI();
 
-            TxtDate.Text = $"Last updated: {DateTime.Now:t}";
+            TxtDateHeader.Text = $"Last updated: {DateTime.Now:t}";
             LoadingOverlay.Visibility = Visibility.Collapsed;
         }
         catch (Exception ex)
         {
             // Don't override TxtCity if we already have data, just update the status line
             if (TxtCity.Text == "LOADING...") TxtCity.Text = "ERROR";
-            TxtDate.Text = "Check Connection or Settings";
+            TxtDateHeader.Text = "Check Connection or Settings";
             LoadingOverlay.Visibility = Visibility.Collapsed;
             System.Diagnostics.Debug.WriteLine($"Weather Error: {ex.Message}");
         }
@@ -171,38 +191,77 @@ public partial class WeatherScreen : UserControl
         string unitSymbol = (_config.Units == "imperial") ? "°F" : "°C";
         TxtTemp.Text = $"{Math.Round(data.main.temp)}{unitSymbol}";
         TxtCondition.Text = data.weather[0].description.ToUpper();
-        TxtHigh.Text = $"{Math.Round(data.main.temp_max)}°";
-        TxtLow.Text = $"{Math.Round(data.main.temp_min)}°";
         
         TxtHumidity.Text = $"{data.main.humidity}%";
         string speedUnit = (_config.Units == "imperial") ? "mph" : "m/s";
         TxtWind.Text = $"{data.wind.speed} {speedUnit}";
         TxtPressure.Text = $"{data.main.pressure} hPa";
-        TxtFeelsLike.Text = $"{Math.Round(data.main.feels_like)}°";
 
         TxtWeatherIconLarge.Text = GetWeatherEmoji(data.weather[0].icon);
     }
 
-    private void UpdateForecastUI(ForecastResponse data)
+    private void ForecastTab_Checked(object sender, RoutedEventArgs e)
     {
+        UpdateForecastUI();
+    }
+
+    private void UpdateForecastUI()
+    {
+        if (_fullForecast == null || _fullForecast.list == null) return;
         var forecastItems = new List<ForecastViewItem>();
         
-        // Pick one entry per day for the next 5 days (usually entries at 12:00:00)
-        var seenDays = new HashSet<string>();
-        foreach (var item in data.list)
+        string selected = "Today";
+        if (TabTomorrow.IsChecked == true) selected = "Tomorrow";
+        else if (TabNextDays.IsChecked == true) selected = "NextDays";
+
+        if (selected == "Today")
         {
-            var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
-            var dayStr = date.ToString("ddd").ToUpper();
-            
-            if (date.Date > DateTime.Now.Date && !seenDays.Contains(dayStr) && forecastItems.Count < 5)
+            // First 6 entries (next 18 hours)
+            foreach (var item in _fullForecast.list.Take(6))
             {
+                var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
                 forecastItems.Add(new ForecastViewItem
                 {
-                    Day = dayStr,
+                    Day = date.ToString("HH:mm"),
                     Icon = GetWeatherEmoji(item.weather[0].icon),
                     Temp = $"{Math.Round(item.main.temp)}°"
                 });
-                seenDays.Add(dayStr);
+            }
+        }
+        else if (selected == "Tomorrow")
+        {
+            // First 6 entries of tomorrow
+            var tomorrow = DateTime.Now.Date.AddDays(1);
+            var tomorrowItems = _fullForecast.list.Where(x => DateTimeOffset.FromUnixTimeSeconds(x.dt).LocalDateTime.Date == tomorrow).Take(6);
+            foreach (var item in tomorrowItems)
+            {
+                var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
+                forecastItems.Add(new ForecastViewItem
+                {
+                    Day = date.ToString("HH:mm"),
+                    Icon = GetWeatherEmoji(item.weather[0].icon),
+                    Temp = $"{Math.Round(item.main.temp)}°"
+                });
+            }
+        }
+        else // Next 5 Days
+        {
+            var seenDays = new HashSet<string>();
+            foreach (var item in _fullForecast.list)
+            {
+                var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
+                var dayStr = date.ToString("ddd").ToUpper();
+                
+                if (date.Date > DateTime.Now.Date && !seenDays.Contains(dayStr))
+                {
+                    forecastItems.Add(new ForecastViewItem
+                    {
+                        Day = dayStr,
+                        Icon = GetWeatherEmoji(item.weather[0].icon),
+                        Temp = $"{Math.Round(item.main.temp)}°"
+                    });
+                    seenDays.Add(dayStr);
+                }
             }
         }
         
@@ -243,5 +302,6 @@ public partial class WeatherScreen : UserControl
     public class MainInfo { public double temp { get; set; } public double temp_min { get; set; } public double temp_max { get; set; } public double feels_like { get; set; } public int humidity { get; set; } public int pressure { get; set; } }
     public class WindInfo { public double speed { get; set; } }
     
-    public class ForecastViewItem { public string Day { get; set; } public string Icon { get; set; } public string Temp { get; set; } }
+        public class ForecastViewItem { public string Day { get; set; } public string Icon { get; set; } public string Temp { get; set; } }
+    }
 }

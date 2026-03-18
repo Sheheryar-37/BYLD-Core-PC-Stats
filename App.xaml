@@ -28,7 +28,7 @@
                             <Trigger Property="IsChecked" Value="True">
                                 <Setter TargetName="Box" Property="Background" Value="{StaticResource BrandBlue}"/>
                                 <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
-                                <Setter Name="CheckMark" Property="Visibility" Value="Visible"/>
+                                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Box" Property="BorderBrush" Value="{StaticResource BrandBlue}"/>

@@ -6,10 +6,15 @@
              mc:Ignorable="d" 
              d:DesignHeight="854" d:DesignWidth="480">
 
+    <UserControl.Resources>
+        <SolidColorBrush x:Name="ForecastCardBackground" x:Key="ForecastCardBackground" Color="#14888888"/>
+        <SolidColorBrush x:Name="ForecastTabActiveForeground" x:Key="ForecastTabActiveForeground" Color="White"/>
+    </UserControl.Resources>
+
     <Grid x:Name="RootWeatherGrid" Width="480" Height="854">
         <!-- Main Background and Theme Support -->
         <Border x:Name="WeatherBg" Background="#121212">
-            <Grid Margin="24,60,24,24">
+            <Grid Margin="24,140,24,24">
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto"/> <!-- Header -->
                     <RowDefinition Height="Auto"/> <!-- Hero Card -->
@@ -63,30 +68,57 @@
                     </StackPanel>
                 </Grid>
 
-                <!-- 4. Forecast Tabs (Visual only to match mock) -->
+                <!-- 4. Forecast Tabs (Interactive) -->
                 <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,20">
-                    <TextBlock Text="Today" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,20,0"/>
-                    <TextBlock Text="Tomorrow" Foreground="#888888" FontSize="16" FontWeight="SemiBold" Margin="0,0,20,0"/>
-                    <TextBlock Text="Next 5 Days" Foreground="#888888" FontSize="16" FontWeight="SemiBold"/>
+                    <StackPanel.Resources>
+                        <Style TargetType="RadioButton">
+                            <Setter Property="Background" Value="Transparent"/>
+                            <Setter Property="Foreground" Value="#888888"/>
+                            <Setter Property="FontSize" Value="16"/>
+                            <Setter Property="FontWeight" Value="SemiBold"/>
+                            <Setter Property="Margin" Value="0,0,24,0"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="RadioButton">
+                                        <StackPanel Background="Transparent">
+                                            <ContentPresenter Content="{TemplateBinding Content}"/>
+                                            <Ellipse x:Name="Indicator" Width="4" Height="4" Fill="{TemplateBinding Foreground}" HorizontalAlignment="Center" Margin="0,4,0,0" Visibility="Hidden"/>
+                                        </StackPanel>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsChecked" Value="True">
+                                                <Setter Property="Foreground" Value="{DynamicResource ForecastTabActiveForeground}"/>
+                                                <Setter TargetName="Indicator" Property="Visibility" Value="Visible"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </StackPanel.Resources>
+                    <RadioButton x:Name="TabToday" Content="Today" IsChecked="True" Checked="ForecastTab_Checked"/>
+                    <RadioButton x:Name="TabTomorrow" Content="Tomorrow" Checked="ForecastTab_Checked"/>
+                    <RadioButton x:Name="TabNextDays" Content="Next 5 Days" Checked="ForecastTab_Checked"/>
                 </StackPanel>
 
-                <!-- 5. Hourly Forecast (Cards) -->
-                <ItemsControl x:Name="LstForecast" Grid.Row="4">
-                    <ItemsControl.ItemsPanel>
-                        <ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate>
-                    </ItemsControl.ItemsPanel>
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate>
-                            <Border x:Name="ForecastCard" Background="#1A888888" CornerRadius="16" Padding="12" Margin="4">
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock Text="{Binding Day}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" Opacity="0.6" FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                    <TextBlock Text="{Binding Icon}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                                    <TextBlock Text="{Binding Temp}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </Border>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
+                <!-- 5. Hourly/Daily Forecast (Scrollable) -->
+                <ScrollViewer x:Name="ForecastScroller" Grid.Row="4" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" PreviewMouseWheel="ForecastScroller_PreviewMouseWheel">
+                    <ItemsControl x:Name="LstForecast">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><StackPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border x:Name="ForecastCard" Background="{DynamicResource ForecastCardBackground}" CornerRadius="16" Padding="12" Margin="0,0,12,0" Width="90">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding Day}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" Opacity="0.6" FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                        <TextBlock Text="{Binding Icon}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                        <TextBlock Text="{Binding Temp}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
 
                 <!-- 6. Bottom Graph (Stylized placeholder) -->
                 <Grid Grid.Row="5" Margin="0,40,0,0" VerticalAlignment="Bottom">
