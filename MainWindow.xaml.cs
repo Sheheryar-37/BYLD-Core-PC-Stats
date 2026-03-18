@@ -1,17 +1,21 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using PcStatsMonitor.ViewModels;
 using PcStatsMonitor.Services;
 using PcStatsMonitor.Models;
+using System.Collections.Generic;
 
 namespace PcStatsMonitor;
 
 public partial class MainWindow : Window
 {
     private readonly DispatcherTimer _transitionTimer;
-    private int _currentScreenIndex = 0; // 0 = Gauges, 1 = Storage, 2+ = Plugins
+    private int _currentScreenIndex = 0;
+    private int _previousScreenIndex = -1;
     public PluginManager PluginManager => _pluginManager;
     private PluginManager _pluginManager;
 
@@ -114,12 +118,15 @@ public partial class MainWindow : Window
         // Ensure ScreenRotationOrder is initialized properly
         if (config.ScreenRotationOrder == null || config.ScreenRotationOrder.Count == 0)
         {
-            config.ScreenRotationOrder = new List<string> { "Gauges", "Storage", "Clock" };
+            config.ScreenRotationOrder = new List<string> { "Gauges", "Storage", "Clock", "Weather" };
         }
 
-        // Ensure built-in screens (Clock) are in the rotation order if enabled
+        // Ensure built-in screens (Clock, Weather) are in the rotation order if enabled
         if (config.ShowClockScreen && !config.ScreenRotationOrder.Contains("Clock"))
             config.ScreenRotationOrder.Add("Clock");
+        
+        if (config.ShowWeatherScreen && !config.ScreenRotationOrder.Contains("Weather"))
+            config.ScreenRotationOrder.Add("Weather");
 
         // Synchronize missing enabled plugins into the rotation order
         if (config.EnabledPlugins != null)
@@ -158,6 +165,12 @@ public partial class MainWindow : Window
             targetScreen = ClockScreen;
             currentScreenValid = true;
         }
+        else if (currentScreenName == "Weather" && config.ShowWeatherScreen)
+        {
+            WeatherCtrl.ApplyConfig(config.Weather ?? new WeatherConfig(), config);
+            targetScreen = WeatherScreenArea;
+            currentScreenValid = true;
+        }
         else
         {
             // Check plugins
@@ -190,6 +203,11 @@ public partial class MainWindow : Window
                     BuiltInClock.ApplyConfig(config.Clock, config);
                     targetScreen = ClockScreen; _currentScreenIndex = i; currentScreenValid = true; break; 
                 }
+                if (name == "Weather" && config.ShowWeatherScreen)
+                {
+                    WeatherCtrl.ApplyConfig(config.Weather ?? new WeatherConfig(), config);
+                    targetScreen = WeatherScreenArea; _currentScreenIndex = i; currentScreenValid = true; break;
+                }
 
                 var p = _pluginManager?.LoadedPlugins?.FirstOrDefault(pl => pl.Name == name);
                 if (p != null && config.EnabledPlugins.Contains(p.Name))
@@ -202,41 +220,64 @@ public partial class MainWindow : Window
             if (!currentScreenValid) targetScreen = GaugesContainer;
         }
 
-        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen };
+        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea };
 
         if (animate)
         {
-            var duration = new Duration(TimeSpan.FromMilliseconds(800));
-            var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(0.0, duration);
-            var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(1.0, duration);
+            var duration = new Duration(TimeSpan.FromMilliseconds(700));
+            var ease = new System.Windows.Media.Animation.CubicEase { EasingMode = System.Windows.Media.Animation.EasingMode.EaseOut };
 
-            foreach(var screen in allScreens)
+            foreach (var screen in allScreens)
             {
+                var transform = (screen.RenderTransform as TransformGroup)?.Children.OfType<TranslateTransform>().FirstOrDefault() 
+                                ?? (screen.RenderTransform as TranslateTransform);
+
                 if (screen == targetScreen)
                 {
                     screen.Visibility = Visibility.Visible;
                     screen.IsHitTestVisible = true;
+
+                    // Animate Opacity
+                    var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(1.0, duration) { EasingFunction = ease };
                     screen.BeginAnimation(UIElement.OpacityProperty, fadeIn);
-                }
-                else
-                {
-                    if (screen.Visibility == Visibility.Visible && screen.Opacity > 0)
+
+                    // Animate Slide In from Right
+                    if (transform != null)
                     {
-                        screen.IsHitTestVisible = false;
-                        var fadeOutAnim = fadeOut.Clone();
-                        fadeOutAnim.Completed += (s, e) => { if (screen != targetScreen) screen.Visibility = Visibility.Hidden; };
-                        screen.BeginAnimation(UIElement.OpacityProperty, fadeOutAnim);
+                        var slideIn = new System.Windows.Media.Animation.DoubleAnimation(480, 0, duration) { EasingFunction = ease };
+                        transform.BeginAnimation(TranslateTransform.XProperty, slideIn);
+                    }
+                }
+                else if (screen.Visibility == Visibility.Visible && screen.Opacity > 0)
+                {
+                    screen.IsHitTestVisible = false;
+
+                    // Animate Opacity Out
+                    var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(0.0, duration) { EasingFunction = ease };
+                    fadeOut.Completed += (s, e) => { if (screen != targetScreen) screen.Visibility = Visibility.Hidden; };
+                    screen.BeginAnimation(UIElement.OpacityProperty, fadeOut);
+
+                    // Animate Slide Out to Left
+                    if (transform != null)
+                    {
+                        var slideOut = new System.Windows.Media.Animation.DoubleAnimation(0, -480, duration) { EasingFunction = ease };
+                        transform.BeginAnimation(TranslateTransform.XProperty, slideOut);
                     }
                 }
             }
         }
         else
         {
-            foreach(var screen in allScreens)
+            foreach (var screen in allScreens)
             {
                 screen.BeginAnimation(UIElement.OpacityProperty, null);
+                var transform = (screen.RenderTransform as TransformGroup)?.Children.OfType<TranslateTransform>().FirstOrDefault() 
+                                ?? (screen.RenderTransform as TranslateTransform);
+                if (transform != null) transform.BeginAnimation(TranslateTransform.XProperty, null);
+
                 bool isActive = (screen == targetScreen);
                 screen.Opacity = isActive ? 1.0 : 0.0;
+                if (transform != null) transform.X = 0;
                 screen.IsHitTestVisible = isActive;
                 screen.Visibility = isActive ? Visibility.Visible : Visibility.Hidden;
             }
@@ -255,11 +296,10 @@ public partial class MainWindow : Window
         if (totalSlots == 0) return;
 
         // Move to next screen in order
+        _previousScreenIndex = _currentScreenIndex;
         _currentScreenIndex = (_currentScreenIndex + 1) % totalSlots;
 
         // Safety: verify the new screen is actually enabled
-        // If not, it will be skipped by EvaluateScreenVisibility falling back to Gauges,
-        // but for smooth rotation let's try to find the next valid one here.
         for (int i = 0; i < totalSlots; i++)
         {
             string name = config.ScreenRotationOrder[_currentScreenIndex];
@@ -267,14 +307,19 @@ public partial class MainWindow : Window
             if (name == "Gauges" && config.ShowGaugesScreen) isValid = true;
             else if (name == "Storage" && config.ShowStorageScreen) isValid = true;
             else if (name == "Clock" && config.ShowClockScreen) isValid = true;
+            else if (name == "Weather" && config.ShowWeatherScreen) isValid = true;
             else if (config.EnabledPlugins != null && config.EnabledPlugins.Contains(name)) isValid = true;
 
             if (isValid) break;
 
             _currentScreenIndex = (_currentScreenIndex + 1) % totalSlots;
         }
-        
-        EvaluateScreenVisibility(animate: true);
+
+        // ONLY animate if the target screen is actually different from the current one
+        if (_currentScreenIndex != _previousScreenIndex)
+        {
+            EvaluateScreenVisibility(animate: true);
+        }
     }
 
     private void DualCircularGauge_Loaded(object sender, RoutedEventArgs e)

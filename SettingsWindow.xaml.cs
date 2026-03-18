@@ -134,7 +134,32 @@ public partial class SettingsWindow : Window
         // Clock Settings
         LoadClockSettings();
 
+        // Weather Settings
+        LoadWeatherSettings();
+
         _isInitializing = false;
+    }
+
+    private void LoadWeatherSettings()
+    {
+        var weather = _themeService.CurrentTheme.Weather ?? new WeatherConfig();
+        ChkShowWeather.IsChecked = _themeService.CurrentTheme.ShowWeatherScreen;
+        TxtWeatherApiKey.Password = weather.ApiKey ?? "";
+        TxtWeatherCity.Text = weather.City ?? "";
+        if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = weather.City ?? "";
+        
+        SetComboItem(CmbWeatherUnits, weather.Units == "imperial" ? "Imperial (°F)" : "Metric (°C)");
+        
+        string intervalText = weather.UpdateIntervalMinutes switch
+        {
+            1 => "1 Minute",
+            5 => "5 Minutes",
+            15 => "15 Minutes",
+            30 => "30 Minutes",
+            60 => "1 Hour",
+            _ => "15 Minutes" // Default
+        };
+        SetComboItem(CmbWeatherInterval, intervalText);
     }
 
     private void UpdateThemeObject()
@@ -158,6 +183,7 @@ public partial class SettingsWindow : Window
         theme.ShowGaugesScreen = ChkGaugesScreen.IsChecked ?? true;
         theme.ShowStorageScreen = ChkStorageScreen.IsChecked ?? true;
         theme.ShowClockScreen = ChkClockScreen.IsChecked ?? true;
+        theme.ShowWeatherScreen = ChkWeatherScreenLayout.IsChecked ?? false; // Update theme based on ChkWeatherScreenLayout
 
         theme.EnabledPlugins = PluginSettings.Where(ps => ps.IsEnabled).Select(ps => ps.Name).ToList();
         theme.ScreenRotationOrder = ScreenRotationList.ToList();
@@ -170,8 +196,29 @@ public partial class SettingsWindow : Window
         theme.TransitionDelaySeconds = (int)SldInterval.Value;
 
         SaveClockSettings();
+        SaveWeatherSettings();
 
         _themeService.NotifyThemeUpdated();
+    }
+
+    private void SaveWeatherSettings()
+    {
+        var theme = _themeService.CurrentTheme;
+        theme.Weather ??= new WeatherConfig();
+        var w = theme.Weather;
+
+        theme.ShowWeatherScreen = ChkShowWeather.IsChecked ?? false;
+        w.ApiKey = TxtWeatherApiKey.Password;
+        w.City = TxtWeatherCity.Text;
+        if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = w.City;
+        
+        w.Units = (CmbWeatherUnits.SelectedItem as ComboBoxItem)?.Content?.ToString()?.Contains("°F") == true ? "imperial" : "metric";
+        
+        var intervalItem = CmbWeatherInterval.SelectedItem as ComboBoxItem;
+        if (intervalItem != null && int.TryParse(intervalItem.Tag?.ToString(), out int mins))
+        {
+            w.UpdateIntervalMinutes = mins;
+        }
     }
 
     private void BtnColorPick_Click(object sender, RoutedEventArgs e)
@@ -296,11 +343,18 @@ public partial class SettingsWindow : Window
     private void OnScreenSettingChanged(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;
+        if (!ValidateActiveScreenCount(sender)) return;
 
-        // Prevent unchecking everything
+        UpdateScreenRotationList();
+        UpdateThemeObject();
+    }
+
+    private bool ValidateActiveScreenCount(object sender)
+    {
         int activeCount = (ChkGaugesScreen.IsChecked == true ? 1 : 0) + 
                           (ChkStorageScreen.IsChecked == true ? 1 : 0) + 
                           (ChkClockScreen.IsChecked == true ? 1 : 0) + 
+                          (ChkWeatherScreenLayout?.IsChecked == true || ChkShowWeather?.IsChecked == true ? 1 : 0) +
                           PluginSettings.Count(ps => ps.IsEnabled);
 
         if (activeCount == 0)
@@ -309,11 +363,9 @@ public partial class SettingsWindow : Window
             _isInitializing = true;
             if (sender is CheckBox cb) cb.IsChecked = true;
             _isInitializing = false;
-            return;
+            return false;
         }
-
-        UpdateScreenRotationList();
-        UpdateThemeObject();
+        return true;
     }
 
     private void OnPluginSettingChanged(object sender, RoutedEventArgs e)
@@ -327,18 +379,9 @@ public partial class SettingsWindow : Window
             bool oldVal = toggle.IsEnabled;
             toggle.IsEnabled = cb.IsChecked ?? false;
 
-            // Prevent unchecking everything
-            int activeCount = (ChkGaugesScreen.IsChecked == true ? 1 : 0) + 
-                              (ChkStorageScreen.IsChecked == true ? 1 : 0) + 
-                              PluginSettings.Count(ps => ps.IsEnabled);
-
-            if (activeCount == 0)
+            if (!ValidateActiveScreenCount(sender))
             {
-                PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "At least one screen must be active.", "Requirement");
-                _isInitializing = true;
-                toggle.IsEnabled = true;
-                cb.IsChecked = true;
-                _isInitializing = false;
+                toggle.IsEnabled = oldVal; // Rollback model too
                 return;
             }
         }
@@ -355,6 +398,7 @@ public partial class SettingsWindow : Window
         if (ChkGaugesScreen.IsChecked == true) activeItems.Add("Gauges");
         if (ChkStorageScreen.IsChecked == true) activeItems.Add("Storage");
         if (ChkClockScreen.IsChecked == true) activeItems.Add("Clock");
+        if (ChkShowWeather != null && ChkShowWeather.IsChecked == true) activeItems.Add("Weather");
         foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
 
         // 1. Remove items no longer active
@@ -534,11 +578,18 @@ public partial class SettingsWindow : Window
         SetComboItem(CmbDigitalFormat, clk.DigitalFormat);
         SetComboItem(CmbDateFormat,    clk.DateFormat);
 
-        // Digital / Date Toggles
-        ChkShowDigital.IsChecked = clk.ShowDigitalClock;
-        ChkShowDate.IsChecked    = clk.ShowDate;
-
         TxtClockBgImage.Text     = clk.CustomBackgroundImagePath ?? "";
+
+        // Marker Color
+        SetColorButton(BtnClockMarkerColor, clk.MarkerColor ?? "#888888");
+
+        // Glow
+        ChkClockShowGlow.IsChecked = clk.ShowGlow;
+        SetColorButton(BtnClockGlowColor, clk.GlowColor ?? "#3b82f6");
+        SldClockGlowWidth.Value = clk.GlowWidth;
+
+        // Motion
+        ChkClockMotion.IsChecked = clk.ContinuousMotion;
     }
 
     private void SaveClockSettings()
@@ -569,6 +620,12 @@ public partial class SettingsWindow : Window
         clk.ShowDigitalClock           = ChkShowDigital.IsChecked ?? true;
         clk.ShowDate                  = ChkShowDate.IsChecked ?? true;
         clk.CustomBackgroundImagePath  = TxtClockBgImage.Text;
+
+        clk.MarkerColor                = BtnClockMarkerColor.Tag?.ToString() ?? clk.MarkerColor;
+        clk.ShowGlow                   = ChkClockShowGlow.IsChecked ?? false;
+        clk.GlowColor                  = BtnClockGlowColor.Tag?.ToString() ?? clk.GlowColor;
+        clk.GlowWidth                  = SldClockGlowWidth.Value;
+        clk.ContinuousMotion           = ChkClockMotion.IsChecked ?? false;
     }
 
     private void BtnClockColor_Click(object sender, RoutedEventArgs e)
@@ -685,5 +742,40 @@ public partial class SettingsWindow : Window
             }
         }
         if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
+    }
+
+    private void OnWeatherSettingChanged(object sender, RoutedEventArgs e) 
+    {
+        if (_isInitializing) return;
+        
+        // Sync the two checkboxes if they exist
+        if (sender == ChkShowWeather && ChkWeatherScreenLayout != null) ChkWeatherScreenLayout.IsChecked = ChkShowWeather.IsChecked;
+        else if (sender == ChkWeatherScreenLayout && ChkShowWeather != null) ChkShowWeather.IsChecked = ChkWeatherScreenLayout.IsChecked;
+
+        // Validation for unchecking
+        if (!ValidateActiveScreenCount(sender)) return;
+
+        // Sync City textboxes
+        if (sender == TxtWeatherCity && TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = TxtWeatherCity.Text;
+        else if (sender == TxtWeatherCityLayout && TxtWeatherCity != null) TxtWeatherCity.Text = TxtWeatherCityLayout.Text;
+
+        UpdateScreenRotationList();
+        UpdateThemeObject();
+    }
+    private void OnWeatherSettingChanged(object sender, SelectionChangedEventArgs e) => UpdateThemeObject();
+    private void WeatherApiKey_PasswordChanged(object sender, RoutedEventArgs e) { /* Don't update theme on every keystroke for security/perf */ }
+    
+    private void BtnSaveWeatherKey_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateThemeObject();
+        _themeService.SaveTheme(true);
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "API Key saved.", "Weather");
+    }
+
+    private void BtnUpdateWeather_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateThemeObject();
+        _themeService.NotifyThemeUpdated();
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Weather location updated.", "Weather");
     }
 }

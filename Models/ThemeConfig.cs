@@ -34,6 +34,7 @@ public class ThemeConfig
     public bool ShowGaugesScreen { get; set; } = true;
     public bool ShowStorageScreen { get; set; } = true;
     public bool ShowClockScreen { get; set; } = true;
+    public bool ShowWeatherScreen { get; set; } = false;
     public List<string> EnabledPlugins { get; set; } = new() { "System Clock", "Fan & RGB Controller" };
 
     // ── Rotation Order (Identifiers: "Gauges", "Storage", "Clock", or Plugin Name) ────
@@ -41,6 +42,9 @@ public class ThemeConfig
 
     // ── Built-in Clock Configuration ──────────────────────────────────────────
     public ClockConfig Clock { get; set; } = new();
+
+    // ── Built-in Weather Configuration ────────────────────────────────────────
+    public WeatherConfig Weather { get; set; } = new();
 
     // ── Thermal Alerts ───────────────────────────────────────────────────────
     public double CriticalCpuTemp { get; set; } = 85.0;
@@ -83,6 +87,11 @@ public class ClockConfig
     public string MinuteHandColor { get; set; } = "#FFFFFF";
     public string SecondHandColor { get; set; } = "#3b82f6";
     public string ClockFaceColor { get; set; } = "#1A1A1A";
+    public string MarkerColor { get; set; } = "#FFFFFF";
+    public bool ContinuousMotion { get; set; } = false;
+    public bool ShowGlow { get; set; } = false;
+    public string GlowColor { get; set; } = Constants.DefaultClockGlowColor;
+    public double GlowWidth { get; set; } = Constants.DefaultClockGlowWidth;
     public double ClockScale { get; set; } = 1.0;
     public double ClockOffsetX { get; set; } = 0.0;
     public double ClockOffsetY { get; set; } = 0.0;
@@ -110,6 +119,17 @@ public class ClockConfig
     public string CustomBackgroundColor { get; set; } = "#060606";
     public string CustomBackgroundImagePath { get; set; } = "";
     public double CustomBackgroundOpacity { get; set; } = 1.0;
+}
+
+public class WeatherConfig
+{
+    public string ApiKey { get; set; } = Constants.DefaultWeatherApiKey;
+    public string City { get; set; } = Constants.DefaultWeatherCity;
+    public string Units { get; set; } = Constants.DefaultWeatherUnits; // metric, imperial, standard
+    public int UpdateIntervalMinutes { get; set; } = Constants.DefaultWeatherUpdateIntervalMinutes;
+    public bool ShowForecast { get; set; } = true;
+    public string TextColor { get; set; } = "#FFFFFF";
+    public string AccentColor { get; set; } = "#3b82f6";
 }
 
 public class SensorNamesConfig

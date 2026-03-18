@@ -60,4 +60,14 @@ public static class Constants
     public const string SensorDataMemoryAvailable = "Memory Available";
     public const string SensorLoadTotalActivity = "Total Activity";
     public const string SensorDataUsedSpace = "Used Space";
+
+    // Weather Defaults
+    public const string DefaultWeatherApiKey = "";
+    public const string DefaultWeatherCity = "London";
+    public const string DefaultWeatherUnits = "metric"; // metric, imperial, standard
+    public const int DefaultWeatherUpdateIntervalMinutes = 30;
+
+    // Clock Defaults
+    public const string DefaultClockGlowColor = "#3b82f6";
+    public const double DefaultClockGlowWidth = 20.0;
 }

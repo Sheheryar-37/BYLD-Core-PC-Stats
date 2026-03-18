@@ -7,8 +7,10 @@
         Icon="Assets/byld-icon.png">
     
     <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
         <SolidColorBrush x:Key="TextBrush" Color="#E0E0E0"/>
-        <SolidColorBrush x:Key="BrandBlue" Color="#3b82f6"/>
+        <Color x:Key="BrandBlueColor">#3b82f6</Color>
+        <SolidColorBrush x:Key="BrandBlue" Color="{StaticResource BrandBlueColor}"/>
         <SolidColorBrush x:Key="BrandBlueHover" Color="#2563eb"/>
         
         <Style TargetType="TextBlock">
@@ -217,37 +219,38 @@
         </Style>
 
         <!-- ─── Modern Dark Scrollbar ─────────────────────────────────── -->
-        <Style TargetType="ScrollBar">
-            <Setter Property="Width" Value="6"/>
-            <Setter Property="Margin" Value="2,0,0,0"/>
+        <Style x:Key="ModernSliderStyle" TargetType="Slider">
+            <Setter Property="Background" Value="#222222"/>
+            <Setter Property="Height" Value="24"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
             <Setter Property="Template">
                 <Setter.Value>
-                    <ControlTemplate TargetType="ScrollBar">
+                    <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Track x:Name="PART_Track" IsDirectionReversed="True">
+                            <Border Background="#33FFFFFF" CornerRadius="3" Height="6" VerticalAlignment="Center"/>
+                            <Track x:Name="PART_Track">
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.LineUpCommand" Opacity="0"  Height="0"/>
+                                    <RepeatButton Background="{StaticResource BrandBlue}" BorderThickness="0" Height="6">
+                                        <RepeatButton.Template>
+                                            <ControlTemplate TargetType="RepeatButton">
+                                                <Border Background="{StaticResource BrandBlue}" CornerRadius="3" Height="6"/>
+                                            </ControlTemplate>
+                                        </RepeatButton.Template>
+                                    </RepeatButton>
                                 </Track.DecreaseRepeatButton>
                                 <Track.Thumb>
-                                    <Thumb>
+                                    <Thumb Width="18" Height="18">
                                         <Thumb.Template>
                                             <ControlTemplate TargetType="Thumb">
-                                                <Border x:Name="ThumbBorder" Background="#3b82f6" CornerRadius="3"/>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#60a5fa"/>
-                                                    </Trigger>
-                                                    <Trigger Property="IsDragging" Value="True">
-                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#93c5fd"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
+                                                <Ellipse Width="18" Height="18" Fill="White">
+                                                    <Ellipse.Effect>
+                                                        <DropShadowEffect BlurRadius="8" ShadowDepth="0" Color="{StaticResource BrandBlueColor}" Opacity="0.5"/>
+                                                    </Ellipse.Effect>
+                                                </Ellipse>
                                             </ControlTemplate>
                                         </Thumb.Template>
                                     </Thumb>
                                 </Track.Thumb>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.LineDownCommand" Opacity="0" Height="0"/>
-                                </Track.IncreaseRepeatButton>
                             </Track>
                         </Grid>
                     </ControlTemplate>
@@ -255,38 +258,36 @@
             </Setter>
         </Style>
 
-        <!-- Horizontal Scrollbar (face selector) -->
-        <Style x:Key="HScrollBarStyle" TargetType="ScrollBar">
-            <Setter Property="Height" Value="6"/>
-            <Setter Property="Margin" Value="0,2,0,0"/>
-            <Setter Property="Orientation" Value="Horizontal"/>
+        <Style TargetType="Slider" BasedOn="{StaticResource ModernSliderStyle}"/>
+
+        <Style x:Key="ModernScrollThumb" TargetType="Thumb">
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3"/>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="ScrollBar">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Width" Value="8"/>
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ScrollBar">
                         <Grid>
-                            <Track x:Name="PART_Track">
-                                <Track.DecreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.LineLeftCommand" Opacity="0" Width="0"/>
-                                </Track.DecreaseRepeatButton>
+                            <Track x:Name="PART_Track" IsDirectionReversed="true">
                                 <Track.Thumb>
-                                    <Thumb>
-                                        <Thumb.Template>
-                                            <ControlTemplate TargetType="Thumb">
-                                                <Border x:Name="ThumbBorder" Background="#3b82f6" CornerRadius="3"/>
-                                                <ControlTemplate.Triggers>
-                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                        <Setter TargetName="ThumbBorder" Property="Background" Value="#60a5fa"/>
-                                                    </Trigger>
-                                                </ControlTemplate.Triggers>
-                                            </ControlTemplate>
-                                        </Thumb.Template>
-                                    </Thumb>
+                                    <Thumb x:Name="Thumb" Background="#33FFFFFF" Style="{StaticResource ModernScrollThumb}"/>
                                 </Track.Thumb>
-                                <Track.IncreaseRepeatButton>
-                                    <RepeatButton Command="ScrollBar.LineRightCommand" Opacity="0" Width="0"/>
-                                </Track.IncreaseRepeatButton>
                             </Track>
                         </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger SourceName="Thumb" Property="IsMouseOver" Value="true">
+                                <Setter TargetName="Thumb" Property="Background" Value="{StaticResource BrandBlue}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
                     </ControlTemplate>
                 </Setter.Value>
             </Setter>
@@ -398,6 +399,15 @@
                                         <CheckBox x:Name="ChkGaugesScreen" Content="Gauges Dashboard" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkStorageScreen" Content="Storage Dashboard" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkClockScreen" Content="Built-in Clock" Click="OnScreenSettingChanged"/>
+                                        <CheckBox x:Name="ChkWeatherScreenLayout" Content="Weather Screen" Click="OnWeatherSettingChanged"/>
+                                        <StackPanel Margin="20,5,0,10" Visibility="{Binding IsChecked, ElementName=ChkWeatherScreenLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                            <TextBlock Text="City / Location" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                                <TextBox x:Name="TxtWeatherCityLayout" FontSize="10" Padding="5,3" Background="#222222" Foreground="White" BorderBrush="#33FFFFFF" TextChanged="OnWeatherSettingChanged"/>
+                                                <Button Grid.Column="1" Content="↻" Width="24" Height="22" Margin="4,0,0,0" Click="BtnUpdateWeather_Click" Style="{StaticResource ModernButtonStyle}" ToolTip="Update Weather"/>
+                                            </Grid>
+                                        </StackPanel>
                                         
                                         <TextBlock Text="PLUGINS" Style="{StaticResource SectionHeaderStyle}" Margin="0,15,0,10" FontSize="10" Opacity="0.6"/>
                                         <ItemsControl x:Name="ItemsPlugins">
@@ -569,7 +579,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBox x:Name="TxtLogo" IsReadOnly="True" Margin="0,0,5,0" FontSize="10"/>
                                     <Button Grid.Column="1" Content="Browse" Width="70" Click="BtnBrowseLogo_Click" Margin="0,0,5,0" Style="{StaticResource ModernButtonStyle}" FontSize="11"/>
-                                    <Button Grid.Column="2" Content="&#x2715;" Width="35" Click="BtnClearLogo_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                    <Button Grid.Column="2" Content="✕" Width="35" Click="BtnClearLogo_Click" Style="{StaticResource ModernButtonStyle}"/>
                                 </Grid>
 
                                 <TextBlock Text="Background Image" FontSize="11" Opacity="0.7" Margin="0,0,0,5"/>
@@ -577,11 +587,60 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBox x:Name="TxtBgImage" IsReadOnly="True" Margin="0,0,5,0" FontSize="10"/>
                                     <Button Grid.Column="1" Content="Browse" Width="70" Click="BtnBrowseBg_Click" Margin="0,0,5,0" Style="{StaticResource ModernButtonStyle}" FontSize="11"/>
-                                    <Button Grid.Column="2" Content="&#x2715;" Width="35" Click="BtnClearBg_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                    <Button Grid.Column="2" Content="✕" Width="35" Click="BtnClearBg_Click" Style="{StaticResource ModernButtonStyle}"/>
                                 </Grid>
                                 
                                 <TextBlock Text="Background Opacity" FontSize="11" Opacity="0.7" Margin="0,0,0,5"/>
                                 <Slider x:Name="SldOpacity" Minimum="0.0" Maximum="1.0" TickFrequency="0.1" ValueChanged="SldOpacity_ValueChanged"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </TabItem>
+                
+                <!-- WEATHER -->
+                <TabItem Header="Weather">
+                    <StackPanel Margin="5,10">
+                        <Border Style="{StaticResource SectionBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="WEATHER SETTINGS" Style="{StaticResource SectionHeaderStyle}"/>
+                                
+                                <CheckBox x:Name="ChkShowWeather" Content="Enable Weather Screen" Click="OnWeatherSettingChanged"/>
+
+                                <TextBlock Text="OpenWeatherMap API Key" FontSize="11" Opacity="0.7" Margin="0,10,0,5"/>
+                                <Grid Margin="0,0,0,15">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <PasswordBox x:Name="TxtWeatherApiKey" Margin="0,0,5,0" Padding="8,6" Background="#222222" Foreground="White" BorderBrush="#444444" PasswordChanged="WeatherApiKey_PasswordChanged"/>
+                                    <Button Grid.Column="1" Content="Save" Width="60" Click="BtnSaveWeatherKey_Click" Style="{StaticResource ModernButtonStyle}" FontSize="11"/>
+                                </Grid>
+
+                                <TextBlock Text="City / Location" FontSize="11" Opacity="0.7" Margin="0,0,0,5"/>
+                                <Grid Margin="0,0,0,15">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBox x:Name="TxtWeatherCity" Margin="0,0,5,0" TextChanged="OnWeatherSettingChanged"/>
+                                    <Button Grid.Column="1" Content="Update" Width="60" Click="BtnUpdateWeather_Click" Style="{StaticResource ModernButtonStyle}" FontSize="11"/>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,15">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Units" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbWeatherUnits" Grid.Column="1" Width="100" SelectionChanged="OnWeatherSettingChanged" Style="{StaticResource ModernComboBoxStyle}">
+                                        <ComboBoxItem Content="Metric (°C)"/>
+                                        <ComboBoxItem Content="Imperial (°F)"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,0">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Update Interval" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbWeatherInterval" Grid.Column="1" Width="120" SelectionChanged="OnWeatherSettingChanged" Style="{StaticResource ModernComboBoxStyle}" ToolTip="How often to automatically refresh weather data from the API.">
+                                        <ComboBoxItem Content="1 Minute" Tag="1"/>
+                                        <ComboBoxItem Content="5 Minutes" Tag="5"/>
+                                        <ComboBoxItem Content="15 Minutes" Tag="15"/>
+                                        <ComboBoxItem Content="30 Minutes" Tag="30"/>
+                                        <ComboBoxItem Content="1 Hour" Tag="60"/>
+                                        <ComboBoxItem Content="Manual Only" Tag="0"/>
+                                    </ComboBox>
+                                </Grid>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -600,7 +659,7 @@
                                     <!-- Face Selector (horizontal scroll) -->
                                     <!-- Face Selector (horizontal scroll) -->
                                     <TextBlock Text="Select Face Style" FontSize="11" Opacity="0.7" Margin="0,0,0,6"/>
-                                    <ScrollViewer x:Name="ScrFaces" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,15" PanningMode="HorizontalOnly" PreviewMouseWheel="ScrFaces_PreviewMouseWheel">
+                                    <ScrollViewer x:Name="ScrFaces" HorizontalScrollBarVisibility="Hidden" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,15" PreviewMouseWheel="ScrFaces_PreviewMouseWheel">
                                         <StackPanel x:Name="PnlFaces" Orientation="Horizontal" Height="110" Margin="0,0,0,5"/>
                                     </ScrollViewer>
 
@@ -635,6 +694,32 @@
                                             <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
+
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Marker / Tick Color" VerticalAlignment="Center"/>
+                                        <Button x:Name="BtnClockMarkerColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Glow Settings -->
+                                    <TextBlock Text="EFFECTS &amp; MOTION" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,10"/>
+                                    <CheckBox x:Name="ChkClockShowGlow" Content="Show Glow Halo behind face" Click="OnClockSettingChanged" Margin="0,0,0,5"/>
+                                    <Grid Margin="0,0,0,12" IsEnabled="{Binding IsChecked, ElementName=ChkClockShowGlow}">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Glow Color" VerticalAlignment="Center" Opacity="0.8"/>
+                                        <Button x:Name="BtnClockGlowColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        </Button>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,12" IsEnabled="{Binding IsChecked, ElementName=ChkClockShowGlow}">
+                                        <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="140"/></Grid.ColumnDefinitions>
+                                        <TextBlock Text="Glow Intensity" VerticalAlignment="Center" Opacity="0.8"/>
+                                        <Slider x:Name="SldClockGlowWidth" Grid.Column="1" Minimum="10" Maximum="100" Value="40" ValueChanged="OnClockSettingChanged"/>
+                                    </Grid>
+
+                                    <CheckBox x:Name="ChkClockMotion" Content="Smooth Continuous Motion (Seconds)" Click="OnClockSettingChanged" Margin="0,5,0,0"/>
 
                                     <!-- Analog Position / Scale -->
                                     <TextBlock Text="SIZE &amp; POSITION" Style="{StaticResource SectionHeaderStyle}" Margin="0,10,0,10"/>

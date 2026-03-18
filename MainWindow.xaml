@@ -35,7 +35,10 @@
                    Grid.ColumnSpan="2" />
 
             <!-- Container for everything Gauges-related -->
-            <Grid x:Name="GaugesContainer" Grid.ColumnSpan="2">
+            <Grid x:Name="GaugesContainer" Grid.ColumnSpan="2" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
                 <!-- Top Logo Area. The client image has the logo ABOVE the gauges. -->
                 <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
 
@@ -191,7 +194,10 @@
             </Grid>
 
             <!-- Screen 2: SSDs. Constrain in a fixed grid area preserving equal gap top and bottom -->
-            <Grid x:Name="SsdScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
+            <Grid x:Name="SsdScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
                 <!-- TOP LOGO Area (Same as Gauges) -->
                 <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
 
@@ -277,17 +283,31 @@
             </Grid>
 
             <!-- Screen 3: Hero Plugin Screen. Shows one plugin at a time in rotation. -->
-            <Grid x:Name="PluginScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
+            <Grid x:Name="PluginScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
                 <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
                 
                 <ContentControl x:Name="PluginHost" Margin="0,100,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
             </Grid>
 
             <!-- Screen 4: Built-in Clock Screen -->
-            <Grid x:Name="ClockScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
+            <Grid x:Name="ClockScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
                 <controls:BuiltInClockScreen x:Name="BuiltInClock"/>
-                <!-- Logo sits ON TOP of the clock background, same as Gauges/Plugin screens -->
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
+            </Grid>
+
+            <!-- Screen 5: Weather Screen -->
+            <Grid x:Name="WeatherScreenArea" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <controls:WeatherScreen x:Name="WeatherCtrl"/>
             </Grid>
 
         </Grid>

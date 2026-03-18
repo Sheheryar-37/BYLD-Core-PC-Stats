@@ -1,7 +1,7 @@
 {
     "BackgroundColor": "#060606",
     "ForegroundColor": "#FFFFFF",
-    "AccentColor": "#DCDCDC",
+    "AccentColor": "#3b82f6",
     "TrackColor": "#252525",
     "AlertColor": "#FF4022",
     "LogoPath": "Assets/logo.png",
@@ -14,6 +14,47 @@
     "DisplayMode": "Auto",
     "CriticalCpuTemp": 85.0,
     "CriticalGpuTemp": 85.0,
+    "ShowGaugesScreen": true,
+    "ShowStorageScreen": true,
+    "ShowClockScreen": true,
+    "ShowWeatherScreen": true,
+    "ScreenRotationOrder": [ "Gauges", "Storage", "Clock", "Weather" ],
+    "Clock": {
+        "FaceName": "Classic",
+        "HourHandColor": "#FFFFFF",
+        "MinuteHandColor": "#FFFFFF",
+        "SecondHandColor": "#3b82f6",
+        "ClockFaceColor": "#1A1A1A",
+        "MarkerColor": "#FFFFFF",
+        "ContinuousMotion": false,
+        "ShowGlow": true,
+        "GlowColor": "#3b82f6",
+        "GlowWidth": 60.0,
+        "ClockScale": 1.0,
+        "ClockOffsetX": 0.0,
+        "ClockOffsetY": 0.0,
+        "DigitalColor": "#FFFFFF",
+        "DigitalFontFamily": "Segoe UI",
+        "DigitalFontSize": 80.0,
+        "DigitalFormat": "12h",
+        "DigitalOffsetX": 0.0,
+        "DigitalOffsetY": 0.0,
+        "ShowDigitalClock": true,
+        "DateColor": "#AAAAAA",
+        "DateFontFamily": "Segoe UI",
+        "DateFontSize": 18.0,
+        "DateFormat": "Long",
+        "DateOffsetX": 0.0,
+        "DateOffsetY": 0.0,
+        "ShowDate": true
+    },
+    "Weather": {
+        "ApiKey": "23769a76501dbc50d864161721e81238",
+        "City": "London",
+        "Units": "metric",
+        "UpdateIntervalMinutes": 30,
+        "ShowForecast": true
+    },
     "IsCpuEnabled": true,
     "IsGpuEnabled": true,
     "IsMemoryEnabled": true,
@@ -22,40 +63,12 @@
     "IsNetworkEnabled": false,
     "IsBatteryEnabled": false,
     "SensorNames": {
-        "CpuTemp": [
-            "Core (Tctl/Tdie)",
-            "Tctl/Tdie",
-            "Core Average",
-            "CPU Package",
-            "Package",
-            "Core Max"
-        ],
-        "CpuLoad": [
-            "CPU Total",
-            "Total",
-            "CPU Core"
-        ],
-        "CpuClock": [
-            "CPU Core #1",
-            "Core #1",
-            "Core 1",
-            "CPU Core"
-        ],
-        "GpuTemp": [
-            "GPU Core",
-            "Core"
-        ],
-        "GpuLoad": [
-            "GPU Core",
-            "Core",
-            "D3D 3D"
-        ],
-        "GpuClock": [
-            "GPU Core",
-            "Core"
-        ],
-        "RamLoad": [
-            "Memory"
-        ]
+        "CpuTemp": [ "Core (Tctl/Tdie)", "Tctl/Tdie", "Core Average", "CPU Package", "Package", "Core Max" ],
+        "CpuLoad": [ "CPU Total", "Total", "CPU Core" ],
+        "CpuClock": [ "CPU Core #1", "Core #1", "Core 1", "CPU Core" ],
+        "GpuTemp": [ "GPU Core", "Core" ],
+        "GpuLoad": [ "GPU Core", "Core", "D3D 3D" ],
+        "GpuClock": [ "GPU Core", "Core" ],
+        "RamLoad": [ "Memory" ]
     }
 }

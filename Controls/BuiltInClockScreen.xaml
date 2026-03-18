@@ -20,11 +20,12 @@
              <!-- Main Content -->
         <Grid>
             <Grid.RowDefinitions>
-                <RowDefinition Height="160"/>   <!-- Gap for logo overlay from MainWindow -->
+                <RowDefinition Height="160"/>   <!-- Header Logo Area -->
                 <RowDefinition Height="*"/>      <!-- Analog Clock -->
                 <RowDefinition Height="Auto"/>   <!-- Digital + Date -->
                 <RowDefinition Height="80"/>     <!-- Bottom padding -->
             </Grid.RowDefinitions>
+
 
             <Grid Grid.Row="1" HorizontalAlignment="Center" VerticalAlignment="Center">
                 <Grid x:Name="ClockContainer" RenderTransformOrigin="0.5,0.5">
@@ -34,6 +35,13 @@
                             <TranslateTransform x:Name="ClockTranslate" X="0" Y="0"/>
                         </TransformGroup>
                     </Grid.RenderTransform>
+
+                    <!-- Outer Halo Glow (Customizable, now at background layer) -->
+                    <Ellipse x:Name="ClockFaceGlow" Width="300" Height="300" Fill="Black" Visibility="Collapsed">
+                        <Ellipse.Effect>
+                            <DropShadowEffect x:Name="FaceGlowEffect" BlurRadius="60" ShadowDepth="0" Color="#3b82f6" Opacity="1"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
 
                     <!-- Outer Glow Ring (face-specific, set in code) -->
                     <Ellipse x:Name="OuterRing" Width="300" Height="300"/>
