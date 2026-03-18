@@ -585,6 +585,7 @@ public partial class SettingsWindow : Window
 
         // Glow
         ChkClockShowGlow.IsChecked = clk.ShowGlow;
+        ChkClockShowOuterRing.IsChecked = clk.ShowOuterRing;
         SetColorButton(BtnClockGlowColor, clk.GlowColor ?? "#3b82f6");
         SldClockGlowWidth.Value = clk.GlowWidth;
 
@@ -623,6 +624,7 @@ public partial class SettingsWindow : Window
 
         clk.MarkerColor                = BtnClockMarkerColor.Tag?.ToString() ?? clk.MarkerColor;
         clk.ShowGlow                   = ChkClockShowGlow.IsChecked ?? false;
+        clk.ShowOuterRing              = ChkClockShowOuterRing.IsChecked ?? true;
         clk.GlowColor                  = BtnClockGlowColor.Tag?.ToString() ?? clk.GlowColor;
         clk.GlowWidth                  = SldClockGlowWidth.Value;
         clk.ContinuousMotion           = ChkClockMotion.IsChecked ?? false;

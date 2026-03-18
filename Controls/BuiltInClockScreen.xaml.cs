@@ -149,17 +149,29 @@ namespace PcStatsMonitor.Controls
             DateTranslate.Y = _config.DateOffsetY;
         }
 
+        private bool IsSquareFace()
+        {
+            if (_config == null) return false;
+            return _config.FaceName.StartsWith("Square");
+        }
+
+        private Shape CurrentRing => IsSquareFace() ? (Shape)OuterRingRect : (Shape)OuterRing;
+
         private void ApplyGlow()
         {
+            // Reset both
+            ClockFaceGlow.Visibility = Visibility.Collapsed;
+            ClockFaceGlowRect.Visibility = Visibility.Collapsed;
+
             if (_config.ShowGlow)
             {
-                ClockFaceGlow.Visibility = Visibility.Visible;
-                FaceGlowEffect.Color = ((SolidColorBrush)ParseBrush(_config.GlowColor, Constants.DefaultClockGlowColor)).Color;
-                FaceGlowEffect.BlurRadius = _config.GlowWidth > 0 ? _config.GlowWidth : 20;
-            }
-            else
-            {
-                ClockFaceGlow.Visibility = Visibility.Collapsed;
+                bool isSquare = IsSquareFace();
+                var glowElement = isSquare ? (FrameworkElement)ClockFaceGlowRect : (FrameworkElement)ClockFaceGlow;
+                var effect = isSquare ? FaceGlowEffectRect : FaceGlowEffect;
+
+                glowElement.Visibility = Visibility.Visible;
+                effect.Color = ((SolidColorBrush)ParseBrush(_config.GlowColor, Constants.DefaultClockGlowColor)).Color;
+                effect.BlurRadius = _config.GlowWidth > 0 ? _config.GlowWidth : 20;
             }
         }
 
@@ -169,14 +181,23 @@ namespace PcStatsMonitor.Controls
             TickCanvas.Children.Clear();
             
             // Default: circular face background
-            ClockFaceEllipse.Visibility = Visibility.Visible;
-            ClockFaceRect.Visibility = Visibility.Collapsed;
-            ClockFaceEllipse.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
-            OuterRing.Fill = Brushes.Transparent;
-            OuterRing.Stroke = Brushes.Transparent;
-            OuterRing.StrokeThickness = 0;
-            OuterRing.Effect = null;
-            OuterRing.StrokeDashArray = null;
+            bool isSquare = IsSquareFace();
+            ClockFaceEllipse.Visibility = isSquare ? Visibility.Collapsed : Visibility.Visible;
+            ClockFaceRect.Visibility = isSquare ? Visibility.Visible : Visibility.Collapsed;
+            
+            var faceBg = isSquare ? (Shape)ClockFaceRect : (Shape)ClockFaceEllipse;
+            faceBg.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+
+            // Handle Outer Ring Visibility and Shape
+            OuterRing.Visibility = (!isSquare && _config.ShowOuterRing) ? Visibility.Visible : Visibility.Collapsed;
+            OuterRingRect.Visibility = (isSquare && _config.ShowOuterRing) ? Visibility.Visible : Visibility.Collapsed;
+
+            var currentRing = isSquare ? (Shape)OuterRingRect : (Shape)OuterRing;
+            currentRing.Fill = Brushes.Transparent;
+            currentRing.Stroke = Brushes.Transparent;
+            currentRing.StrokeThickness = 0;
+            currentRing.Effect = null;
+            currentRing.StrokeDashArray = null;
 
             switch (_config.FaceName)
             {
@@ -205,10 +226,10 @@ namespace PcStatsMonitor.Controls
         private void DrawClassicFace()
         {
             // Standard white hour markers + minute dots
-            OuterRing.Fill       = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
-            OuterRing.Stroke     = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
-            OuterRing.StrokeThickness = 2;
-            OuterRing.Effect     = null;
+            CurrentRing.Fill       = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+            CurrentRing.Stroke     = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+            CurrentRing.StrokeThickness = 2;
+            CurrentRing.Effect     = null;
 
             for (int i = 0; i < 60; i++)
             {
@@ -232,10 +253,10 @@ namespace PcStatsMonitor.Controls
         private void DrawNeonFace()
         {
             // Electric blue neon glow ring
-            OuterRing.Fill = new SolidColorBrush(Colors.Transparent);
-            OuterRing.Stroke = new SolidColorBrush(Color.FromArgb(200, 0, 200, 255));
-            OuterRing.StrokeThickness = 3;
-            OuterRing.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            CurrentRing.Fill = new SolidColorBrush(Colors.Transparent);
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromArgb(200, 0, 200, 255));
+            CurrentRing.StrokeThickness = 3;
+            CurrentRing.Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
                 Color = Color.FromRgb(0, 180, 255), BlurRadius = 20, ShadowDepth = 0, Opacity = 1
             };
@@ -255,10 +276,10 @@ namespace PcStatsMonitor.Controls
         private void DrawMinimalFace()
         {
             // Hairline ring + just 4 dots
-            OuterRing.Fill = new SolidColorBrush(Colors.Transparent);
-            OuterRing.Stroke = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
-            OuterRing.StrokeThickness = 1;
-            OuterRing.Effect = null;
+            CurrentRing.Fill = new SolidColorBrush(Colors.Transparent);
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromArgb(40, 255, 255, 255));
+            CurrentRing.StrokeThickness = 1;
+            CurrentRing.Effect = null;
 
             foreach (int h in new[] { 0, 3, 6, 9 })
             {
@@ -274,10 +295,10 @@ namespace PcStatsMonitor.Controls
         private void DrawGlowFace()
         {
             // Warm amber glow
-            OuterRing.Fill = new SolidColorBrush(Colors.Transparent);
-            OuterRing.Stroke = new SolidColorBrush(Color.FromArgb(180, 255, 180, 50));
-            OuterRing.StrokeThickness = 3;
-            OuterRing.Effect = new System.Windows.Media.Effects.DropShadowEffect
+            CurrentRing.Fill = new SolidColorBrush(Colors.Transparent);
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromArgb(180, 255, 180, 50));
+            CurrentRing.StrokeThickness = 3;
+            CurrentRing.Effect = new System.Windows.Media.Effects.DropShadowEffect
             {
                 Color = Color.FromRgb(255, 160, 0), BlurRadius = 25, ShadowDepth = 0, Opacity = 0.9
             };
@@ -299,10 +320,10 @@ namespace PcStatsMonitor.Controls
 
         private void DrawBoldFace()
         {
-            OuterRing.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
-            OuterRing.Stroke = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246));
-            OuterRing.StrokeThickness = 5;
-            OuterRing.Effect = null;
+            CurrentRing.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromArgb(80, 59, 130, 246));
+            CurrentRing.StrokeThickness = 5;
+            CurrentRing.Effect = null;
 
             for (int i = 0; i < 12; i++)
             {
@@ -325,10 +346,10 @@ namespace PcStatsMonitor.Controls
         private void DrawLuxuryFace()
         {
             // Gold ring + thin markers
-            OuterRing.Fill = Brushes.Transparent;
-            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55)); // Gold
-            OuterRing.StrokeThickness = 2;
-            OuterRing.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(212, 175, 55), BlurRadius = 15, ShadowDepth = 0, Opacity = 0.5 };
+            CurrentRing.Fill = Brushes.Transparent;
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55)); // Gold
+            CurrentRing.StrokeThickness = 2;
+            CurrentRing.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(212, 175, 55), BlurRadius = 15, ShadowDepth = 0, Opacity = 0.5 };
 
             for (int i = 0; i < 12; i++)
             {
@@ -345,12 +366,10 @@ namespace PcStatsMonitor.Controls
 
         private void DrawSquareFace()
         {
-            // Square face background + square dot markers
-            ClockFaceEllipse.Visibility = Visibility.Collapsed;
-            ClockFaceRect.Visibility = Visibility.Visible;
-            ClockFaceRect.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
-            ClockFaceRect.Stroke = new SolidColorBrush(Color.FromArgb(80, 255, 255, 255));
-            ClockFaceRect.StrokeThickness = 1;
+            CurrentRing.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+            CurrentRing.StrokeThickness = 2;
+            CurrentRing.Effect = null;
             
             for (int i = 0; i < 12; i++)
             {
@@ -366,8 +385,8 @@ namespace PcStatsMonitor.Controls
         private void DrawTechnoFace()
         {
             // Cyberpunk - radial lines from center + tick marks at edge
-            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(0, 255, 150));
-            OuterRing.StrokeThickness = 1;
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromRgb(0, 255, 150));
+            CurrentRing.StrokeThickness = 1;
             
             for (int i = 0; i < 12; i++)
             {
@@ -418,8 +437,8 @@ namespace PcStatsMonitor.Controls
 
         private void DrawGoldFace()
         {
-            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(255, 215, 0));
-            OuterRing.StrokeThickness = 4;
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromRgb(255, 215, 0));
+            CurrentRing.StrokeThickness = 4;
             for (int i = 0; i < 60; i++)
             {
                 if (i % 5 != 0) continue;
@@ -465,9 +484,9 @@ namespace PcStatsMonitor.Controls
 
         private void DrawIndustrialFace()
         {
-            OuterRing.Stroke = new SolidColorBrush(Color.FromRgb(100, 100, 100));
-            OuterRing.StrokeThickness = 8;
-            OuterRing.StrokeDashArray = new DoubleCollection { 1, 2 };
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromRgb(100, 100, 100));
+            CurrentRing.StrokeThickness = 8;
+            CurrentRing.StrokeDashArray = new DoubleCollection { 1, 2 };
             for (int i = 0; i < 12; i++)
             {
                 double angle = i * 30.0 * Math.PI / 180.0;
@@ -505,8 +524,8 @@ namespace PcStatsMonitor.Controls
 
         private void DrawFuturaFace()
         {
-            OuterRing.Stroke = Brushes.White;
-            OuterRing.StrokeThickness = 0.5;
+            CurrentRing.Stroke = Brushes.White;
+            CurrentRing.StrokeThickness = 0.5;
             for (int i = 0; i < 4; i++)
             {
                 double angle = i * 90.0 * Math.PI / 180.0;
@@ -524,11 +543,10 @@ namespace PcStatsMonitor.Controls
         private void DrawSquareMinimalFace()
         {
             // Square face background + clean white square dot markers
-            ClockFaceEllipse.Visibility = Visibility.Collapsed;
-            ClockFaceRect.Visibility = Visibility.Visible;
             ClockFaceRect.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
-            ClockFaceRect.Stroke = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
-            ClockFaceRect.StrokeThickness = 1;
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromArgb(60, 255, 255, 255));
+            CurrentRing.StrokeThickness = 1;
+            CurrentRing.Effect = null;
             
             for (int i = 0; i < 12; i++)
             {
@@ -549,11 +567,10 @@ namespace PcStatsMonitor.Controls
         private void DrawSquareLuxuryFace()
         {
             // Square face background + gold markers
-            ClockFaceEllipse.Visibility = Visibility.Collapsed;
-            ClockFaceRect.Visibility = Visibility.Visible;
             ClockFaceRect.Fill = ParseBrush(_config.ClockFaceColor, "#1A1A1A");
-            ClockFaceRect.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55));
-            ClockFaceRect.StrokeThickness = 2;
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromRgb(212, 175, 55));
+            CurrentRing.StrokeThickness = 2;
+            CurrentRing.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(212, 175, 55), BlurRadius = 15, ShadowDepth = 0, Opacity = 0.5 };
             
             for (int i = 0; i < 12; i++)
             {
@@ -573,11 +590,10 @@ namespace PcStatsMonitor.Controls
 
         private void DrawSquareBoldFace()
         {
-            ClockFaceEllipse.Visibility = Visibility.Collapsed;
-            ClockFaceRect.Visibility = Visibility.Visible;
             ClockFaceRect.Fill = ParseBrush(_config.ClockFaceColor, "#111111");
-            ClockFaceRect.Stroke = new SolidColorBrush(Colors.DimGray);
-            ClockFaceRect.StrokeThickness = 1;
+            CurrentRing.Stroke = new SolidColorBrush(Colors.DimGray);
+            CurrentRing.StrokeThickness = 1;
+            CurrentRing.Effect = null;
 
             for (int i = 0; i < 12; i++)
             {
@@ -597,11 +613,10 @@ namespace PcStatsMonitor.Controls
 
         private void DrawSquareNeonFace()
         {
-            ClockFaceEllipse.Visibility = Visibility.Collapsed;
-            ClockFaceRect.Visibility = Visibility.Visible;
             ClockFaceRect.Fill = Brushes.Black;
-            ClockFaceRect.Stroke = new SolidColorBrush(Color.FromRgb(255, 0, 100));
-            ClockFaceRect.StrokeThickness = 2;
+            CurrentRing.Stroke = new SolidColorBrush(Color.FromRgb(255, 0, 100));
+            CurrentRing.StrokeThickness = 2;
+            CurrentRing.Effect = new System.Windows.Media.Effects.DropShadowEffect { Color = Color.FromRgb(255, 0, 100), BlurRadius = 20, ShadowDepth = 0, Opacity = 1 };
 
             for (int i = 0; i < 12; i++)
             {

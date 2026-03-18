@@ -705,7 +705,9 @@
 
                                     <!-- Glow Settings -->
                                     <TextBlock Text="EFFECTS &amp; MOTION" Style="{StaticResource SectionHeaderStyle}" Margin="0,8,0,10"/>
-                                    <CheckBox x:Name="ChkClockShowGlow" Content="Show Glow Halo behind face" Click="OnClockSettingChanged" Margin="0,0,0,5"/>
+                                    <CheckBox x:Name="ChkClockShowGlow" Content="Show Clock Glow" Margin="0,0,0,8" Click="OnClockSettingChanged"/>
+                                    <CheckBox x:Name="ChkClockShowOuterRing" Content="Show Outer Border" Margin="0,0,0,12" Click="OnClockSettingChanged"/>
+                                    
                                     <Grid Margin="0,0,0,12" IsEnabled="{Binding IsChecked, ElementName=ChkClockShowGlow}">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Glow Color" VerticalAlignment="Center" Opacity="0.8"/>

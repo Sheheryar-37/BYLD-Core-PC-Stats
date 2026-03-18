@@ -90,6 +90,7 @@ public class ClockConfig
     public string MarkerColor { get; set; } = "#FFFFFF";
     public bool ContinuousMotion { get; set; } = false;
     public bool ShowGlow { get; set; } = false;
+    public bool ShowOuterRing { get; set; } = true;
     public string GlowColor { get; set; } = Constants.DefaultClockGlowColor;
     public double GlowWidth { get; set; } = Constants.DefaultClockGlowWidth;
     public double ClockScale { get; set; } = 1.0;

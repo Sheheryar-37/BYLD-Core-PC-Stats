@@ -42,9 +42,16 @@
                             <DropShadowEffect x:Name="FaceGlowEffect" BlurRadius="60" ShadowDepth="0" Color="#3b82f6" Opacity="1"/>
                         </Ellipse.Effect>
                     </Ellipse>
+                    
+                    <Rectangle x:Name="ClockFaceGlowRect" Width="300" Height="300" Fill="Black" RadiusX="14" RadiusY="14" Visibility="Collapsed">
+                        <Rectangle.Effect>
+                            <DropShadowEffect x:Name="FaceGlowEffectRect" BlurRadius="60" ShadowDepth="0" Color="#3b82f6" Opacity="1"/>
+                        </Rectangle.Effect>
+                    </Rectangle>
 
                     <!-- Outer Glow Ring (face-specific, set in code) -->
                     <Ellipse x:Name="OuterRing" Width="300" Height="300"/>
+                    <Rectangle x:Name="OuterRingRect" Width="300" Height="300" RadiusX="14" RadiusY="14" Visibility="Collapsed"/>
 
                     <!-- Clock Face Background (ellipse for circular, rect for square faces) -->
                     <Ellipse x:Name="ClockFaceEllipse" Width="280" Height="280" Fill="#1A1A1A"/>
