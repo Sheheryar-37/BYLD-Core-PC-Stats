@@ -270,18 +270,22 @@ namespace PcStatsMonitor.Controls
 
     private string GetWeatherEmoji(string iconCode)
     {
+        // Segoe MDL2 Assets character codes for modern minimalist icons
         return iconCode switch
         {
-            "01d" => "☀️", "01n" => "🌙",
-            "02d" => "⛅", "02n" => "☁️",
-            "03d" or "03n" => "☁️",
-            "04d" or "04n" => "☁️",
-            "09d" or "09n" => "🌧️",
-            "10d" => "🌦️", "10n" => "🌧️",
-            "11d" or "11n" => "⚡",
-            "13d" or "13n" => "❄️",
-            "50d" or "50n" => "🌫️",
-            _ => "☀️"
+            "01d"           => "\uE706", // Clear Day (Sun)
+            "01n"           => "\uE708", // Clear Night (Moon)
+            "02d"           => "\uE783", // Partly Cloudy Day
+            "02n"           => "\uE708", // Partly Cloudy Night
+            "03d" or "03n"  => "\uE309", // Cloudy
+            "04d" or "04n"  => "\uE312", // Overcast
+            "09d" or "09n"  => "\uE318", // Showers
+            "10d"           => "\uE783", // Rain Day
+            "10n"           => "\uE318", // Rain Night
+            "11d" or "11n"  => "\uE31D", // Thunderstorm
+            "13d" or "13n"  => "\uE31A", // Snow
+            "50d" or "50n"  => "\uE31C", // Fog/Mist
+            _               => "\uE706"  // Default: Sun
         };
     }
 
