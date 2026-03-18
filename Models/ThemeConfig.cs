@@ -129,6 +129,7 @@ public class WeatherConfig
     public string Units { get; set; } = Constants.DefaultWeatherUnits; // metric, imperial, standard
     public int UpdateIntervalMinutes { get; set; } = Constants.DefaultWeatherUpdateIntervalMinutes;
     public bool ShowForecast { get; set; } = true;
+    public string WeatherTheme { get; set; } = "Dark"; // Dark, Light, System
     public string TextColor { get; set; } = "#FFFFFF";
     public string AccentColor { get; set; } = "#3b82f6";
 }

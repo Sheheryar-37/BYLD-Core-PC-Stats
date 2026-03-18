@@ -148,7 +148,9 @@ public partial class SettingsWindow : Window
         TxtWeatherCity.Text = weather.City ?? "";
         if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = weather.City ?? "";
         
+        SetColorButton(BtnWeatherGlowColor, weather.GlowColor ?? "#3b82f6");
         SetComboItem(CmbWeatherUnits, weather.Units == "imperial" ? "Imperial (°F)" : "Metric (°C)");
+        SetComboItem(CmbWeatherTheme, weather.WeatherTheme ?? "Dark");
         
         string intervalText = weather.UpdateIntervalMinutes switch
         {
@@ -213,6 +215,7 @@ public partial class SettingsWindow : Window
         if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = w.City;
         
         w.Units = (CmbWeatherUnits.SelectedItem as ComboBoxItem)?.Content?.ToString()?.Contains("°F") == true ? "imperial" : "metric";
+        w.WeatherTheme = (CmbWeatherTheme.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Dark";
         
         var intervalItem = CmbWeatherInterval.SelectedItem as ComboBoxItem;
         if (intervalItem != null && int.TryParse(intervalItem.Tag?.ToString(), out int mins))

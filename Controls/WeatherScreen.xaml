@@ -7,115 +7,103 @@
              d:DesignHeight="854" d:DesignWidth="480">
 
     <Grid x:Name="RootWeatherGrid" Width="480" Height="854">
-        <!-- Optional Custom Background (Managed by Applied Theme) -->
-        <Border x:Name="CustomBgBlock" Visibility="Collapsed">
-            <Image x:Name="ImgBg" Stretch="UniformToFill" Opacity="0.5"/>
-        </Border>
+        <!-- Main Background and Theme Support -->
+        <Border x:Name="WeatherBg" Background="#121212">
+            <Grid Margin="24,60,24,24">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/> <!-- Header -->
+                    <RowDefinition Height="Auto"/> <!-- Hero Card -->
+                    <RowDefinition Height="Auto"/> <!-- Stats Row -->
+                    <RowDefinition Height="Auto"/> <!-- Forecast Tabs -->
+                    <RowDefinition Height="Auto"/> <!-- Hourly Forecast -->
+                    <RowDefinition Height="*"/>    <!-- Graph Area -->
+                </Grid.RowDefinitions>
 
-        <Grid Margin="12,100,12,30">
-            <Grid.RowDefinitions>
-                <RowDefinition Height="Auto"/>   <!-- City + Date -->
-                <RowDefinition Height="*"/>      <!-- Current Weather Hero -->
-                <RowDefinition Height="Auto"/>   <!-- Detail Grid (Humidity, Wind, etc) -->
-                <RowDefinition Height="Auto"/>   <!-- Forecast Row -->
-            </Grid.RowDefinitions>
+                <!-- 1. Header -->
+                <StackPanel Grid.Row="0" Margin="0,0,0,24">
+                    <TextBlock x:Name="TxtDateHeader" Text="14 August 2024" Foreground="#888888" FontSize="12" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                    <TextBlock x:Name="TxtCity" Text="LOADING..." Foreground="White" FontSize="24" FontWeight="Bold"/>
+                </StackPanel>
 
-            <!-- Header -->
-            <StackPanel Grid.Row="0" HorizontalAlignment="Center" Margin="0,0,0,30">
-                <TextBlock x:Name="TxtCity" Text="LOADING..." Foreground="White" FontSize="36" FontWeight="Heavy" HorizontalAlignment="Center">
-                    <TextBlock.Effect>
-                        <DropShadowEffect BlurRadius="10" ShadowDepth="0" Color="#000" Opacity="0.5"/>
-                    </TextBlock.Effect>
-                </TextBlock>
-                <TextBlock x:Name="TxtDate" Text="Checking for updates..." Foreground="#BBFFFFFF" FontSize="14" HorizontalAlignment="Center" Margin="0,4,0,0"/>
-            </StackPanel>
-
-            <!-- Current Weather Hero (Glassmorphism Card) -->
-            <Viewbox Grid.Row="1" VerticalAlignment="Center" HorizontalAlignment="Stretch" Margin="0,5">
-                <Border Background="#1AFFFFFF" CornerRadius="30" Padding="40,30" BorderBrush="#33FFFFFF" BorderThickness="1" Width="440">
-                    <Border.Effect>
-                        <DropShadowEffect BlurRadius="40" ShadowDepth="15" Opacity="0.3" Color="Black"/>
-                    </Border.Effect>
+                <!-- 2. Hero Card -->
+                <Border x:Name="HeroCard" Grid.Row="1" Background="#1E1E1E" CornerRadius="24" Padding="24" Margin="0,0,0,20">
                     <Grid>
-                        <Grid.RowDefinitions>
-                            <RowDefinition Height="Auto"/>
-                            <RowDefinition Height="Auto"/>
-                        </Grid.RowDefinitions>
-                        
-                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
-                            <!-- Weather Icon -->
-                            <TextBlock x:Name="TxtWeatherIcon" Text="☀️" Foreground="White" FontSize="100" VerticalAlignment="Center" Margin="0,0,20,0"/>
-                            <StackPanel VerticalAlignment="Center">
-                                <TextBlock x:Name="TxtTemp" Text="--" Foreground="White" FontSize="90" FontWeight="Bold" Margin="0,-10,0,0"/>
-                                <TextBlock x:Name="TxtCondition" Text="Condition" Foreground="#CCFFFFFF" FontSize="18" FontWeight="SemiBold" Margin="5,-10,0,0" TextAlignment="Left" TextTrimming="CharacterEllipsis" MaxWidth="200"/>
+                        <StackPanel>
+                            <TextBlock x:Name="TxtCondition" Text="Cloudy" Foreground="#888888" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,8"/>
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock x:Name="TxtTemp" Text="18°C" Foreground="White" FontSize="48" FontWeight="Bold"/>
                             </StackPanel>
                         </StackPanel>
-
-                        <StackPanel Grid.Row="1" Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,15,0,0">
-                            <TextBlock Text="H:" Foreground="#CCFFFFFF" FontSize="16" Margin="0,0,5,0"/>
-                            <TextBlock x:Name="TxtHigh" Text="--" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,15,0"/>
-                            <TextBlock Text="L:" Foreground="#CCFFFFFF" FontSize="16" Margin="0,0,5,0"/>
-                            <TextBlock x:Name="TxtLow" Text="--" Foreground="White" FontSize="16" FontWeight="Bold"/>
-                        </StackPanel>
+                        <!-- Large Icon -->
+                        <TextBlock x:Name="TxtWeatherIconLarge" Text="☁️" Foreground="White" FontSize="80" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,0,0"/>
                     </Grid>
                 </Border>
-            </Viewbox>
 
-            <!-- Detail Grid -->
-            <UniformGrid Grid.Row="2" Columns="2" Margin="0,20,0,20">
-                <!-- Humidity -->
-                <Border Margin="5" Background="#0FFFFFFF" CornerRadius="15" Padding="15" BorderBrush="#1AFFFFFF" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock Text="HUMIDITY" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
-                        <TextBlock x:Name="TxtHumidity" Text="--" Foreground="White" FontSize="24" FontWeight="Bold"/>
+                <!-- 3. Stats Row (Wind, Humidity, Prcp) -->
+                <Grid Grid.Row="2" Margin="0,0,0,32">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
+                    
+                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                        <TextBlock x:Name="TxtWind" Text="10 km/h" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Wind" Foreground="#888888" FontSize="12" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                     </StackPanel>
-                </Border>
-                <!-- Wind -->
-                <Border Margin="5" Background="#0FFFFFFF" CornerRadius="15" Padding="15" BorderBrush="#1AFFFFFF" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock Text="WIND SPEED" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
-                        <TextBlock x:Name="TxtWind" Text="--" Foreground="White" FontSize="24" FontWeight="Bold"/>
+                    
+                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                        <TextBlock x:Name="TxtHumidity" Text="98%" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Humidity" Foreground="#888888" FontSize="12" HorizontalAlignment="Center" Margin="0,4,0,0"/>
                     </StackPanel>
-                </Border>
-                <!-- UV Index or Pressure -->
-                <Border Margin="5" Background="#0FFFFFFF" CornerRadius="15" Padding="15" BorderBrush="#1AFFFFFF" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock Text="PRESSURE" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
-                        <TextBlock x:Name="TxtPressure" Text="--" Foreground="White" FontSize="24" FontWeight="Bold"/>
-                    </StackPanel>
-                </Border>
-                <!-- Feels Like -->
-                <Border Margin="5" Background="#0FFFFFFF" CornerRadius="15" Padding="15" BorderBrush="#1AFFFFFF" BorderThickness="1">
-                    <StackPanel>
-                        <TextBlock Text="FEELS LIKE" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Margin="0,0,0,6"/>
-                        <TextBlock x:Name="TxtFeelsLike" Text="--" Foreground="White" FontSize="24" FontWeight="Bold"/>
-                    </StackPanel>
-                </Border>
-            </UniformGrid>
 
-            <!-- Forecast Row -->
-            <Border Grid.Row="3" Background="#0FFFFFFF" CornerRadius="20" Padding="10,15" BorderBrush="#1AFFFFFF" BorderThickness="1" Margin="5,0">
-                <StackPanel>
-                    <TextBlock Text="5-DAY FORECAST" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Margin="5,0,0,15"/>
-                    <ItemsControl x:Name="LstForecast">
-                        <ItemsControl.ItemsPanel>
-                            <ItemsPanelTemplate><UniformGrid Columns="5"/></ItemsPanelTemplate>
-                        </ItemsControl.ItemsPanel>
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate>
-                                <StackPanel HorizontalAlignment="Center">
-                                    <TextBlock Text="{Binding Day}" Foreground="#AAFFFFFF" FontSize="12" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{Binding Icon}" Foreground="White" FontSize="24" HorizontalAlignment="Center" Margin="0,8"/>
-                                    <TextBlock Text="{Binding Temp}" Foreground="White" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                </StackPanel>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
+                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                        <TextBlock x:Name="TxtPressure" Text="100%" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Rain" Foreground="#888888" FontSize="12" HorizontalAlignment="Center" Margin="0,4,0,0"/>
+                    </StackPanel>
+                </Grid>
+
+                <!-- 4. Forecast Tabs (Visual only to match mock) -->
+                <StackPanel Grid.Row="3" Orientation="Horizontal" Margin="0,0,0,20">
+                    <TextBlock Text="Today" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,20,0"/>
+                    <TextBlock Text="Tomorrow" Foreground="#888888" FontSize="16" FontWeight="SemiBold" Margin="0,0,20,0"/>
+                    <TextBlock Text="Next 5 Days" Foreground="#888888" FontSize="16" FontWeight="SemiBold"/>
                 </StackPanel>
-            </Border>
-        </Grid>
 
-        <!-- Subtle Loading Indicator (Non-blocking) -->
+                <!-- 5. Hourly Forecast (Cards) -->
+                <ItemsControl x:Name="LstForecast" Grid.Row="4">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><UniformGrid Columns="4"/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border x:Name="ForecastCard" Background="#1A888888" CornerRadius="16" Padding="12" Margin="4">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="{Binding Day}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" Opacity="0.6" FontSize="11" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding Icon}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                    <TextBlock Text="{Binding Temp}" Foreground="{Binding RelativeSource={RelativeSource AncestorType=UserControl}, Path=Foreground}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- 6. Bottom Graph (Stylized placeholder) -->
+                <Grid Grid.Row="5" Margin="0,40,0,0" VerticalAlignment="Bottom">
+                    <Path x:Name="GraphPath" Stroke="White" StrokeThickness="2" Opacity="0.3" Stretch="Fill" Height="100" Data="M 0,100 C 50,80 100,90 150,50 S 250,20 300,60 S 400,90 480,40"/>
+                    <Ellipse x:Name="GraphPoint" Fill="White" Width="8" Height="8" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,35,40,0">
+                        <Ellipse.Effect>
+                            <DropShadowEffect BlurRadius="10" Color="White" ShadowDepth="0"/>
+                        </Ellipse.Effect>
+                    </Ellipse>
+                    <Border x:Name="GraphTooltip" Background="#1E1E1E" CornerRadius="8" Padding="8,4" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,0,20,0" BorderBrush="#33FFFFFF" BorderThickness="1">
+                        <TextBlock Text="19.5 km" Foreground="White" FontSize="10" FontWeight="Bold"/>
+                    </Border>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- Loading Indicator -->
         <Border x:Name="LoadingOverlay" VerticalAlignment="Top" Height="3" Background="#33FFFFFF" Visibility="Collapsed">
             <ProgressBar IsIndeterminate="True" Height="3" BorderThickness="0" Background="Transparent" Foreground="#3b82f6"/>
         </Border>

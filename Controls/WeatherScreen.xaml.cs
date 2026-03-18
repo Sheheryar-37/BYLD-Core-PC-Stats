@@ -13,6 +13,7 @@ namespace PcStatsMonitor.Controls;
 public partial class WeatherScreen : UserControl
 {
     private WeatherConfig _config = new();
+    private ThemeConfig _theme = new();
     private DispatcherTimer _refreshTimer = new();
     private static readonly HttpClient _httpClient = new();
 
@@ -26,6 +27,7 @@ public partial class WeatherScreen : UserControl
     public async void ApplyConfig(WeatherConfig config, ThemeConfig theme)
     {
         _config = config;
+        _theme = theme;
         
         // Reset timer
         _refreshTimer.Stop();
@@ -35,7 +37,64 @@ public partial class WeatherScreen : UserControl
             _refreshTimer.Start();
         }
 
+        ApplyTheme();
         await UpdateWeatherData();
+    }
+
+    private void ApplyTheme()
+    {
+        string mode = _config.WeatherTheme ?? "Dark";
+        if (mode == "System")
+        {
+            mode = GetWindowsTheme();
+        }
+
+        bool isLight = mode == "Light";
+
+        // Colors
+        var bgBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(245, 245, 245) : System.Windows.Media.Color.FromRgb(18, 18, 18));
+        var cardBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Colors.White : System.Windows.Media.Color.FromRgb(30, 30, 30));
+        var textBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(18, 18, 18) : System.Windows.Media.Colors.White);
+        var subTextBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(102, 102, 102) : System.Windows.Media.Color.FromRgb(136, 136, 136));
+        var graphBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Colors.Black : System.Windows.Media.Colors.White);
+
+        this.Foreground = textBrush;
+        WeatherBg.Background = bgBrush;
+        HeroCard.Background = cardBrush;
+        GraphTooltip.Background = cardBrush;
+
+        // Named elements also benefit from explicit setting for clarity, 
+        // though many will now inherit from 'this.Foreground'
+        TxtCity.Foreground = textBrush;
+        TxtTemp.Foreground = textBrush;
+        TxtWind.Foreground = textBrush;
+        TxtHumidity.Foreground = textBrush;
+        TxtPressure.Foreground = textBrush;
+        
+        // Titles/Dates
+        TxtDateHeader.Foreground = subTextBrush;
+        TxtCondition.Foreground = subTextBrush;
+        
+        // Graph
+        GraphPath.Stroke = graphBrush;
+        GraphPoint.Fill = graphBrush;
+
+        // We can't easily reach LstForecast card backgrounds via code-behind without visual tree walking, 
+        // so we'll handle that via a DynamicResource or by just setting a property on the items if we had a ViewModel.
+        // For now, let's refresh the ItemsSource which will trigger the template to re-bind if we use a value converter 
+        // or just accept that cards look okay as they are (dark-ish).
+        // Actually, let's just make the forecast cards semi-transparent in XAML so they work on both.
+    }
+
+    private string GetWindowsTheme()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            var val = key?.GetValue("AppsUseLightTheme");
+            return (val is int i && i == 1) ? "Light" : "Dark";
+        }
+        catch { return "Dark"; }
     }
 
     private async Task UpdateWeatherData()
@@ -108,6 +167,7 @@ public partial class WeatherScreen : UserControl
     private void UpdateCurrentUI(WeatherResponse data)
     {
         TxtCity.Text = data.name.ToUpper();
+        TxtDateHeader.Text = DateTime.Now.ToString("dd MMMM yyyy").ToUpper();
         string unitSymbol = (_config.Units == "imperial") ? "°F" : "°C";
         TxtTemp.Text = $"{Math.Round(data.main.temp)}{unitSymbol}";
         TxtCondition.Text = data.weather[0].description.ToUpper();
@@ -120,7 +180,7 @@ public partial class WeatherScreen : UserControl
         TxtPressure.Text = $"{data.main.pressure} hPa";
         TxtFeelsLike.Text = $"{Math.Round(data.main.feels_like)}°";
 
-        TxtWeatherIcon.Text = GetWeatherEmoji(data.weather[0].icon);
+        TxtWeatherIconLarge.Text = GetWeatherEmoji(data.weather[0].icon);
     }
 
     private void UpdateForecastUI(ForecastResponse data)
