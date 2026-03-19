@@ -16,7 +16,9 @@
         <PathGeometry x:Key="SmallCloudIcon" Figures="M 25,40 Q 22,40 22,37 Q 22,33 26,32 Q 27,26 33,26 Q 38,26 40,30 Q 44,30 44,34 Q 44,40 40,40 Z"/>
         <PathGeometry x:Key="RainDrops" Figures="M 15,38 L 15,45 M 25,38 L 25,45 M 35,38 L 35,45"/>
         <PathGeometry x:Key="Snowflakes" Figures="M 15,40 A 1.5,1.5 0 1 1 15,37 Z M 21,43 A 1.5,1.5 0 1 1 21,40 Z M 27,40 A 1.5,1.5 0 1 1 27,37 Z M 33,43 A 1.5,1.5 0 1 1 33,40 Z M 39,40 A 1.5,1.5 0 1 1 39,37 Z"/>
-        <PathGeometry x:Key="HazeLines" Figures="M 5,30 Q 15,25 25,30 Q 35,35 45,30 M 5,35 Q 15,30 25,35 Q 35,40 45,35 M 5,40 Q 15,35 25,40 Q 35,45 45,40"/>
+        <PathGeometry x:Key="HazeLines" Figures="M 10,20 H 40 M 7,26 H 43 M 10,32 H 40"/>
+        <PathGeometry x:Key="HumidityIcon" Figures="M 25,10 C 25,10 15,22 15,30 A 10,10 0 0 0 35,30 C 35,22 25,10 25,10 Z M 21,28 A 1.5,1.5 0 1 1 19,31 A 1.5,1.5 0 0 1 21,28 Z M 27,34 A 1.5,1.5 0 1 1 25,37 A 1.5,1.5 0 0 1 27,34 Z M 20,38 L 30,26"/>
+        <PathGeometry x:Key="PressureIcon" Figures="M 15,5 V 15 M 15,15 L 12,12 M 15,15 L 18,12 M 22,5 V 15 M 22,15 L 19,12 M 22,15 L 25,12 M 29,5 V 15 M 29,15 L 26,12 M 29,15 L 32,12 M 36,5 V 15 M 36,15 L 33,12 M 36,15 L 39,12 M 5,22 Q 15,18 25,22 T 45,22 M 5,28 Q 15,24 25,28 T 45,28 M 5,34 Q 15,30 25,34 T 45,34"/>
         <PathGeometry x:Key="FogLines" Figures="M 5,38 H 45 M 5,42 H 45 M 5,46 H 45"/>
         <PathGeometry x:Key="LightningIcon" Figures="M 25,35 L 20,45 L 30,45 L 25,55"/>
         <PathGeometry x:Key="HailPellets" Figures="M 18,38 A 2,2 0 1 1 18,34 Z M 32,38 A 2,2 0 1 1 32,34 Z M 25,44 A 2,2 0 1 1 25,40 Z"/>
@@ -92,24 +94,24 @@
                         </Grid.ColumnDefinitions>
                         
                         <!-- Wind -->
-                        <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                            <TextBlock Text="&#xE7BC;" FontFamily="Segoe MDL2 Assets" Foreground="#888888" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <StackPanel Grid.Column="0" HorizontalAlignment="Center" Opacity="0.9">
+                            <Path x:Name="IconWind" Data="{StaticResource WindLines}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                             <TextBlock x:Name="TxtWind" Text="10 km/h" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
                             <TextBlock Text="Wind" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                         </StackPanel>
                         
                         <!-- Humidity -->
-                        <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                            <TextBlock Text="&#xE9CE;" FontFamily="Segoe MDL2 Assets" Foreground="#888888" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" Opacity="0.9">
+                            <Path x:Name="IconHumidity" Data="{StaticResource HumidityIcon}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                             <TextBlock x:Name="TxtHumidity" Text="98%" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
                             <TextBlock Text="Humidity" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                         </StackPanel>
 
-                        <!-- Rain -->
-                        <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                            <TextBlock Text="&#xE818;" FontFamily="Segoe MDL2 Assets" Foreground="#888888" FontSize="20" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="TxtPressure" Text="100%" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Rain" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                        <!-- Pressure -->
+                        <StackPanel Grid.Column="2" HorizontalAlignment="Center" Opacity="0.9">
+                            <Path x:Name="IconPressure" Data="{StaticResource PressureIcon}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                            <TextBlock x:Name="TxtPressure" Text="1013 hPa" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="Pressure" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
                         </StackPanel>
                     </Grid>
                 </Border>

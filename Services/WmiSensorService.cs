@@ -34,7 +34,7 @@ public static class WmiSensorService
                 @"root\WMI",
                 "SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature");
 
-            float best = float.MaxValue;
+            float best = float.MinValue;
             bool found = false;
 
             foreach (ManagementObject obj in searcher.Get())
@@ -45,8 +45,8 @@ public static class WmiSensorService
 
                 logger?.LogDebug("[WMI] ThermalZone raw={r} → {c:F1}°C", raw, celsius);
 
-                // Take the lowest reasonable zone temp as "CPU package" approximation
-                if (celsius > 0 && celsius < best)
+                // Take the highest reasonable zone temp (up to 110C) as "CPU package" peak
+                if (celsius > 0 && celsius < 110 && celsius > best)
                 {
                     best  = celsius;
                     found = true;
