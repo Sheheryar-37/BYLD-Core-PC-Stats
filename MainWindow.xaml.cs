@@ -29,12 +29,16 @@ public partial class MainWindow : Window
         // Allow moving the borderless window by clicking anywhere
         MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
         
-        // Monitor Cycling Shortcut: Ctrl+M
+        // Keyboard Shortcuts: Ctrl+M (Cycle Monitor), F11 (Toggle Full-Screen)
         KeyDown += (s, e) =>
         {
             if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.M)
             {
                 CycleMonitor();
+            }
+            else if (e.Key == Key.F11)
+            {
+                ToggleFullScreen();
             }
         };
 
@@ -129,6 +133,22 @@ public partial class MainWindow : Window
         _themeService.CurrentTheme.TargetMonitorIndex = nextIndex;
         _themeService.SaveTheme(true);
         SnapToInternalMonitor();
+    }
+
+    private void ToggleFullScreen()
+    {
+        if (this.WindowState == WindowState.Maximized)
+        {
+            this.WindowState = WindowState.Normal;
+            this.WindowStyle = WindowStyle.None;
+            this.Topmost = true;
+        }
+        else
+        {
+            this.WindowState = WindowState.Maximized;
+            this.WindowStyle = WindowStyle.None;
+            this.Topmost = true;
+        }
     }
 
     private void SnapToInternalMonitor()
