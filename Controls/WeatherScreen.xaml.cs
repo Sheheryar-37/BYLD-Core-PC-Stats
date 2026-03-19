@@ -168,7 +168,7 @@ namespace PcStatsMonitor.Controls
     private void UpdateCurrentUI(WeatherResponse data)
     {
         TxtCity.Text = (data.name ?? _config.City ?? "UNKNOWN").ToUpper();
-        TxtDateHeader.Text = DateTime.Now.ToString("dd MMMM yyyy").ToUpper();
+        TxtDateHeader.Text = $"LAST UPDATED: {DateTime.Now:t}";
         string unitSymbol = (_config.Units == "imperial") ? "°F" : "°C";
         TxtTemp.Text = $"{Math.Round(data.main.temp)}{unitSymbol}";
         TxtCondition.Text = data.weather[0].description.ToUpper();
