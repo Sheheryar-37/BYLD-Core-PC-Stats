@@ -237,8 +237,8 @@ namespace PcStatsMonitor.Controls
         // Theme colors for cards
         bool isLight = false;
         try {
-            var mode = _config.ThemeMode ?? "Auto";
-            if (mode == "Auto") {
+            var mode = _config.WeatherTheme ?? "Auto";
+            if (mode == "Auto" || mode == "System") {
                 using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
                 var val = key?.GetValue("AppsUseLightTheme");
                 isLight = (val is int i && i == 1);
@@ -368,8 +368,8 @@ namespace PcStatsMonitor.Controls
         // Detect theme for neutral layers
         bool isLight = false;
         try {
-            var mode = _config.ThemeMode ?? "Auto";
-            if (mode == "Auto") {
+            var mode = _config.WeatherTheme ?? "Auto";
+            if (mode == "Auto" || mode == "System") {
                 using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
                 var val = key?.GetValue("AppsUseLightTheme");
                 isLight = (val is int i && i == 1);
