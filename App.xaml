@@ -38,5 +38,21 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Weather Icons (Global) -->
+        <PathGeometry x:Key="SunIcon" Figures="M 25,10 A 15,15 0 1 1 25,40 A 15,15 0 1 1 25,10 Z M 25,5 V 2 M 25,48 V 45 M 45,25 H 48 M 2,25 H 5 M 39,11 L 41,9 M 9,41 L 11,39 M 39,39 L 41,41 M 9,9 L 11,11"/>
+        <PathGeometry x:Key="MoonIcon" Figures="M 35,15 A 15,15 0 1 0 15,35 A 12,12 0 1 1 35,15 Z"/>
+        <PathGeometry x:Key="CloudIcon" Figures="M 10,35 Q 5,35 5,30 Q 5,23 12,22 Q 13,10 25,10 Q 35,10 38,18 Q 45,18 45,26 Q 45,35 37,35 Z"/>
+        <PathGeometry x:Key="SmallCloudIcon" Figures="M 25,40 Q 22,40 22,37 Q 22,33 26,32 Q 27,26 33,26 Q 38,26 40,30 Q 44,30 44,34 Q 44,40 40,40 Z"/>
+        <PathGeometry x:Key="RainDrops" Figures="M 15,38 L 15,45 M 25,38 L 25,45 M 35,38 L 35,45"/>
+        <PathGeometry x:Key="Snowflakes" Figures="M 15,40 A 1.5,1.5 0 1 1 15,37 Z M 21,43 A 1.5,1.5 0 1 1 21,40 Z M 27,40 A 1.5,1.5 0 1 1 27,37 Z M 33,43 A 1.5,1.5 0 1 1 33,40 Z M 39,40 A 1.5,1.5 0 1 1 39,37 Z"/>
+        <PathGeometry x:Key="HazeLines" Figures="M 10,20 H 40 M 7,26 H 43 M 10,32 H 40"/>
+        <PathGeometry x:Key="HumidityIcon" Figures="M 25,10 C 25,10 15,22 15,30 A 10,10 0 0 0 35,30 C 35,22 25,10 25,10 Z M 21,28 A 1.5,1.5 0 1 1 19,31 A 1.5,1.5 0 0 1 21,28 Z M 27,34 A 1.5,1.5 0 1 1 25,37 A 1.5,1.5 0 0 1 27,34 Z M 20,38 L 30,26"/>
+        <PathGeometry x:Key="PressureIcon" Figures="M 15,5 V 15 M 15,15 L 12,12 M 15,15 L 18,12 M 22,5 V 15 M 22,15 L 19,12 M 22,15 L 25,12 M 29,5 V 15 M 29,15 L 26,12 M 29,15 L 32,12 M 36,5 V 15 M 36,15 L 33,12 M 36,15 L 39,12 M 5,22 Q 15,18 25,22 T 45,22 M 5,28 Q 15,24 25,28 T 45,28 M 5,34 Q 15,30 25,34 T 45,34"/>
+        <PathGeometry x:Key="FogLines" Figures="M 5,38 H 45 M 5,42 H 45 M 5,46 H 45"/>
+        <PathGeometry x:Key="LightningIcon" Figures="M 25,35 L 20,45 L 30,45 L 25,55"/>
+        <PathGeometry x:Key="HailPellets" Figures="M 18,38 A 2,2 0 1 1 18,34 Z M 32,38 A 2,2 0 1 1 32,34 Z M 25,44 A 2,2 0 1 1 25,40 Z"/>
+        <PathGeometry x:Key="WindLines" Figures="M 5,20 Q 20,10 35,20 T 45,20 M 5,25 Q 20,15 35,25 T 45,25 M 5,30 Q 20,20 35,30 T 45,30"/>
+        <PathGeometry x:Key="TornadoFunnel" Figures="M 10,10 H 40 L 30,50 Q 25,55 20,50 L 10,10 Z M 15,20 H 35 M 20,35 H 30"/>
     </Application.Resources>
 </Application>

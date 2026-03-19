@@ -166,7 +166,12 @@ public partial class MainWindow : Window
         // 2. Otherwise auto-detect (prefer vertical screen or secondary screen)
         else if (screens.Length > 1)
         {
-            targetScreen = screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width) 
+            // Prefer: 
+            // 1. Screens with small width (typically 5"-11" secondary displays like 800x480, 1024x600, etc)
+            // 2. Vertical screens
+            // 3. Any non-primary screen
+            targetScreen = screens.FirstOrDefault(s => !s.Primary && s.Bounds.Width < 1200)
+                           ?? screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width) 
                            ?? screens.FirstOrDefault(s => !s.Primary)
                            ?? screens[0];
         }
@@ -231,6 +236,9 @@ public partial class MainWindow : Window
         if (config.ShowWeatherScreen && !config.ScreenRotationOrder.Contains("Weather"))
             config.ScreenRotationOrder.Add("Weather");
 
+        if (config.Weather.ShowWeatherGallery && !config.ScreenRotationOrder.Contains("Gallery"))
+            config.ScreenRotationOrder.Add("Gallery");
+
         // Synchronize missing enabled plugins into the rotation order
         if (config.EnabledPlugins != null)
         {
@@ -274,6 +282,11 @@ public partial class MainWindow : Window
             targetScreen = WeatherScreenArea;
             currentScreenValid = true;
         }
+        else if (currentScreenName == "Gallery" && config.Weather.ShowWeatherGallery)
+        {
+            targetScreen = WeatherGalleryArea;
+            currentScreenValid = true;
+        }
         else
         {
             // Check plugins
@@ -311,6 +324,10 @@ public partial class MainWindow : Window
                     WeatherCtrl.ApplyConfig(config.Weather ?? new WeatherConfig(), config);
                     targetScreen = WeatherScreenArea; _currentScreenIndex = i; currentScreenValid = true; break;
                 }
+                if (name == "Gallery" && config.Weather.ShowWeatherGallery)
+                {
+                    targetScreen = WeatherGalleryArea; _currentScreenIndex = i; currentScreenValid = true; break;
+                }
 
                 var p = _pluginManager?.LoadedPlugins?.FirstOrDefault(pl => pl.Name == name);
                 if (p != null && config.EnabledPlugins.Contains(p.Name))
@@ -323,7 +340,7 @@ public partial class MainWindow : Window
             if (!currentScreenValid) targetScreen = GaugesContainer;
         }
 
-        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea };
+        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea, WeatherGalleryArea };
 
         if (animate)
         {
@@ -411,6 +428,7 @@ public partial class MainWindow : Window
             else if (name == "Storage" && config.ShowStorageScreen) isValid = true;
             else if (name == "Clock" && config.ShowClockScreen) isValid = true;
             else if (name == "Weather" && config.ShowWeatherScreen) isValid = true;
+            else if (name == "Gallery" && config.Weather?.ShowWeatherGallery == true) isValid = true;
             else if (config.EnabledPlugins != null && config.EnabledPlugins.Contains(name)) isValid = true;
 
             if (isValid) break;

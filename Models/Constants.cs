@@ -13,6 +13,9 @@ public enum DisplayMode
 /// </summary>
 public static class Constants
 {
+    // Debug Flag
+    public const bool IsDebugMode = true;
+
     // File Paths
     public const string ThemeConfigFilePath = "theme.json";
     public const string LogFilePath = "logs/pcstatsmonitor.log";

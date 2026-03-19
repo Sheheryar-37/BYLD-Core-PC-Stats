@@ -57,8 +57,8 @@ namespace PcStatsMonitor.Controls
             var bgBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(240, 240, 240) : System.Windows.Media.Color.FromRgb(18, 18, 18));
             var cardBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Colors.White : System.Windows.Media.Color.FromRgb(30, 30, 30));
             var textBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(20, 20, 20) : System.Windows.Media.Colors.White);
-            var subTextBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(80, 80, 80) : System.Windows.Media.Color.FromRgb(136, 136, 136));
-            var graphBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(180, 180, 180) : System.Windows.Media.Color.FromRgb(68, 68, 68));
+            var subTextBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(40, 40, 40) : System.Windows.Media.Color.FromRgb(136, 136, 136));
+            var graphBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(120, 120, 120) : System.Windows.Media.Color.FromRgb(68, 68, 68));
 
             this.Foreground = textBrush;
             WeatherBg.Background = bgBrush;
@@ -71,12 +71,13 @@ namespace PcStatsMonitor.Controls
             TxtHumidity.Foreground = textBrush;
             TxtPressure.Foreground = textBrush;
             TxtDateHeader.Foreground = subTextBrush;
-            TxtCondition.Foreground = textBrush; // Condition is prominent in new UI
+            TxtCondition.Foreground = textBrush;
+            TxtCity.Foreground = isLight ? System.Windows.Media.Brushes.Black : (System.Windows.Media.SolidColorBrush)System.Windows.Application.Current.Resources["BrandBlueBrush"];
             
             // Forecast tab base foreground
-            TabToday.Foreground = subTextBrush;
-            TabTomorrow.Foreground = subTextBrush;
-            TabNextDays.Foreground = subTextBrush;
+            TabToday.Foreground = isLight ? System.Windows.Media.Brushes.Black : subTextBrush;
+            TabTomorrow.Foreground = isLight ? System.Windows.Media.Brushes.Black : subTextBrush;
+            TabNextDays.Foreground = isLight ? System.Windows.Media.Brushes.Black : subTextBrush;
 
             // Graph
             GraphPath.Stroke = graphBrush;
@@ -166,6 +167,7 @@ namespace PcStatsMonitor.Controls
 
     private void UpdateCurrentUI(WeatherResponse data)
     {
+        TxtCity.Text = (data.name ?? _config.City ?? "UNKNOWN").ToUpper();
         TxtDateHeader.Text = DateTime.Now.ToString("dd MMMM yyyy").ToUpper();
         string unitSymbol = (_config.Units == "imperial") ? "°F" : "°C";
         TxtTemp.Text = $"{Math.Round(data.main.temp)}{unitSymbol}";
@@ -232,6 +234,23 @@ namespace PcStatsMonitor.Controls
                                     .Select(g => g.First())
                                     .Take(4).ToList();
 
+        // Theme colors for cards
+        bool isLight = false;
+        try {
+            var mode = _config.ThemeMode ?? "Auto";
+            if (mode == "Auto") {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                var val = key?.GetValue("AppsUseLightTheme");
+                isLight = (val is int i && i == 1);
+            } else {
+                isLight = mode == "Light";
+            }
+        } catch { }
+
+        var cardBrush = isLight ? new SolidColorBrush(Color.FromRgb(225, 225, 225)) : new SolidColorBrush(Color.FromArgb(26, 255, 255, 255));
+        var textBrush = isLight ? Brushes.Black : Brushes.White;
+        var subTextBrush = isLight ? new SolidColorBrush(Color.FromRgb(60, 60, 60)) : new SolidColorBrush(Color.FromArgb(136, 255, 255, 255));
+
         foreach (var item in todayList)
         {
             var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
@@ -242,13 +261,16 @@ namespace PcStatsMonitor.Controls
             forecastItems.Add(new ForecastViewItem
             {
                 Day = dayLabel,
+                DayBrush = subTextBrush,
                 BackIcon = iconLayers.Back,
                 BackFill = iconLayers.BackFill,
                 CloudIcon = iconLayers.Cloud,
-                CloudFill = iconLayers.CloudFill ?? Brushes.White,
+                CloudFill = iconLayers.CloudFill ?? (isLight ? Brushes.Black : Brushes.White),
                 FrontIcon = iconLayers.Front,
                 FrontFill = iconLayers.FrontFill,
-                Temp = $"{Math.Round(item.main.temp)}°"
+                Temp = $"{Math.Round(item.main.temp)}°",
+                TempBrush = textBrush,
+                CardBrush = cardBrush
             });
         }
         
@@ -260,7 +282,7 @@ namespace PcStatsMonitor.Controls
     {
         if (items == null || items.Count < 2) return;
 
-        double canvasWidth = 432; 
+        double canvasWidth = 480; 
         double canvasHeight = 120;
         
         double minTemp = double.MaxValue;
@@ -343,11 +365,24 @@ namespace PcStatsMonitor.Controls
         var backIcon = isNight ? moonPath : sunPath;
         var backFill = isNight ? Brushes.LightYellow : new SolidColorBrush(Color.FromRgb(255, 171, 0));
 
+        // Detect theme for neutral layers
+        bool isLight = false;
+        try {
+            var mode = _config.ThemeMode ?? "Auto";
+            if (mode == "Auto") {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                var val = key?.GetValue("AppsUseLightTheme");
+                isLight = (val is int i && i == 1);
+            } else {
+                isLight = mode == "Light";
+            }
+        } catch { }
+
         Geometry back = null;
         Geometry cloud = null;
         Geometry front = null;
-        Brush cloudFill = Brushes.White;
-        Brush frontFill = Brushes.White;
+        Brush cloudFill = isLight ? new SolidColorBrush(Color.FromRgb(40, 40, 40)) : Brushes.White;
+        Brush frontFill = isLight ? new SolidColorBrush(Color.FromRgb(40, 40, 40)) : Brushes.White;
 
         // Exhaustive mapping based on OWM ID for iPhone accuracy
         if (id == 800) { back = backIcon; } // Clear
@@ -400,6 +435,7 @@ namespace PcStatsMonitor.Controls
     public class WindInfo { public double speed { get; set; } }
     public class ForecastViewItem { 
         public string Day { get; set; } 
+        public Brush DayBrush { get; set; }
         public Geometry BackIcon { get; set; }
         public Brush BackFill { get; set; }
         public Geometry CloudIcon { get; set; }
@@ -407,6 +443,8 @@ namespace PcStatsMonitor.Controls
         public Geometry FrontIcon { get; set; }
         public Brush FrontFill { get; set; }
         public string Temp { get; set; } 
+        public Brush TempBrush { get; set; }
+        public Brush CardBrush { get; set; }
     }
 }
 }

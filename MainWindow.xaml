@@ -39,8 +39,15 @@
                 <Grid.RenderTransform>
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
-                <!-- Top Logo Area. The client image has the logo ABOVE the gauges. -->
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
+                <!-- Top Logo Area. Uses an OpacityMask to tint the logo (White in Dark mode, Black in Light mode) -->
+                <Grid x:Name="LogoGrid" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
+                    <Image x:Name="LogoImage" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImage, Path=ActualWidth}" Height="{Binding ElementName=LogoImage, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImage, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
 
                 <!-- Screen 1: Gauges. Replaced rigid StackPanel with a dynamic ItemsControl -->
                 <Viewbox MaxHeight="620" VerticalAlignment="Top" Margin="0,100,0,0" StretchDirection="DownOnly">
@@ -308,6 +315,15 @@
                 </Grid.RenderTransform>
                 <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
                 <controls:WeatherScreen x:Name="WeatherCtrl"/>
+            </Grid>
+
+            <!-- Screen 6: Internal Weather Gallery (Debug Only) -->
+            <Grid x:Name="WeatherGalleryArea" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <!-- No logo for gallery to maximize icon viewing area -->
+                <controls:WeatherGallery x:Name="WeatherGalleryCtrl"/>
             </Grid>
 
         </Grid>

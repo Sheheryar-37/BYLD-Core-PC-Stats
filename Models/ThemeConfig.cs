@@ -134,6 +134,7 @@ public class WeatherConfig
     public string TextColor { get; set; } = "#FFFFFF";
     public string AccentColor { get; set; } = "#3b82f6";
     public string GlowColor { get; set; } = "#3b82f6";
+    public bool ShowWeatherGallery { get; set; } = false;
 }
 
 public class SensorNamesConfig

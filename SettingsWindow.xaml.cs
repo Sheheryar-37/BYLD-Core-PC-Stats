@@ -145,6 +145,7 @@ public partial class SettingsWindow : Window
     {
         var weather = _themeService.CurrentTheme.Weather ?? new WeatherConfig();
         ChkShowWeather.IsChecked = _themeService.CurrentTheme.ShowWeatherScreen;
+        if (ChkWeatherGallery != null) ChkWeatherGallery.IsChecked = weather.ShowWeatherGallery;
         TxtWeatherApiKey.Password = weather.ApiKey ?? "";
         TxtWeatherCity.Text = weather.City ?? "";
         if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = weather.City ?? "";
@@ -186,7 +187,9 @@ public partial class SettingsWindow : Window
         theme.ShowGaugesScreen = ChkGaugesScreen.IsChecked ?? true;
         theme.ShowStorageScreen = ChkStorageScreen.IsChecked ?? true;
         theme.ShowClockScreen = ChkClockScreen.IsChecked ?? true;
-        theme.ShowWeatherScreen = ChkWeatherScreenLayout.IsChecked ?? false; // Update theme based on ChkWeatherScreenLayout
+        theme.ShowWeatherScreen = ChkWeatherScreenLayout.IsChecked ?? false;
+        if (theme.Weather == null) theme.Weather = new WeatherConfig();
+        theme.Weather.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
 
         theme.EnabledPlugins = PluginSettings.Where(ps => ps.IsEnabled).Select(ps => ps.Name).ToList();
         theme.ScreenRotationOrder = ScreenRotationList.ToList();
@@ -212,6 +215,7 @@ public partial class SettingsWindow : Window
         var w = theme.Weather;
 
         theme.ShowWeatherScreen = ChkShowWeather.IsChecked ?? false;
+        if (ChkWeatherGallery != null) w.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
         w.ApiKey = TxtWeatherApiKey.Password;
         w.City = TxtWeatherCity.Text;
         if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = w.City;
@@ -362,6 +366,7 @@ public partial class SettingsWindow : Window
                           (ChkStorageScreen.IsChecked == true ? 1 : 0) + 
                           (ChkClockScreen.IsChecked == true ? 1 : 0) + 
                           (ChkWeatherScreenLayout?.IsChecked == true || ChkShowWeather?.IsChecked == true ? 1 : 0) +
+                          (ChkWeatherGallery?.IsChecked == true ? 1 : 0) +
                           PluginSettings.Count(ps => ps.IsEnabled);
 
         if (activeCount == 0)
@@ -406,6 +411,7 @@ public partial class SettingsWindow : Window
         if (ChkStorageScreen.IsChecked == true) activeItems.Add("Storage");
         if (ChkClockScreen.IsChecked == true) activeItems.Add("Clock");
         if (ChkShowWeather != null && ChkShowWeather.IsChecked == true) activeItems.Add("Weather");
+        if (ChkWeatherGallery != null && ChkWeatherGallery.IsChecked == true) activeItems.Add("Gallery");
         foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
 
         // 1. Remove items no longer active
@@ -419,19 +425,12 @@ public partial class SettingsWindow : Window
         {
             if (!ScreenRotationList.Contains(item)) ScreenRotationList.Add(item);
         }
-
-        // 3. User requested "Main Dashboard will always be first"
-        if (ScreenRotationList.Contains("Gauges") && ScreenRotationList[0] != "Gauges")
-        {
-            ScreenRotationList.Remove("Gauges");
-            ScreenRotationList.Insert(0, "Gauges");
-        }
     }
 
     private void BtnMoveScreenUp_Click(object sender, RoutedEventArgs e)
     {
         int idx = LstScreenOrder.SelectedIndex;
-        if (idx > 1) // 0 is Gauges, locked
+        if (idx > 0) 
         {
             var item = ScreenRotationList[idx];
             ScreenRotationList.RemoveAt(idx);
@@ -444,7 +443,7 @@ public partial class SettingsWindow : Window
     private void BtnMoveScreenDown_Click(object sender, RoutedEventArgs e)
     {
         int idx = LstScreenOrder.SelectedIndex;
-        if (idx >= 1 && idx < ScreenRotationList.Count - 1) // 0 is Gauges, locked
+        if (idx >= 0 && idx < ScreenRotationList.Count - 1)
         {
             var item = ScreenRotationList[idx];
             ScreenRotationList.RemoveAt(idx);

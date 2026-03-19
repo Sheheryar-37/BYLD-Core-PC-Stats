@@ -3,6 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BYLD Core - Settings" Height="680" Width="620" WindowStartupLocation="CenterScreen" 
         WindowStyle="None" AllowsTransparency="True" Background="#D9161616" ResizeMode="NoResize"
+        xmlns:models="clr-namespace:PcStatsMonitor.Models"
+        xmlns:local="clr-namespace:PcStatsMonitor"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Icon="Assets/byld-icon.png">
     
@@ -394,6 +396,11 @@
                                         <CheckBox x:Name="ChkStorageScreen" Content="Storage Dashboard" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkClockScreen" Content="Built-in Clock" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkWeatherScreenLayout" Content="Weather Screen" Click="OnWeatherSettingChanged"/>
+                                        
+                                        <CheckBox x:Name="ChkWeatherGallery" Content="Weather Icon Gallery (Internal)" 
+                                                  Visibility="{Binding Source={x:Static models:Constants.IsDebugMode}, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                                  Click="OnScreenSettingChanged"/>
+
                                         <StackPanel Margin="20,5,0,10" Visibility="{Binding IsChecked, ElementName=ChkWeatherScreenLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <TextBlock Text="City / Location" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
                                             <Grid>
@@ -787,6 +794,9 @@
                                         <TextBlock Text="Font" VerticalAlignment="Center"/>
                                         <ComboBox x:Name="CmbDigitalFont" Width="160" Height="32" SelectionChanged="OnClockSettingChanged" Style="{StaticResource ModernComboBoxStyle}">
                                             <ComboBoxItem Content="Segoe UI"/>
+                                            <ComboBoxItem Content="Arial"/>
+                                            <ComboBoxItem Content="Verdana"/>
+                                            <ComboBoxItem Content="Tahoma"/>
                                             <ComboBoxItem Content="Courier New"/>
                                             <ComboBoxItem Content="Trebuchet MS"/>
                                             <ComboBoxItem Content="Georgia"/>
@@ -840,6 +850,9 @@
                                         <TextBlock Text="Font" VerticalAlignment="Center"/>
                                         <ComboBox x:Name="CmbDateFont" Width="160" Height="32" SelectionChanged="OnClockSettingChanged" Style="{StaticResource ModernComboBoxStyle}">
                                             <ComboBoxItem Content="Segoe UI"/>
+                                            <ComboBoxItem Content="Arial"/>
+                                            <ComboBoxItem Content="Verdana"/>
+                                            <ComboBoxItem Content="Tahoma"/>
                                             <ComboBoxItem Content="Courier New"/>
                                             <ComboBoxItem Content="Trebuchet MS"/>
                                             <ComboBoxItem Content="Georgia"/>
