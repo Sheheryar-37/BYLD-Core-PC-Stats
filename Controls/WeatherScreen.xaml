@@ -164,7 +164,7 @@
                             <Grid x:Name="GraphTooltip" HorizontalAlignment="Right" VerticalAlignment="Bottom" Opacity="0">
                                 <Border Background="White" CornerRadius="8" Padding="8,4" MinWidth="40">
                                     <StackPanel>
-                                        <TextBlock x:Name="TxtTooltipTime" FontSize="10" Foreground="#88000000" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                        <TextBlock x:Name="TxtTooltipTime" FontSize="10" Foreground="#AA000000" HorizontalAlignment="Center" FontWeight="Bold"/>
                                         <TextBlock x:Name="TxtTooltipTemp" FontSize="14" Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>

@@ -337,7 +337,7 @@ namespace PcStatsMonitor.Controls
             var focusPoint = points[targetIdx];
             var focusItem = items[targetIdx];
 
-            GraphPointContainer.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 7, canvasHeight - focusPoint.Y - 7);
+            GraphPointContainer.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 7, canvasHeight - focusPoint.Y - 8.5);
             
             TxtTooltipTime.Text = focusItem.Day.Contains(":") ? focusItem.Day : DateTime.Now.ToString("HH:mm");
             TxtTooltipTemp.Text = focusItem.Temp;
