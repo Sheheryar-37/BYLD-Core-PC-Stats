@@ -3,6 +3,7 @@ namespace PcStatsMonitor.Models;
 public enum DisplayMode
 {
     Auto,
+    Manual,
     Gauges,
     Storage
 }

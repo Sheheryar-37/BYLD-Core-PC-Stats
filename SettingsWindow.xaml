@@ -430,6 +430,7 @@
                                 <Border Style="{StaticResource SectionBorderStyle}" Margin="0,0,0,20">
                                     <StackPanel>
                                         <TextBlock Text="ROTATION TIMING" Style="{StaticResource SectionHeaderStyle}"/>
+                                        <CheckBox x:Name="ChkAutoRotate" Content="Enable Auto-Rotation" Click="OnSettingChanged" Margin="0,0,0,10"/>
                                         <Grid Margin="0,5,0,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="40"/>

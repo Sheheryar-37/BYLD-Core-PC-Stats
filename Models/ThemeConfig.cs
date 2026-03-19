@@ -21,6 +21,7 @@ public class ThemeConfig
     // ── Layout ───────────────────────────────────────────────────────────────
     public int WindowWidth { get; set; } = Constants.DefaultWindowWidth;
     public int WindowHeight { get; set; } = Constants.DefaultWindowHeight; // 9:16 aspect ratio (e.g. 1080x1920 scaled down)
+    public int TargetMonitorIndex { get; set; } = -1; // -1 for auto-detection, 0+ for specific monitor index
     
     // ── Typography ───────────────────────────────────────────────────────────
     public string FontFamily { get; set; } = Constants.DefaultFontFamily; // Or exact font if provided, configurable by user

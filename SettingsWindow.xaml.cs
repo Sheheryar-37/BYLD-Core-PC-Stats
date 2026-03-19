@@ -130,6 +130,7 @@ public partial class SettingsWindow : Window
         
         // Transition Delay
         SldInterval.Value = theme.TransitionDelaySeconds;
+        ChkAutoRotate.IsChecked = (theme.DisplayMode == DisplayMode.Auto);
 
         // Clock Settings
         LoadClockSettings();
@@ -196,6 +197,7 @@ public partial class SettingsWindow : Window
         theme.BackgroundImagePath = TxtBgImage.Text;
         theme.BackgroundOpacity = SldOpacity.Value;
         theme.TransitionDelaySeconds = (int)SldInterval.Value;
+        theme.DisplayMode = ChkAutoRotate.IsChecked == true ? DisplayMode.Auto : DisplayMode.Manual;
 
         SaveClockSettings();
         SaveWeatherSettings();

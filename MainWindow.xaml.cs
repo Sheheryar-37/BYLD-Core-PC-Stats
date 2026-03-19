@@ -13,38 +13,59 @@ namespace PcStatsMonitor;
 
 public partial class MainWindow : Window
 {
+    private readonly IThemeService _themeService;
     private readonly DispatcherTimer _transitionTimer;
     private int _currentScreenIndex = 0;
     private int _previousScreenIndex = -1;
     public PluginManager PluginManager => _pluginManager;
     private PluginManager _pluginManager;
 
-    public MainWindow(MainViewModel viewModel)
+    public MainWindow(MainViewModel viewModel, IThemeService themeService)
     {
         InitializeComponent();
         DataContext = viewModel;
+        _themeService = themeService;
 
         // Allow moving the borderless window by clicking anywhere
         MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
+        
+        // Monitor Cycling Shortcut: Ctrl+M
+        KeyDown += (s, e) =>
+        {
+            if (Keyboard.Modifiers == ModifierKeys.Control && e.Key == Key.M)
+            {
+                CycleMonitor();
+            }
+        };
 
         // Handle the infinite loop transitions
         _transitionTimer = new DispatcherTimer();
         _transitionTimer.Tick += TransitionTimer_Tick;
 
-        // Listen for theme config changes to adjust the timer speed
+        // Listen for theme config changes to adjust the timer speed or start/stop
         viewModel.PropertyChanged += (s, e) =>
         {
             if (e.PropertyName == nameof(viewModel.Theme))
             {
                 _transitionTimer.Interval = TimeSpan.FromSeconds(viewModel.Theme.TransitionDelaySeconds);
-                if (!_transitionTimer.IsEnabled) _transitionTimer.Start();
+                
+                if (viewModel.Theme.DisplayMode == DisplayMode.Auto)
+                {
+                    if (!_transitionTimer.IsEnabled) _transitionTimer.Start();
+                }
+                else
+                {
+                    _transitionTimer.Stop();
+                }
+                
                 EvaluateScreenVisibility(animate: false);
             }
         };
 
-        // Start initial timer
+        // Start initial timer if Auto mode is enabled
         _transitionTimer.Interval = TimeSpan.FromSeconds(viewModel.Theme.TransitionDelaySeconds);
-        _transitionTimer.Start();
+        if (viewModel.Theme.DisplayMode == DisplayMode.Auto) _transitionTimer.Start();
+        
         _currentScreenIndex = 0;
         EvaluateScreenVisibility(animate: false);
         
@@ -86,23 +107,85 @@ public partial class MainWindow : Window
         Loaded += (s, e) => SnapToInternalMonitor();
     }
 
+    private void CycleMonitor()
+    {
+        var screens = System.Windows.Forms.Screen.AllScreens;
+        if (screens.Length <= 1) return;
+
+        // Find current screen index
+        var currentScreenBounds = new System.Drawing.Rectangle((int)Left, (int)Top, (int)Width, (int)Height);
+        int currentIndex = 0;
+        for (int i = 0; i < screens.Length; i++)
+        {
+            if (screens[i].Bounds.IntersectsWith(currentScreenBounds))
+            {
+                currentIndex = i;
+                break;
+            }
+        }
+
+        // Cycle to next
+        int nextIndex = (currentIndex + 1) % screens.Length;
+        _themeService.CurrentTheme.TargetMonitorIndex = nextIndex;
+        _themeService.SaveTheme(true);
+        SnapToInternalMonitor();
+    }
+
     private void SnapToInternalMonitor()
     {
         var screens = System.Windows.Forms.Screen.AllScreens;
-        if (screens.Length > 1)
-        {
-            // Look for a vertical screen first, otherwise pick the first non-primary screen
-            var targetScreen = screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width) 
-                               ?? screens.FirstOrDefault(s => !s.Primary);
+        if (screens.Length == 0) return;
 
-            if (targetScreen != null)
+        System.Windows.Forms.Screen targetScreen = screens[0];
+
+        // 1. Use saved preference if valid
+        if (_themeService.CurrentTheme.TargetMonitorIndex >= 0 && _themeService.CurrentTheme.TargetMonitorIndex < screens.Length)
+        {
+            targetScreen = screens[_themeService.CurrentTheme.TargetMonitorIndex];
+        }
+        // 2. Otherwise auto-detect (prefer vertical screen or secondary screen)
+        else if (screens.Length > 1)
+        {
+            targetScreen = screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width) 
+                           ?? screens.FirstOrDefault(s => !s.Primary)
+                           ?? screens[0];
+        }
+
+        if (targetScreen != null)
+        {
+            this.WindowState = WindowState.Normal;
+            
+            // Only maximize if we are on a secondary monitor (common for 7-inch dedicated screens)
+            // If it's the primary monitor (or only monitor), keep it at its designed size
+            if (!targetScreen.Primary)
             {
-                this.WindowState = WindowState.Normal;
                 this.Left = targetScreen.WorkingArea.Left;
                 this.Top = targetScreen.WorkingArea.Top;
                 this.Width = targetScreen.WorkingArea.Width;
                 this.Height = targetScreen.WorkingArea.Height;
                 this.WindowState = WindowState.Maximized;
+            }
+            else
+            {
+                var vm = DataContext as MainViewModel;
+                // On primary screen, center it or just use designed dimensions
+                this.Width = (vm != null) ? vm.Theme.WindowWidth : 480;
+                this.Height = (vm != null) ? vm.Theme.WindowHeight : 854;
+                
+                // If it's the only screen, we don't want to cover everything.
+                // Just place it somewhere sensible or let the user move it.
+                if (screens.Length == 1)
+                {
+                    // Center on primary if it's the only one
+                    this.Left = (targetScreen.WorkingArea.Width - this.Width) / 2;
+                    this.Top = (targetScreen.WorkingArea.Height - this.Height) / 2;
+                }
+                else
+                {
+                    // If it's one of multiple, but primary was chosen, respect its position
+                    this.Left = targetScreen.WorkingArea.Left + 50;
+                    this.Top = targetScreen.WorkingArea.Top + 50;
+                }
             }
         }
     }
