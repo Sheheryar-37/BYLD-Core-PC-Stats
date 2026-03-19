@@ -72,7 +72,7 @@ namespace PcStatsMonitor.Controls
             TxtPressure.Foreground = textBrush;
             TxtDateHeader.Foreground = subTextBrush;
             TxtCondition.Foreground = textBrush;
-            TxtCity.Foreground = isLight ? System.Windows.Media.Brushes.Black : (System.Windows.Media.SolidColorBrush)System.Windows.Application.Current.Resources["BrandBlueBrush"];
+            TxtCity.Foreground = isLight ? System.Windows.Media.Brushes.Black : (System.Windows.Media.SolidColorBrush)System.Windows.Application.Current.Resources["BrandBlue"];
             
             // Forecast tab base foreground
             TabToday.Foreground = isLight ? System.Windows.Media.Brushes.Black : subTextBrush;
