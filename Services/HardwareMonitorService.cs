@@ -50,6 +50,12 @@ public interface IHardwareMonitorService
         try
         {
             _computer.Open();
+            // Allow 2 seconds for initial polling to complete before taking a diagnostic snapshot.
+            // This ensures that the snapshot contains actual sensor values instead of 0s.
+            System.Threading.Tasks.Task.Run(async () => {
+                await System.Threading.Tasks.Task.Delay(2000);
+                SensorStartupLogger.LogHardwareSnapshot(_computer, _logger);
+            });
         }
         catch (Exception ex)
         {
@@ -213,6 +219,16 @@ public interface IHardwareMonitorService
                 {
                     _logger.LogDebug("[WMI Fallback] GPU load = {l:F1}%", wmiLoad.Value);
                     metrics.GpuLoad = wmiLoad.Value;
+                }
+            }
+
+            if (metrics.GpuClock == 0)
+            {
+                var wmiClock = WmiSensorService.GetGpuClockMhz(_logger);
+                if (wmiClock.HasValue && wmiClock.Value > 0)
+                {
+                    _logger.LogDebug("[WMI Fallback] GPU clock = {c:F0} MHz", wmiClock.Value);
+                    metrics.GpuClock = wmiClock.Value;
                 }
             }
 

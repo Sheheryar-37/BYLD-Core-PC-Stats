@@ -72,13 +72,25 @@ public static class WmiSensorService
     {
         try
         {
-            using var searcher = new ManagementObjectSearcher(
-                "SELECT CurrentClockSpeed FROM Win32_Processor");
+            // Prefer Win32_PerfFormattedData_Counters_ProcessorInformation for dynamic frequency
+            using var searcherPerf = new ManagementObjectSearcher(
+                "SELECT ProcessorFrequency FROM Win32_PerfFormattedData_Counters_ProcessorInformation WHERE Name='_Total'");
+            
+            foreach (ManagementObject obj in searcherPerf.Get())
+            {
+                var freq = Convert.ToSingle(obj["ProcessorFrequency"]);
+                if (freq > 0) 
+                {
+                    logger?.LogDebug("[WMI] CPU ProcessorFrequency = {f} MHz", freq);
+                    return freq;
+                }
+            }
 
-            foreach (ManagementObject obj in searcher.Get())
+            // Fallback to Win32_Processor
+            using var searcherProc = new ManagementObjectSearcher("SELECT CurrentClockSpeed FROM Win32_Processor");
+            foreach (ManagementObject obj in searcherProc.Get())
             {
                 var clock = Convert.ToSingle(obj["CurrentClockSpeed"]);
-                logger?.LogDebug("[WMI] CPU CurrentClockSpeed = {c} MHz", clock);
                 if (clock > 0) return clock;
             }
 
@@ -86,7 +98,7 @@ public static class WmiSensorService
         }
         catch (Exception ex)
         {
-            logger?.LogDebug(ex, "[WMI] Win32_Processor.CurrentClockSpeed unavailable.");
+            logger?.LogDebug(ex, "[WMI] CPU Clock detection failed.");
             return null;
         }
     }
@@ -148,18 +160,18 @@ public static class WmiSensorService
             using var searcher = new ManagementObjectSearcher(
                 @"root\WMI",
                 "SELECT InstanceName, CurrentTemperature FROM MSAcpi_ThermalZoneTemperature");
-
+ 
             float best = float.MinValue;
             bool  found = false;
-
+ 
             foreach (ManagementObject obj in searcher.Get())
             {
                 var raw     = Convert.ToSingle(obj["CurrentTemperature"]);
                 var celsius = (raw - KelvinTenthsOffset) / 10f;
                 var name    = obj["InstanceName"]?.ToString() ?? "";
-
+ 
                 logger?.LogDebug("[WMI] GPU ThermalZone [{n}] = {c:F1}°C", name, celsius);
-
+ 
                 // On laptops with both CPU and GPU thermal zones, the GPU zone
                 // is usually the hotter one or named "TZ00"/"GPU"
                 if (celsius > 0 && celsius > best)
@@ -168,7 +180,7 @@ public static class WmiSensorService
                     found = true;
                 }
             }
-
+ 
             return found ? best : null;
         }
         catch (Exception ex)
@@ -176,5 +188,14 @@ public static class WmiSensorService
             logger?.LogDebug(ex, "[WMI] GPU thermal zone unavailable.");
             return null;
         }
+    }
+
+    /// <summary>
+    /// GPU clock is not natively exposed by standard WMI classes.
+    /// Returns null to signal it's unreadable via WMI fallback.
+    /// </summary>
+    public static float? GetGpuClockMhz(ILogger? logger = null)
+    {
+        return null; // Standard WMI does not provide dynamic GPU clock without a driver.
     }
 }

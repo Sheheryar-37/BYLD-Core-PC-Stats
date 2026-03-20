@@ -201,11 +201,14 @@ public partial class SettingsWindow : Window
         theme.BackgroundOpacity = SldOpacity.Value;
         theme.TransitionDelaySeconds = (int)SldInterval.Value;
         theme.DisplayMode = ChkAutoRotate.IsChecked == true ? DisplayMode.Auto : DisplayMode.Manual;
-
+ 
         SaveClockSettings();
         SaveWeatherSettings();
-
+ 
+        // Persist to disk and update UI
+        _themeService.SaveTheme(true);
         _themeService.NotifyThemeUpdated();
+        UserActionLogger.LogAction("Updated global theme configuration.");
     }
 
     private void SaveWeatherSettings()

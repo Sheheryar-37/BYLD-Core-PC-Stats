@@ -41,140 +41,125 @@
         <!-- Main Background and Theme Support -->
         <Border x:Name="WeatherBg" Background="#121212">
             <!-- Reduced top margin (140) and bottom margin (10) to make room for graph -->
-            <Grid Margin="24,140,24,10" ClipToBounds="False">
+            <Grid>
                 <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/> <!-- Hero Card (Date, Condition, Temp, Icon) -->
-                    <RowDefinition Height="Auto"/> <!-- Stats Bar (Wind, Humidity, Rain) -->
-                    <RowDefinition Height="*"/>    <!-- Forecast & Graph Area -->
+                    <RowDefinition Height="Auto"/> <!-- Hero/Stats/Tabs with Margins -->
+                    <RowDefinition Height="*"/>    <!-- Graph (Full Width) -->
                 </Grid.RowDefinitions>
-
-                <!-- 1. Hero Card -->
-                <Border x:Name="HeroCard" Grid.Row="0" Background="#1E1E1E" CornerRadius="28" Padding="28" Margin="0,0,0,12">
-                    <Grid>
-                        <StackPanel VerticalAlignment="Center">
-                            <TextBlock x:Name="TxtCity" Text="NEW YORK" Foreground="{StaticResource BrandBlue}" FontSize="11" FontWeight="Bold" Margin="0,0,0,2"/>
-                            <TextBlock x:Name="TxtDateHeader" Text="14 August 2024" Foreground="#888888" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4"/>
-                            <TextBlock x:Name="TxtCondition" Text="Cloudy" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="TxtTemp" Text="18°C" Foreground="White" FontSize="64" FontWeight="Bold" Margin="0,4,0,0"/>
-                        </StackPanel>
-                        
-                        <!-- Large Multi-Color Icon (Composition) -->
-                        <Grid HorizontalAlignment="Right" VerticalAlignment="Center" Width="120" Height="120">
-                            <!-- Layer 1: Sun / Moon -->
-                            <Path x:Name="PathWeatherIconBack" Data="{StaticResource SunIcon}" Fill="#FFA500" Width="80" Height="80" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,10,10,0"/>
-                            <!-- Layer 2: Cloud -->
-                            <Path x:Name="PathWeatherIconCloud" Data="{StaticResource CloudIcon}" Fill="White" Width="100" Height="100" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                            <!-- Layer 3: Rain / Lightning / Haze / Snow -->
-                            <Path x:Name="PathWeatherIconFront" Data="{StaticResource RainDrops}" Fill="#3498db" Width="100" Height="100" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Grid>
-                    </Grid>
-                </Border>
-
-
-                <!-- 2. Stats Bar -->
-                <Border Grid.Row="1" Background="#1A888888" CornerRadius="28" Padding="16,24" Margin="0,0,0,16">
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="*"/>
-                        </Grid.ColumnDefinitions>
-                        
-                        <!-- Wind -->
-                        <StackPanel Grid.Column="0" HorizontalAlignment="Center" Opacity="0.9">
-                            <Path x:Name="IconWind" Data="{StaticResource WindLines}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="TxtWind" Text="10 km/h" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Wind" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
-                        </StackPanel>
-                        
-                        <!-- Humidity -->
-                        <StackPanel Grid.Column="1" HorizontalAlignment="Center" Opacity="0.9">
-                            <Path x:Name="IconHumidity" Data="{StaticResource HumidityIcon}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="TxtHumidity" Text="98%" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Humidity" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
-                        </StackPanel>
-
-                        <!-- Pressure -->
-                        <StackPanel Grid.Column="2" HorizontalAlignment="Center" Opacity="0.9">
-                            <Path x:Name="IconPressure" Data="{StaticResource PressureIcon}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                            <TextBlock x:Name="TxtPressure" Text="1013 hPa" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
-                            <TextBlock Text="Pressure" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
-                        </StackPanel>
-                    </Grid>
-                </Border>
-
-                <!-- 3. Forecast & Graph Area -->
-                <Grid Grid.Row="2" Margin="0,5,0,0">
-                    <StackPanel>
-                        <!-- Tabs -->
-                        <StackPanel Orientation="Horizontal">
-                            <RadioButton x:Name="TabToday" Content="Today" IsChecked="True" Style="{StaticResource ForecastTabStyle}" Checked="ForecastTab_Checked"/>
-                            <RadioButton x:Name="TabTomorrow" Content="Tomorrow" Margin="25,0,0,0" Style="{StaticResource ForecastTabStyle}" Checked="ForecastTab_Checked"/>
-                            <RadioButton x:Name="TabNextDays" Content="Next 4 Days" Margin="25,0,0,0" Style="{StaticResource ForecastTabStyle}" Checked="ForecastTab_Checked"/>
-                        </StackPanel>
-
-                        <!-- Forecast Items -->
-                        <ItemsControl x:Name="LstForecast" Margin="0,25,0,0">
-                            <ItemsControl.ItemsPanel>
-                                <ItemsPanelTemplate>
-                                    <UniformGrid Columns="4"/>
-                                </ItemsPanelTemplate>
-                            </ItemsControl.ItemsPanel>
-                            <ItemsControl.ItemTemplate>
-                                <DataTemplate>
-                                    <Border Background="{Binding CardBrush}" CornerRadius="16" Margin="4" Padding="12,15">
-                                        <StackPanel HorizontalAlignment="Center">
-                                            <TextBlock Text="{Binding Day}" Foreground="{Binding DayBrush}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                            <Grid Width="32" Height="32" Margin="0,10">
-                                                <Path Data="{Binding BackIcon}" Fill="{Binding BackFill}" Width="20" Height="20" Stretch="Uniform" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="0,2,2,0"/>
-                                                <Path Data="{Binding CloudIcon}" Fill="{Binding CloudFill}" Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                                <Path Data="{Binding FrontIcon}" Fill="{Binding FrontFill}" Width="28" Height="28" Stretch="Uniform" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                                            </Grid>
-                                            <TextBlock Text="{Binding Temp}" Foreground="{Binding TempBrush}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                        </StackPanel>
-                                    </Border>
-                                </DataTemplate>
-                            </ItemsControl.ItemTemplate>
-                        </ItemsControl>
-
-                        <!-- Graph Area -->
-                        <StackPanel Margin="0,10,0,0">
-                            <TextBlock Text="TEMPERATURE TREND" Foreground="#888888" FontSize="11" FontWeight="Bold" Margin="25,0,0,0"/>
-                            <Grid Height="120" Margin="0,10,0,12" ClipToBounds="False">
-                            <!-- Area under the graph -->
-                            <Path x:Name="GraphFillPath" Opacity="0.15">
-                                <Path.Fill>
-                                    <LinearGradientBrush StartPoint="0.5,0" EndPoint="0.5,1">
-                                        <GradientStop Color="White" Offset="0"/>
-                                        <GradientStop Color="Transparent" Offset="1"/>
-                                    </LinearGradientBrush>
-                                </Path.Fill>
-                            </Path>
-
-                            <!-- The wavy line -->
-                            <Path x:Name="GraphPath" Stroke="#55FFFFFF" StrokeThickness="3" StrokeEndLineCap="Round" StrokeStartLineCap="Round"/>
+ 
+                <!-- Part A: Margined Content -->
+                <Grid Grid.Row="0" Margin="24,140,24,0" ClipToBounds="False">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/> <!-- Hero Card -->
+                        <RowDefinition Height="Auto"/> <!-- Stats Bar -->
+                        <RowDefinition Height="Auto"/> <!-- Tabs -->
+                        <RowDefinition Height="Auto"/> <!-- Forecast List -->
+                    </Grid.RowDefinitions>
+ 
+                    <!-- 1. Hero Card -->
+                    <Border x:Name="HeroCard" Grid.Row="0" Background="#1E1E1E" CornerRadius="28" Padding="28" Margin="0,0,0,12">
+                        <Grid>
+                            <StackPanel VerticalAlignment="Center">
+                                <TextBlock x:Name="TxtCity" Text="NEW YORK" Foreground="{StaticResource BrandBlue}" FontSize="12" FontWeight="Bold" Margin="0,0,0,2"/>
+                                <TextBlock x:Name="TxtDateHeader" Text="14 August 2024" Foreground="#888888" FontSize="13" FontWeight="SemiBold" Margin="0,0,0,4"/>
+                                <TextBlock x:Name="TxtCondition" Text="Cloudy" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtTemp" Text="18°C" Foreground="White" FontSize="64" FontWeight="Bold" Margin="0,4,0,0"/>
+                            </StackPanel>
                             
-                            <!-- Focus point (Ring Style) -->
-                            <Grid x:Name="GraphPointContainer" Width="14" Height="14" HorizontalAlignment="Right" VerticalAlignment="Bottom">
-                                <Ellipse Fill="White" Opacity="0.3"/>
-                                <Ellipse Width="6" Height="6" Fill="#121212" Stroke="White" StrokeThickness="2"/>
-                            </Grid>
-
-                            <!-- Speech Bubble Tooltip -->
-                            <Grid x:Name="GraphTooltip" HorizontalAlignment="Right" VerticalAlignment="Bottom" Opacity="0">
-                                <Border Background="White" CornerRadius="8" Padding="8,4" MinWidth="40">
-                                    <StackPanel>
-                                        <TextBlock x:Name="TxtTooltipTime" FontSize="10" Foreground="#AA000000" HorizontalAlignment="Center" FontWeight="Bold"/>
-                                        <TextBlock x:Name="TxtTooltipTemp" FontSize="14" Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <Border HorizontalAlignment="Right" VerticalAlignment="Center" Width="120" Height="120">
+                                <Image x:Name="ImgMainWeather" Stretch="Uniform"/>
+                            </Border>
+                        </Grid>
+                    </Border>
+ 
+                    <!-- 2. Stats Bar -->
+                    <Border Grid.Row="1" Background="#1A888888" CornerRadius="28" Padding="16,24" Margin="0,0,0,16">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center" Opacity="0.9">
+                                <Path x:Name="IconWind" Data="{StaticResource WindLines}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtWind" Text="10 km/h" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Wind" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            </StackPanel>
+                            
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center" Opacity="0.9">
+                                <Path x:Name="IconHumidity" Data="{StaticResource HumidityIcon}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtHumidity" Text="98%" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Humidity" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            </StackPanel>
+ 
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center" Opacity="0.9">
+                                <Path x:Name="IconPressure" Data="{StaticResource PressureIcon}" Fill="#888888" Width="22" Height="22" Stretch="Uniform" HorizontalAlignment="Center" Margin="0,0,0,8"/>
+                                <TextBlock x:Name="TxtPressure" Text="1013 hPa" Foreground="White" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                <TextBlock Text="Pressure" Foreground="#888888" FontSize="11" HorizontalAlignment="Center" Margin="0,2,0,0"/>
+                            </StackPanel>
+                        </Grid>
+                    </Border>
+ 
+                    <!-- 3. Tabs -->
+                    <StackPanel Grid.Row="2" Orientation="Horizontal" Margin="0,5,0,0">
+                        <RadioButton x:Name="TabToday" Content="Today" IsChecked="True" Style="{StaticResource ForecastTabStyle}" Checked="ForecastTab_Checked"/>
+                        <RadioButton x:Name="TabTomorrow" Content="Tomorrow" Margin="25,0,0,0" Style="{StaticResource ForecastTabStyle}" Checked="ForecastTab_Checked"/>
+                        <RadioButton x:Name="TabNextDays" Content="Next 4 Days" Margin="25,0,0,0" Style="{StaticResource ForecastTabStyle}" Checked="ForecastTab_Checked"/>
+                    </StackPanel>
+ 
+                    <!-- 4. Forecast List -->
+                    <ItemsControl x:Name="LstForecast" Grid.Row="3" Margin="0,15,0,0">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <UniformGrid Columns="4"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate>
+                                <Border Background="{Binding CardBrush}" CornerRadius="16" Margin="4" Padding="12,15">
+                                    <StackPanel HorizontalAlignment="Center">
+                                        <TextBlock Text="{Binding Day}" Foreground="{Binding DayBrush}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <Border Width="32" Height="32" Margin="0,10">
+                                            <Image Source="{Binding IconDrawing}" Stretch="Uniform"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding Temp}" Foreground="{Binding TempBrush}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
                                     </StackPanel>
                                 </Border>
-                                <!-- Tip of bubble -->
-                                <Path Data="M 0,0 L 5,5 L 10,0 Z" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-5"/>
-                            </Grid>
-                        </Grid>
-                    </StackPanel>
-                </StackPanel>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
                 </Grid>
+ 
+                <!-- Part B: Full Width Graph -->
+                <StackPanel Grid.Row="1" VerticalAlignment="Bottom" Margin="0,0,0,20">
+                    <TextBlock Text="TEMPERATURE TREND" Foreground="#666666" FontSize="11" FontWeight="Bold" Margin="24,0,0,0"/>
+                    <Grid Height="140" Margin="0,10,0,0" ClipToBounds="False">
+                        <Path x:Name="GraphFillPath" Opacity="0.1">
+                            <Path.Fill>
+                                <LinearGradientBrush StartPoint="0,0" EndPoint="0,1">
+                                    <GradientStop Color="#88FFFFFF" Offset="0"/>
+                                    <GradientStop Color="Transparent" Offset="1"/>
+                                </LinearGradientBrush>
+                            </Path.Fill>
+                        </Path>
+                        <Path x:Name="GraphPath" Stroke="#55FFFFFF" StrokeThickness="3.5" StrokeEndLineCap="Round" StrokeStartLineCap="Round"/>
+                        
+                        <Grid x:Name="GraphPointContainer" Width="16" Height="16" HorizontalAlignment="Right" VerticalAlignment="Bottom">
+                            <Ellipse Width="10" Height="10" Fill="#121212" Stroke="White" StrokeThickness="2.5"/>
+                        </Grid>
+ 
+                        <Grid x:Name="GraphTooltip" HorizontalAlignment="Right" VerticalAlignment="Bottom" Opacity="0">
+                            <Border Background="White" CornerRadius="8" Padding="10,6" MinWidth="50">
+                                <StackPanel>
+                                    <TextBlock x:Name="TxtTooltipTime" FontSize="10" Foreground="#AA000000" HorizontalAlignment="Center" FontWeight="Bold"/>
+                                    <TextBlock x:Name="TxtTooltipTemp" FontSize="15" Foreground="Black" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+                            <Path Data="M 0,0 L 6,6 L 12,0 Z" Fill="White" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,-6"/>
+                        </Grid>
+                    </Grid>
+                </StackPanel>
             </Grid>
         </Border>
 

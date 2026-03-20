@@ -1,0 +1,425 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Common Stroke Settings for Outline library -->
+    <x:Double x:Key="OutlineThickness">2.5</x:Double>
+    <SolidColorBrush x:Key="OutlineBrush" Color="White"/>
+    <Pen x:Key="OutlinePen" Brush="{StaticResource OutlineBrush}" Thickness="{StaticResource OutlineThickness}"/>
+
+    <!-- Modular Outline Components -->
+    <PathGeometry x:Key="Out_Cloud" Figures="M 25,60 C 10,60 10,40 25,40 C 25,20 45,20 50,30 C 60,20 80,30 75,50 C 90,50 90,70 75,70 L 25,70 Z"/>
+    <Geometry x:Key="Out_Sun">M 50,30 A 20,20 0 1 1 50,70 A 20,20 0 1 1 50,30 M 50,10 L 50,20 M 50,80 L 50,90 M 10,50 L 20,50 M 80,50 L 90,50 M 25,25 L 32,32 M 68,68 L 75,75 M 25,75 L 32,68 M 68,32 L 75,25</Geometry>
+    <Geometry x:Key="Out_Moon">M 50,20 A 30,30 0 1 1 50,80 A 40,40 0 0 0 50,20</Geometry>
+    <Geometry x:Key="Out_RainDrop">M 50,55 C 45,65 45,75 50,80 C 55,75 55,65 50,55</Geometry>
+    <Geometry x:Key="Out_RainSlash">M 45,60 L 35,80</Geometry>
+    <Geometry x:Key="Out_Lightning">M 55,45 L 35,70 L 50,70 L 40,95 L 60,65 L 45,65 Z</Geometry>
+    <Geometry x:Key="Out_Snowflake">M 50,40 L 50,70 M 35,55 L 65,55 M 40,45 L 60,65 M 40,65 L 60,45</Geometry>
+    <Geometry x:Key="Out_Thermometer">M 45,20 H 55 V 65 A 10,10 0 1 1 45,65 Z</Geometry>
+    <Geometry x:Key="Out_Umbrella">M 20,50 A 30,30 0 0 1 80,50 M 50,50 V 85 C 50,90 40,90 40,85</Geometry>
+    <Geometry x:Key="Out_Rainbow">M 20,70 A 30,30 0 0 1 80,70 M 30,70 A 20,20 0 0 1 70,70</Geometry>
+    <Geometry x:Key="Out_WindSock">M 30,20 V 90 M 30,25 L 70,35 V 55 L 30,65</Geometry>
+    <Geometry x:Key="Out_Gauge">M 20,70 A 35,35 0 1 1 80,70 M 50,65 L 70,35</Geometry>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 1 (1-10)                                                        -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 1: Sun Outline -->
+    <DrawingGroup x:Key="Out_1_Sun">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Sun}"/>
+    </DrawingGroup>
+
+    <!-- Icon 2: Cloud Outline -->
+    <DrawingGroup x:Key="Out_2_Cloud">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 3: Sun + Cloud Outline -->
+    <DrawingGroup x:Key="Out_3_Sun_Cloud">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.6" ScaleY="0.6" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Sun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 4: Cloud + Rain (Dots) -->
+    <DrawingGroup x:Key="Out_4_Cloud_Rain_Dots">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 35,75 V 76 M 50,75 V 76 M 65,75 V 76"/>
+    </DrawingGroup>
+
+    <!-- Icon 5: Cloud + Rain (Slashes) -->
+    <DrawingGroup x:Key="Out_5_Cloud_Rain_Slashes">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="0"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_RainSlash}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="0"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_RainSlash}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 6: Cloud + Lightning -->
+    <DrawingGroup x:Key="Out_6_Cloud_Lightning">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Lightning}"/>
+    </DrawingGroup>
+
+    <!-- Icon 7: Double Cloud -->
+    <DrawingGroup x:Key="Out_7_Cloud_Double">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 8: Sun (Ray focus) -->
+    <DrawingGroup x:Key="Out_8_Sun_Rays">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 50,35 A 15,15 0 1 1 50,65 A 15,15 0 1 1 50,35 M 50,10 V 25 M 50,75 V 90 M 10,50 H 25 M 75,50 H 90"/>
+    </DrawingGroup>
+
+    <!-- Icon 9: Sun (Thick stylized) -->
+    <DrawingGroup x:Key="Out_9_Sun_Bold">
+        <GeometryDrawing Geometry="{StaticResource Out_Sun}">
+            <GeometryDrawing.Pen>
+                <Pen Brush="{StaticResource OutlineBrush}" Thickness="4"/>
+            </GeometryDrawing.Pen>
+        </GeometryDrawing>
+    </DrawingGroup>
+
+    <!-- Icon 10: Moon Outline -->
+    <DrawingGroup x:Key="Out_10_Moon">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Moon}"/>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 2 (11-20)                                                       -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 11: Wind Flow -->
+    <DrawingGroup x:Key="Out_11_Wind">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 10,45 C 30,35 40,65 60,45 S 80,35 90,45"/>
+    </DrawingGroup>
+
+    <!-- Icon 12: Cloud + Wind -->
+    <DrawingGroup x:Key="Out_12_Cloud_Wind">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="0.6" ScaleY="0.6" CenterX="50" CenterY="50"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 30,75 C 45,70 55,85 70,75"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 13: Sun Low (Horizon) -->
+    <DrawingGroup x:Key="Out_13_Sun_Horizon">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform Y="30"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Sun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 10,80 H 90"/>
+    </DrawingGroup>
+
+    <!-- Icon 14: Thermometer (Empty/Base) -->
+    <DrawingGroup x:Key="Out_14_Thermometer_Empty">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Thermometer}"/>
+    </DrawingGroup>
+
+    <!-- Icon 15: Thermometer (Low) -->
+    <DrawingGroup x:Key="Out_15_Thermometer_Low">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Thermometer}"/>
+        <GeometryDrawing Brush="{StaticResource OutlineBrush}" Geometry="M 48,70 A 5,5 0 1 1 52,70 A 5,5 0 1 1 48,70"/>
+    </DrawingGroup>
+
+    <!-- Icon 16: Thermometer (High) -->
+    <DrawingGroup x:Key="Out_16_Thermometer_High">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Thermometer}"/>
+        <GeometryDrawing Brush="{StaticResource OutlineBrush}" Geometry="M 48,40 V 75 A 5,5 0 1 0 52,75 V 40 Z"/>
+    </DrawingGroup>
+
+    <!-- Icon 17: Thermometer (Very High) -->
+    <DrawingGroup x:Key="Out_17_Thermometer_Extreme">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Thermometer}"/>
+        <GeometryDrawing Brush="{StaticResource OutlineBrush}" Geometry="M 48,25 V 80 A 5,5 0 1 0 52,80 V 25 Z"/>
+    </DrawingGroup>
+
+    <!-- Icon 18: Moon + Wind -->
+    <DrawingGroup x:Key="Out_18_Moon_Wind">
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="0.7" ScaleY="0.7" CenterX="50" CenterY="50"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Moon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 20,70 H 80"/>
+    </DrawingGroup>
+
+    <!-- Icon 19: Moon + Cloud -->
+    <DrawingGroup x:Key="Out_19_Moon_Cloud">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.6" ScaleY="0.6" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="10" Y="-10"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Moon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 20: Moon + Double Cloud -->
+    <DrawingGroup x:Key="Out_20_Moon_DoubleCloud">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Moon}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 3 (21-30)                                                       -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 21: Snowflake (Large) -->
+    <DrawingGroup x:Key="Out_21_Snowflake_L">
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="1.5" ScaleY="1.5" CenterX="50" CenterY="50"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Snowflake}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 22: Snowflake (Small) -->
+    <DrawingGroup x:Key="Out_22_Snowflake_S">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Snowflake}"/>
+    </DrawingGroup>
+
+    <!-- Icon 23: Cloud + Lightning (Alternate) -->
+    <DrawingGroup x:Key="Out_23_Cloud_Thunderbolt">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 50,65 L 40,85 L 60,85 L 50,110"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 24: Fog/Haze -->
+    <DrawingGroup x:Key="Out_24_Fog">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 20,40 H 80 M 10,55 H 90 M 20,70 H 80"/>
+    </DrawingGroup>
+
+    <!-- Icon 25: Rainbow -->
+    <DrawingGroup x:Key="Out_25_Rainbow">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Rainbow}"/>
+    </DrawingGroup>
+
+    <!-- Icon 26: Cloud + Rainbow -->
+    <DrawingGroup x:Key="Out_26_Cloud_Rainbow">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="-10"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Rainbow}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 27: Sun + Rainbow -->
+    <DrawingGroup x:Key="Out_27_Sun_Rainbow">
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Sun}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform Y="15"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Rainbow}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 28: Cloud + Snow Dots -->
+    <DrawingGroup x:Key="Out_28_Cloud_Snow_Dots">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 40,75 H 41 M 50,75 H 51 M 60,75 H 61"/>
+    </DrawingGroup>
+
+    <!-- Icon 29: Moon (Thin Crescent) -->
+    <DrawingGroup x:Key="Out_29_Moon_Thin">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 60,20 A 30,30 0 1 1 60,80 A 35,35 0 0 0 60,20"/>
+    </DrawingGroup>
+
+    <!-- Icon 30: Sparkles (Clear Sky) -->
+    <DrawingGroup x:Key="Out_30_Clear_Sparkle">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 30,30 L 40,40 M 30,40 L 40,30 M 70,70 L 80,80 M 70,80 L 80,70"/>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 4 (31-40)                                                       -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 31: Umbrella -->
+    <DrawingGroup x:Key="Out_31_Umbrella">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Umbrella}"/>
+    </DrawingGroup>
+
+    <!-- Icon 32: Umbrella + Rain -->
+    <DrawingGroup x:Key="Out_32_Umbrella_Rain">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Umbrella}"/>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 30,20 V 30 M 50,15 V 25 M 70,20 V 30"/>
+    </DrawingGroup>
+
+    <!-- Icon 33: Umbrella + Sun -->
+    <DrawingGroup x:Key="Out_33_Umbrella_Sun">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.4" ScaleY="0.4" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="25" Y="-25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Sun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Umbrella}"/>
+    </DrawingGroup>
+
+    <!-- Icon 34: Umbrella + Drizzle -->
+    <DrawingGroup x:Key="Out_34_Umbrella_Drizzle">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Umbrella}"/>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 40,30 H 41 M 60,30 H 61"/>
+    </DrawingGroup>
+
+    <!-- Icon 35: Raindrop (Single) -->
+    <DrawingGroup x:Key="Out_35_Raindrop_Single">
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="1.5" ScaleY="1.5" CenterX="50" CenterY="50"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_RainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 36: Cloud + Heavy Rain -->
+    <DrawingGroup x:Key="Out_36_Cloud_Rain_Heavy">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 30,75 L 25,85 M 50,75 L 45,85 M 70,75 L 65,85"/>
+    </DrawingGroup>
+
+    <!-- Icon 37: Cloud + Snow/Rain Mix -->
+    <DrawingGroup x:Key="Out_37_Cloud_Mix">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="0"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_RainSlash}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="20"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Snowflake}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 38: Windsock -->
+    <DrawingGroup x:Key="Out_38_Windsock">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_WindSock}"/>
+    </DrawingGroup>
+
+    <!-- Icon 39: Double Rainbow -->
+    <DrawingGroup x:Key="Out_39_Rainbow_Double">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Rainbow}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="0.8" ScaleY="0.8" CenterX="50" CenterY="70"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Rainbow}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 40: Lightning Bolt (Pure) -->
+    <DrawingGroup x:Key="Out_40_Lightning_Pure">
+        <DrawingGroup>
+            <DrawingGroup.Transform><ScaleTransform ScaleX="1.5" ScaleY="1.5" CenterX="50" CenterY="50"/></DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Lightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 5 (41-50)                                                       -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 41: Tornado/Cyclon Whirl -->
+    <DrawingGroup x:Key="Out_41_Tornado">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 30,20 H 70 M 35,35 H 65 M 40,50 H 60 M 45,65 H 55 M 50,80 H 51"/>
+    </DrawingGroup>
+
+    <!-- Icon 42: Sunrise (Sun up) -->
+    <DrawingGroup x:Key="Out_42_Sunrise">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 10,80 H 90 M 50,70 A 20,20 0 0 0 50,30 M 50,10 V 20 M 20,40 L 30,50 M 80,40 L 70,50"/>
+    </DrawingGroup>
+
+    <!-- Icon 43: Sunset (Sun down) -->
+    <DrawingGroup x:Key="Out_43_Sunset">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 10,80 H 90 M 50,70 A 20,20 0 0 0 50,30 M 50,75 V 85 M 20,70 L 30,60 M 80,70 L 70,60"/>
+    </DrawingGroup>
+
+    <!-- Icon 44: Waves/Sea -->
+    <DrawingGroup x:Key="Out_44_Waves">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 10,50 C 30,30 40,70 60,50 S 90,30 100,50 M 10,70 C 30,50 40,90 60,70 S 90,50 100,70"/>
+    </DrawingGroup>
+
+    <!-- Icon 45: Barometer/Gauge -->
+    <DrawingGroup x:Key="Out_45_Gauge">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Gauge}"/>
+    </DrawingGroup>
+
+    <!-- Icon 46: Hurricane Whirl -->
+    <DrawingGroup x:Key="Out_46_Hurricane">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 50,30 A 20,20 0 1 1 50,70 A 20,20 0 1 1 50,30 M 30,50 C 30,30 50,30 70,50 M 30,50 C 30,70 50,70 70,50"/>
+    </DrawingGroup>
+
+    <!-- Icon 47: Celsius Symbol -->
+    <DrawingGroup x:Key="Out_47_Celsius">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 30,30 A 5,5 0 1 1 30,40 A 5,5 0 1 1 30,30 M 70,40 A 20,20 0 1 0 70,80"/>
+    </DrawingGroup>
+
+    <!-- Icon 48: Fahrenheit Symbol -->
+    <DrawingGroup x:Key="Out_48_Fahrenheit">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 30,30 A 5,5 0 1 1 30,40 A 5,5 0 1 1 30,30 M 55,40 H 80 M 55,60 H 75 M 55,40 V 85"/>
+    </DrawingGroup>
+
+    <!-- Icon 49: Eclipse (Sun/Moon overlap) -->
+    <DrawingGroup x:Key="Out_49_Eclipse">
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="M 50,30 A 20,20 0 1 1 50,70 A 20,20 0 1 1 50,30 M 20,20 L 30,30 M 80,80 L 70,70"/>
+    </DrawingGroup>
+
+    <!-- Icon 50: Moon + Cloud (Alternative) -->
+    <DrawingGroup x:Key="Out_50_Moon_Cloud_Alt">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-15" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Moon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Pen="{StaticResource OutlinePen}" Geometry="{StaticResource Out_Cloud}"/>
+    </DrawingGroup>
+
+</ResourceDictionary>

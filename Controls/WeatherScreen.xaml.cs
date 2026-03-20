@@ -183,40 +183,35 @@ namespace PcStatsMonitor.Controls
 
     private void UpdateLargeWeatherIcon(string iconCode, int conditionId)
     {
-        var layers = CalculateIconLayers(iconCode, conditionId);
+        bool isNight = iconCode.EndsWith("n");
+        string resKey = GetIconResourceKey(conditionId, isNight);
         
-        PathWeatherIconBack.Visibility = layers.Back != null ? Visibility.Visible : Visibility.Collapsed;
-        PathWeatherIconBack.Data = layers.Back;
-        PathWeatherIconBack.Fill = layers.BackFill;
-        
-        PathWeatherIconCloud.Visibility = layers.Cloud != null ? Visibility.Visible : Visibility.Collapsed;
-        PathWeatherIconCloud.Data = layers.Cloud;
-        PathWeatherIconCloud.Fill = layers.CloudFill ?? Brushes.White;
-        
-        PathWeatherIconFront.Visibility = layers.Front != null ? Visibility.Visible : Visibility.Collapsed;
-        PathWeatherIconFront.Data = layers.Front;
-        PathWeatherIconFront.Fill = layers.FrontFill ?? Brushes.White;
+        // Main hero card always uses Colored icons for premium look
+        if (Application.Current.TryFindResource("Icon_" + resKey) is DrawingGroup dg)
+        {
+            ImgMainWeather.Source = new DrawingImage(dg);
+        }
+    }
 
-        if (layers.Cloud != null && layers.Back != null)
-        {
-            PathWeatherIconBack.HorizontalAlignment = HorizontalAlignment.Right;
-            PathWeatherIconBack.VerticalAlignment = VerticalAlignment.Top;
-            PathWeatherIconBack.Margin = new Thickness(0, 5, 5, 0);
-            PathWeatherIconBack.Width = 70; PathWeatherIconBack.Height = 70;
-        }
-        else if (layers.Back != null)
-        {
-            PathWeatherIconBack.HorizontalAlignment = HorizontalAlignment.Center;
-            PathWeatherIconBack.VerticalAlignment = VerticalAlignment.Center;
-            PathWeatherIconBack.Margin = new Thickness(0);
-            PathWeatherIconBack.Width = 100; PathWeatherIconBack.Height = 100;
-        }
+    private string GetIconResourceKey(int id, bool isNight)
+    {
+        if (id == 800) return isNight ? "Moon_Pure" : "Sun_Pure";
+        if (id == 801) return isNight ? "Moon_Cloud" : "Sun_Cloud";
+        if (id == 802) return "Cloud_Double";
+        if (id >= 803 && id <= 804) return "Cloud_Pure";
+        if (id >= 200 && id < 300) return "Cloud_Lightning";
+        if (id >= 500 && id < 600) return "Cloud_Rain_Heavy";
+        if (id >= 600 && id < 700) return "Cloud_Snow";
+        if (id == 771) return "Wind_Pure";
+        return "Cloud_Pure";
     }
 
     private void ForecastTab_Checked(object sender, RoutedEventArgs e)
     {
         UpdateForecastUI();
-    }    private void UpdateForecastUI()
+    }
+
+    private void UpdateForecastUI()
     {
         if (_fullForecast == null || _fullForecast.list == null) return;
         var forecastItems = new List<ForecastViewItem>();
@@ -256,18 +251,21 @@ namespace PcStatsMonitor.Controls
             var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
             string dayLabel = (selected == "NextDays") ? date.ToString("ddd").ToUpper() : date.ToString("HH:mm");
             
-            var iconLayers = CalculateIconLayers(item.weather[0].icon, item.weather[0].id);
+            bool isNightItem = item.weather[0].icon.EndsWith("n");
+            string resKey = GetIconResourceKey(item.weather[0].id, isNightItem);
+            
+            // Forecast small cards always use Outlined icons for minimalist look
+            DrawingImage drawing = null;
+            if (Application.Current.TryFindResource("Out_Icon_" + resKey) is DrawingGroup dg)
+            {
+                drawing = new DrawingImage(dg);
+            }
             
             forecastItems.Add(new ForecastViewItem
             {
                 Day = dayLabel,
                 DayBrush = subTextBrush,
-                BackIcon = iconLayers.Back,
-                BackFill = iconLayers.BackFill,
-                CloudIcon = iconLayers.Cloud,
-                CloudFill = iconLayers.CloudFill ?? (isLight ? Brushes.Black : Brushes.White),
-                FrontIcon = iconLayers.Front,
-                FrontFill = iconLayers.FrontFill,
+                IconDrawing = drawing,
                 Temp = $"{Math.Round(item.main.temp)}°",
                 TempBrush = textBrush,
                 CardBrush = cardBrush
@@ -283,7 +281,7 @@ namespace PcStatsMonitor.Controls
         if (items == null || items.Count < 2) return;
 
         double canvasWidth = 480; 
-        double canvasHeight = 120;
+        double canvasHeight = 140; // Increased height
         
         double minTemp = double.MaxValue;
         double maxTemp = double.MinValue;
@@ -301,7 +299,7 @@ namespace PcStatsMonitor.Controls
 
         if (temps.Count < 2) return;
         if (minTemp == maxTemp) { minTemp -= 2; maxTemp += 2; }
-        else { double pad = (maxTemp - minTemp) * 0.3; minTemp -= pad; maxTemp += pad; }
+        else { double pad = (maxTemp - minTemp) * 0.4; minTemp -= pad; maxTemp += pad; }
 
         double xStep = canvasWidth / (temps.Count - 1);
         var points = new List<Point>();
@@ -313,7 +311,7 @@ namespace PcStatsMonitor.Controls
             points.Add(new Point(x, y));
         }
 
-        // Build SVG Path string for line
+        // Build SVG Path string with smooth Bezier curves
         string lineData = $"M {points[0].X},{points[0].Y}";
         for (int i = 0; i < points.Count - 1; i++)
         {
@@ -324,98 +322,24 @@ namespace PcStatsMonitor.Controls
         }
         GraphPath.Data = System.Windows.Media.Geometry.Parse(lineData);
 
-        // Build SVG Path string for filled area (closes the loop at the bottom)
+        // Fill area under graph with gradient
         string fillData = lineData + $" L {points[points.Count-1].X},{canvasHeight} L {points[0].X},{canvasHeight} Z";
         GraphFillPath.Data = System.Windows.Media.Geometry.Parse(fillData);
 
-        // Update Tooltip/Point to the ~75% entry (Index 2 in a 4-item list)
+        // Focus Point & Tooltip Positioning (Smart offset for bubble tip)
         if (points.Count >= 3)
         {
-            int targetIdx = (int)Math.Min(points.Count - 2, Math.Ceiling(points.Count * 0.75) - 1);
-            if (targetIdx < 0) targetIdx = points.Count - 1;
-
+            int targetIdx = (int)Math.Min(points.Count - 2, 2); // Focus on the 3rd item usually
             var focusPoint = points[targetIdx];
             var focusItem = items[targetIdx];
 
-            GraphPointContainer.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 7, canvasHeight - focusPoint.Y - 8.5);
+            GraphPointContainer.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 8, canvasHeight - focusPoint.Y - 8);
             
-            TxtTooltipTime.Text = focusItem.Day.Contains(":") ? focusItem.Day : DateTime.Now.ToString("HH:mm");
+            TxtTooltipTime.Text = focusItem.Day;
             TxtTooltipTemp.Text = focusItem.Temp;
             GraphTooltip.Opacity = 1;
-            GraphTooltip.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 25, canvasHeight - focusPoint.Y + 15);
+            GraphTooltip.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 25, canvasHeight - focusPoint.Y + 12);
         }
-    }
-
-    private (Geometry Back, Brush BackFill, Geometry Cloud, Brush CloudFill, Geometry Front, Brush FrontFill) CalculateIconLayers(string iconCode, int id)
-    {
-        var sunPath = FindResource("SunIcon") as Geometry;
-        var moonPath = FindResource("MoonIcon") as Geometry;
-        var cloudPath = FindResource("CloudIcon") as Geometry;
-        var smallCloudPath = FindResource("SmallCloudIcon") as Geometry;
-        var rainPath = FindResource("RainDrops") as Geometry;
-        var snowPath = FindResource("Snowflakes") as Geometry;
-        var hazePath = FindResource("HazeLines") as Geometry;
-        var fogPath = FindResource("FogLines") as Geometry;
-        var boltPath = FindResource("LightningIcon") as Geometry;
-        var hailPath = FindResource("HailPellets") as Geometry;
-        var windPath = FindResource("WindLines") as Geometry;
-        var tornadoPath = FindResource("TornadoFunnel") as Geometry;
-
-        bool isNight = iconCode.EndsWith("n");
-        var backIcon = isNight ? moonPath : sunPath;
-        var backFill = isNight ? Brushes.LightYellow : new SolidColorBrush(Color.FromRgb(255, 171, 0));
-
-        // Detect theme for neutral layers
-        bool isLight = false;
-        try {
-            var mode = _config.WeatherTheme ?? "Auto";
-            if (mode == "Auto" || mode == "System") {
-                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-                var val = key?.GetValue("AppsUseLightTheme");
-                isLight = (val is int i && i == 1);
-            } else {
-                isLight = mode == "Light";
-            }
-        } catch { }
-
-        Geometry back = null;
-        Geometry cloud = null;
-        Geometry front = null;
-        Brush cloudFill = isLight ? new SolidColorBrush(Color.FromRgb(40, 40, 40)) : Brushes.White;
-        Brush frontFill = isLight ? new SolidColorBrush(Color.FromRgb(40, 40, 40)) : Brushes.White;
-
-        // Exhaustive mapping based on OWM ID for iPhone accuracy
-        if (id == 800) { back = backIcon; } // Clear
-        else if (id == 801) { back = backIcon; cloud = smallCloudPath; } // Mostly Clear
-        else if (id == 802) { back = backIcon; cloud = cloudPath; } // Partly Cloudy
-        else if (id >= 803 && id <= 804) { cloud = cloudPath; if (id == 804) cloudFill = Brushes.DarkGray; } // Cloudy/Overcast
-        else if (id >= 200 && id < 300) // Thunderstorms
-        {
-            cloud = cloudPath; cloudFill = Brushes.SlateGray;
-            front = boltPath; frontFill = Brushes.Yellow;
-            if (id >= 200 && id <= 202 || id >= 230) { /* With Rain */ front = boltPath; } 
-        }
-        else if (id >= 300 && id < 400) { back = backIcon; cloud = cloudPath; front = rainPath; frontFill = Brushes.DodgerBlue; } // Drizzle
-        else if (id >= 500 && id < 600) // Rain
-        {
-            cloud = cloudPath; front = rainPath; frontFill = Brushes.DodgerBlue;
-            if (id >= 502) cloudFill = Brushes.SlateGray; // Heavy rain
-            if (id == 511) { front = snowPath; frontFill = Brushes.LightCyan; } // Freezing rain
-        }
-        else if (id >= 600 && id < 700) // Snow
-        {
-            cloud = cloudPath; front = snowPath;
-            if (id == 602 || id == 622) cloudFill = Brushes.SlateGray; // Heavy snow
-            if (id == 611 || id == 612) { frontFill = Brushes.LightBlue; } // Sleet
-        }
-        else if (id == 701 || id == 741) { cloud = cloudPath; front = fogPath; frontFill = Brushes.LightGray; } // Fog/Mist
-        else if (id == 711 || id == 731 || id == 751 || id == 761) { front = hazePath; frontFill = Brushes.Tan; } // Smoke/Dust/Sand
-        else if (id == 721) { back = backIcon; front = hazePath; frontFill = new SolidColorBrush(Color.FromArgb(180, 255, 255, 255)); } // Haze
-        else if (id == 781) { front = tornadoPath; frontFill = Brushes.Gray; } // Tornado
-        else if (id == 771) { front = windPath; frontFill = Brushes.LightSkyBlue; } // Windy/Squall
-        else { back = backIcon; } // Fallback
-
-        return (back, backFill, cloud, cloudFill, front, frontFill);
     }
 
     public class WeatherResponse { 
@@ -436,15 +360,11 @@ namespace PcStatsMonitor.Controls
     public class ForecastViewItem { 
         public string Day { get; set; } 
         public Brush DayBrush { get; set; }
-        public Geometry BackIcon { get; set; }
-        public Brush BackFill { get; set; }
-        public Geometry CloudIcon { get; set; }
-        public Brush CloudFill { get; set; }
-        public Geometry FrontIcon { get; set; }
-        public Brush FrontFill { get; set; }
+        public DrawingImage IconDrawing { get; set; }
         public string Temp { get; set; } 
         public Brush TempBrush { get; set; }
         public Brush CardBrush { get; set; }
     }
-}
+
+    }
 }

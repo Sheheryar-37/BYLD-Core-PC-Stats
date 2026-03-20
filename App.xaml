@@ -3,7 +3,13 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:local="clr-namespace:PcStatsMonitor">
     <Application.Resources>
-        <SolidColorBrush x:Key="TextBrush" Color="#E0E0E0"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="Assets/WeatherIconsColored.xaml"/>
+                <ResourceDictionary Source="Assets/WeatherIconsOutline.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+
+            <SolidColorBrush x:Key="TextBrush" Color="#E0E0E0"/>
         <SolidColorBrush x:Key="BrandBlue" Color="#3b82f6"/>
 
         <Style TargetType="CheckBox">
@@ -54,5 +60,6 @@
         <PathGeometry x:Key="HailPellets" Figures="M 18,38 A 2,2 0 1 1 18,34 Z M 32,38 A 2,2 0 1 1 32,34 Z M 25,44 A 2,2 0 1 1 25,40 Z"/>
         <PathGeometry x:Key="WindLines" Figures="M 5,20 Q 20,10 35,20 T 45,20 M 5,25 Q 20,15 35,25 T 45,25 M 5,30 Q 20,20 35,30 T 45,30"/>
         <PathGeometry x:Key="TornadoFunnel" Figures="M 10,10 H 40 L 30,50 Q 25,55 20,50 L 10,10 Z M 15,20 H 35 M 20,35 H 30"/>
+        </ResourceDictionary>
     </Application.Resources>
 </Application>

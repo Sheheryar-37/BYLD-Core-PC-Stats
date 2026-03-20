@@ -163,14 +163,14 @@ public partial class MainWindow : Window
         {
             targetScreen = screens[_themeService.CurrentTheme.TargetMonitorIndex];
         }
-        // 2. Otherwise auto-detect (prefer vertical screen or secondary screen)
+        // 2. Otherwise auto-detect (prefer small secondary screens or vertical screens)
         else if (screens.Length > 1)
         {
             // Prefer: 
-            // 1. Screens with small width (typically 5"-11" secondary displays like 800x480, 1024x600, etc)
-            // 2. Vertical screens
+            // 1. Screens with resolution often used for 5"-11" displays (<= 1280 wide and <= 800 high)
+            // 2. Vertical screens (common for secondary sensor panels)
             // 3. Any non-primary screen
-            targetScreen = screens.FirstOrDefault(s => !s.Primary && s.Bounds.Width < 1200)
+            targetScreen = screens.FirstOrDefault(s => !s.Primary && s.Bounds.Width <= 1280 && s.Bounds.Height <= 800)
                            ?? screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width) 
                            ?? screens.FirstOrDefault(s => !s.Primary)
                            ?? screens[0];
