@@ -21,24 +21,27 @@ namespace PcStatsMonitor.Tools
 
             Console.WriteLine();
             Console.WriteLine("Choose License Type:");
-            Console.WriteLine("1. Lifetime (L)");
-            Console.WriteLine("2. Time Limited (T)");
-            Console.Write("Selection [1/2]: ");
-            string choice = Console.ReadLine();
+            Console.WriteLine(" [1] Lifetime (L)");
+            Console.WriteLine(" [2] Time Limited (T)");
+            Console.Write("Selection: ");
+            string choice = Console.ReadLine()?.Trim() ?? "1";
 
             string typeStr = (choice == "2") ? "T" : "L";
             string expiryDate = "0";
 
             if (typeStr == "T")
             {
-                Console.Write("Enter Expiry Date (Format: ddMMyyyy, e.g., 29032026): ");
-                string inputDate = Console.ReadLine()?.Trim() ?? "";
-                if (inputDate.Length != 8 || !long.TryParse(inputDate, out _))
+                while (true)
                 {
-                    Console.WriteLine("Invalid date format. Aborting.");
-                    return;
+                    Console.Write("Enter EXPIRY DATE (Format: ddMMyyyy, e.g., 29032026): ");
+                    string inputDate = Console.ReadLine()?.Trim() ?? "";
+                    if (inputDate.Length == 8 && long.TryParse(inputDate, out _))
+                    {
+                        expiryDate = inputDate;
+                        break;
+                    }
+                    Console.WriteLine(" >> ERROR: Date must be exactly 8 digits (ddMMyyyy). Try again.");
                 }
-                expiryDate = inputDate;
             }
 
             // Generate Key
