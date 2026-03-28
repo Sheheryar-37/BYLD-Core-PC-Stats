@@ -79,7 +79,7 @@ namespace PcStatsMonitor.Services
 
                 // 2. Verify Machine ID
                 string currentMachineId = GetMachineId();
-                if (machineId != "ANY" && machineId != currentMachineId)
+                if (!string.Equals(machineId, "ANY", StringComparison.OrdinalIgnoreCase) && machineId != currentMachineId)
                 {
                     errorMessage = "This license key is not registered for this computer.";
                     return false;

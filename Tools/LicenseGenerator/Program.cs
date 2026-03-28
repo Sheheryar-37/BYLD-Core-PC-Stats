@@ -31,9 +31,9 @@ namespace PcStatsMonitor.Tools
                 Console.WriteLine(" [1] Lifetime (L)");
                 Console.WriteLine(" [2] Time Limited (T)");
                 Console.Write("Selection: ");
-                string choice = Console.ReadLine()?.Trim() ?? "1";
+                string choice = Console.ReadLine()?.Trim()?.ToLower() ?? "1";
 
-                string typeStr = (choice == "2") ? "T" : "L";
+                string typeStr = (choice == "2" || choice == "t") ? "T" : "L";
                 string expiryDate = "0";
 
                 if (typeStr == "T")
@@ -62,7 +62,7 @@ namespace PcStatsMonitor.Tools
                 Console.WriteLine("----------------------------------------");
                 Console.WriteLine("        GENERATION SUMMARY              ");
                 Console.WriteLine("----------------------------------------");
-                Console.WriteLine($" SCOPE:   {(machineIdInput == "ANY" ? "Universal (Any PC)" : $"Machine Locked ({machineIdInput})")}");
+                Console.WriteLine($" SCOPE:   {(string.Equals(machineIdInput, "ANY", StringComparison.OrdinalIgnoreCase) ? "Universal (Any PC)" : $"Machine Locked ({machineIdInput})")}");
                 Console.WriteLine($" TYPE:    {(typeStr == "L" ? "LIFETIME (Permanent)" : $"LIMITED (Expires {expiryDate})")}");
                 Console.WriteLine($" SESS:    Key #{_sessionCount} generated successfully!");
                 Console.WriteLine("----------------------------------------");
