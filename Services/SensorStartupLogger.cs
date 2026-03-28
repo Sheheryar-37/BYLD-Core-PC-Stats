@@ -15,7 +15,7 @@ public static class SensorStartupLogger
 {
     private const string LogFolderName = "Logs";
 
-    public static void LogHardwareSnapshot(Computer computer, ILogger? logger = null)
+    public static void LogHardwareSnapshot(Computer computer, ILogger? logger = null, string eventName = "STARTUP")
     {
         try
         {
@@ -26,12 +26,12 @@ public static class SensorStartupLogger
                 Directory.CreateDirectory(logDir);
 
             var dateStr = DateTime.Now.ToString("yyyy-MM-dd");
-            var filename = GetIndexedFilename(logDir, dateStr);
+            var filename = $"sensors_{dateStr}.log";
             var filePath = Path.Combine(logDir, filename);
 
             var sb = new StringBuilder();
-            sb.AppendLine($"=== PC STATS MONITOR SENSOR SNAPSHOT ===");
-            sb.AppendLine($"Timestamp: {DateTime.Now:F}");
+            sb.AppendLine($"=== PC STATS MONITOR SENSOR SNAPSHOT [{eventName}] ===");
+            sb.AppendLine($"Timestamp: {DateTime.Now:O}");
             sb.AppendLine($"OS Version: {Environment.OSVersion}");
             sb.AppendLine($"64-Bit OS: {Environment.Is64BitOperatingSystem}");
             sb.AppendLine("-----------------------------------------");
@@ -42,12 +42,12 @@ public static class SensorStartupLogger
                 LogHardwareItem(hardware, sb, "");
             }
 
-            File.WriteAllText(filePath, sb.ToString());
-            logger?.LogInformation("Startup sensor snapshot written to: {path}", filePath);
+            File.AppendAllText(filePath, sb.ToString());
+            logger?.LogInformation("Sensor snapshot [{event}] written to: {path}", eventName, filePath);
         }
         catch (Exception ex)
         {
-            logger?.LogError(ex, "Failed to write startup sensor snapshot.");
+            logger?.LogError(ex, "Failed to write sensor snapshot.");
         }
     }
 
@@ -63,18 +63,6 @@ public static class SensorStartupLogger
         foreach (var sub in hardware.SubHardware)
         {
             LogHardwareItem(sub, sb, indent + "    ");
-        }
-    }
-
-    private static string GetIndexedFilename(string dir, string dateStr)
-    {
-        int index = 1;
-        while (true)
-        {
-            var name = $"sensors_{dateStr}_{index}.log";
-            if (!File.Exists(Path.Combine(dir, name)))
-                return name;
-            index++;
         }
     }
 }

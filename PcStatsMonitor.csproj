@@ -37,9 +37,15 @@
   <ItemGroup>
     <ProjectReference Include="PcStatsMonitor.PluginApi\PcStatsMonitor.PluginApi.csproj" />
   </ItemGroup>
-  <!-- Ensure WinRing0x64.sys is in the publish output directory -->
-  <Target Name="CopyWinRing0" AfterTargets="Build;Publish">
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\WinRing0x64.sys" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" ContinueOnError="true" />
-  </Target>
+
+  <!-- Ensure WinRing0x64.sys is correctly copied to Build and Publish directories -->
+  <ItemGroup>
+    <None Remove="WinRing0x64.sys" />
+    <Content Include="WinRing0x64.sys">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+  </ItemGroup>
 
 </Project>

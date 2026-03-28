@@ -25,6 +25,7 @@ public interface IHardwareMonitorService
         private readonly IThemeService _themeService;
         private readonly Computer _computer;
         private HardwareMetrics _currentMetrics = new();
+        private System.Diagnostics.PerformanceCounter? _cpuClockCounter;
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -85,6 +86,7 @@ public interface IHardwareMonitorService
             await Task.Delay(1000, stoppingToken);
         }
         
+        SensorStartupLogger.LogHardwareSnapshot(_computer, _logger, "EXIT");
         _computer.Close();
     }
 
@@ -182,11 +184,18 @@ public interface IHardwareMonitorService
 
             if (metrics.CpuClock == 0)
             {
-                var wmiClock = WmiSensorService.GetCpuClockMhz(_logger);
-                if (wmiClock.HasValue && wmiClock.Value > 0)
+                try 
                 {
-                    _logger.LogDebug("[WMI Fallback] Using WMI clock = {c:F0} MHz", wmiClock.Value);
-                    metrics.CpuClock = wmiClock.Value;
+                    if (_cpuClockCounter == null) 
+                    {
+                        _cpuClockCounter = new System.Diagnostics.PerformanceCounter("Processor Information", "Processor Frequency", "_Total", true);
+                    }
+                    float val = _cpuClockCounter.NextValue();
+                    if (val > 0) metrics.CpuClock = val;
+                } 
+                catch (Exception ex) 
+                {
+                    _logger.LogDebug(ex, "[Fallback] PerformanceCounter CPU Clock failed.");
                 }
             }
         }

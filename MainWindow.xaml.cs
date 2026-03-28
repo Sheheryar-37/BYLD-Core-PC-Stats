@@ -8,11 +8,13 @@ using PcStatsMonitor.ViewModels;
 using PcStatsMonitor.Services;
 using PcStatsMonitor.Models;
 using System.Collections.Generic;
+using Microsoft.Extensions.Logging;
 
 namespace PcStatsMonitor;
 
 public partial class MainWindow : Window
 {
+    private readonly ILogger<MainWindow> _logger;
     private readonly IThemeService _themeService;
     private readonly DispatcherTimer _transitionTimer;
     private int _currentScreenIndex = 0;
@@ -20,11 +22,12 @@ public partial class MainWindow : Window
     public PluginManager PluginManager => _pluginManager;
     private PluginManager _pluginManager;
 
-    public MainWindow(MainViewModel viewModel, IThemeService themeService)
+    public MainWindow(MainViewModel viewModel, IThemeService themeService, Microsoft.Extensions.Logging.ILogger<MainWindow> logger)
     {
         InitializeComponent();
         DataContext = viewModel;
         _themeService = themeService;
+        _logger = logger;
 
         // Allow moving the borderless window by clicking anywhere
         MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
@@ -84,7 +87,7 @@ public partial class MainWindow : Window
             }
             catch (Exception ex)
             {
-                System.Diagnostics.Debug.WriteLine($"Error initializing plugin: {ex.Message}");
+                _logger.LogWarning(ex, "Error initializing plugin {n}", plugin.Name);
             }
         }
         
@@ -100,10 +103,7 @@ public partial class MainWindow : Window
                     { 
                         plugin.Update(viewModel.Metrics); 
                     } 
-                    catch (Exception ex)
-                    {
-                        System.Diagnostics.Debug.WriteLine($"Error updating plugin '{plugin.Name}': {ex.Message}");
-                    }
+                    catch (Exception) { /* Ignored inline update errors */ }
                 }
             }
         };
@@ -130,6 +130,7 @@ public partial class MainWindow : Window
 
         // Cycle to next
         int nextIndex = (currentIndex + 1) % screens.Length;
+        _logger.LogInformation("[Display] CycleMonitor requested. Moving from screen {i} to screen {n}.", currentIndex, nextIndex);
         _themeService.CurrentTheme.TargetMonitorIndex = nextIndex;
         _themeService.SaveTheme(true);
         SnapToInternalMonitor();
@@ -154,34 +155,64 @@ public partial class MainWindow : Window
     private void SnapToInternalMonitor()
     {
         var screens = System.Windows.Forms.Screen.AllScreens;
+        _logger.LogInformation("[Display] SnapToInternalMonitor triggered. Detected {c} total screens.", screens.Length);
+        
         if (screens.Length == 0) return;
 
-        System.Windows.Forms.Screen targetScreen = screens[0];
-
-        // 1. Use saved preference if valid
-        if (_themeService.CurrentTheme.TargetMonitorIndex >= 0 && _themeService.CurrentTheme.TargetMonitorIndex < screens.Length)
+        for (int i = 0; i < screens.Length; i++)
         {
-            targetScreen = screens[_themeService.CurrentTheme.TargetMonitorIndex];
+            var s = screens[i];
+            _logger.LogInformation("[Display] Screen #{i}: {d} | Bounds: {w}x{h} at ({l},{t}) | Primary: {p}", 
+                i, s.DeviceName, s.Bounds.Width, s.Bounds.Height, s.Bounds.Left, s.Bounds.Top, s.Primary);
         }
-        // 2. Otherwise auto-detect (prefer small secondary screens or vertical screens)
-        else if (screens.Length > 1)
+
+        System.Windows.Forms.Screen targetScreen = screens[0];
+        var vm = DataContext as MainViewModel;
+        bool isAutoMode = vm?.Theme?.DisplayMode == DisplayMode.Auto;
+        int savedPref = _themeService.CurrentTheme.TargetMonitorIndex;
+
+        _logger.LogInformation("[Display] Config => DisplayMode: {m}, SavedTargetIndex: {i}", isAutoMode ? "Auto" : "Manual", savedPref);
+
+        bool hasValidUserPref = savedPref >= 0 && savedPref < screens.Length;
+
+        if (screens.Length == 1)
         {
-            // Prefer: 
-            // 1. Screens with resolution often used for 5"-11" displays (<= 1280 wide and <= 800 high)
-            // 2. Vertical screens (common for secondary sensor panels)
-            // 3. Any non-primary screen
-            targetScreen = screens.FirstOrDefault(s => !s.Primary && s.Bounds.Width <= 1280 && s.Bounds.Height <= 800)
-                           ?? screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width) 
-                           ?? screens.FirstOrDefault(s => !s.Primary)
-                           ?? screens[0];
+            targetScreen = screens[0];
+            _logger.LogInformation("[Display] Only 1 screen detected. Selecting Primary Screen.");
+        }
+        else
+        {
+            _logger.LogInformation("[Display] Multiple screens detected. ALWAYS Commencing Auto-Detection for the Case Screen on startup.");
+            
+            var tinyScreen = screens.FirstOrDefault(s => !s.Primary && s.Bounds.Width <= 1280 && s.Bounds.Height <= 800);
+            var verticalScreen = screens.FirstOrDefault(s => s.Bounds.Height > s.Bounds.Width);
+            
+            if (tinyScreen != null) 
+            {
+                targetScreen = tinyScreen;
+                _logger.LogInformation("[Display] Selected Tiny Screen ({w}x{h}) as target.", targetScreen.Bounds.Width, targetScreen.Bounds.Height);
+            }
+            else if (verticalScreen != null) 
+            {
+                targetScreen = verticalScreen;
+                _logger.LogInformation("[Display] Selected Vertical Screen ({w}x{h}) as target.", targetScreen.Bounds.Width, targetScreen.Bounds.Height);
+            }
+            else if (hasValidUserPref) 
+            {
+                targetScreen = screens[savedPref];
+                _logger.LogInformation("[Display] Selected saved preference Screen #{s} ({n}) as target.", savedPref, targetScreen.DeviceName);
+            }
+            else 
+            {
+                targetScreen = screens.FirstOrDefault(s => !s.Primary) ?? screens[0];
+                _logger.LogInformation("[Display] Selected generic Non-Primary Screen ({n}) as target.", targetScreen.DeviceName);
+            }
         }
 
         if (targetScreen != null)
         {
             this.WindowState = WindowState.Normal;
             
-            // Only maximize if we are on a secondary monitor (common for 7-inch dedicated screens)
-            // If it's the primary monitor (or only monitor), keep it at its designed size
             if (!targetScreen.Primary)
             {
                 this.Left = targetScreen.WorkingArea.Left;
@@ -189,27 +220,28 @@ public partial class MainWindow : Window
                 this.Width = targetScreen.WorkingArea.Width;
                 this.Height = targetScreen.WorkingArea.Height;
                 this.WindowState = WindowState.Maximized;
+                _logger.LogInformation("[Display] Moving app to Secondary Screen '{n}' | Left={l}, Top={t}, Maximized=True", 
+                    targetScreen.DeviceName, this.Left, this.Top);
             }
             else
             {
-                var vm = DataContext as MainViewModel;
-                // On primary screen, center it or just use designed dimensions
+                vm = DataContext as MainViewModel;
                 this.Width = (vm != null) ? vm.Theme.WindowWidth : 480;
                 this.Height = (vm != null) ? vm.Theme.WindowHeight : 854;
                 
-                // If it's the only screen, we don't want to cover everything.
-                // Just place it somewhere sensible or let the user move it.
                 if (screens.Length == 1)
                 {
-                    // Center on primary if it's the only one
                     this.Left = (targetScreen.WorkingArea.Width - this.Width) / 2;
                     this.Top = (targetScreen.WorkingArea.Height - this.Height) / 2;
+                    _logger.LogInformation("[Display] Moving app to center of single Primary '{n}' | Left={l}, Top={t}, W/H={w}x{h}", 
+                        targetScreen.DeviceName, this.Left, this.Top, this.Width, this.Height);
                 }
                 else
                 {
-                    // If it's one of multiple, but primary was chosen, respect its position
                     this.Left = targetScreen.WorkingArea.Left + 50;
                     this.Top = targetScreen.WorkingArea.Top + 50;
+                    _logger.LogInformation("[Display] Moving app to offset of Primary '{n}' | Left={l}, Top={t}, W/H={w}x{h}", 
+                        targetScreen.DeviceName, this.Left, this.Top, this.Width, this.Height);
                 }
             }
         }

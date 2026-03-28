@@ -32,9 +32,27 @@ public partial class App : Application
                 services.AddSingleton<MainWindow>();
             })
             .Build();
+
+        // Register Global Exception Handlers
+        this.DispatcherUnhandledException += (s, args) => 
+        { 
+            CrashLogger.LogCrash(args.Exception, "DispatcherUnhandledException"); 
+            args.Handled = true; // Prevent app from exiting immediately so logs can flush
+        };
+        AppDomain.CurrentDomain.UnhandledException += (s, args) => 
+        { 
+            if (args.ExceptionObject is Exception ex)
+                CrashLogger.LogCrash(ex, "AppDomain UnhandledException"); 
+        };
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, args) => 
+        { 
+            CrashLogger.LogCrash(args.Exception, "UnobservedTaskException"); 
+            args.SetObserved();
+        };
     }
 
     protected override async void OnStartup(StartupEventArgs e)
+
     {
         // Install the WinRing0x64 kernel driver BEFORE the host starts so that
         // LibreHardwareMonitor can read CPU temperature and clock via MSR on first run.
@@ -42,6 +60,8 @@ public partial class App : Application
         KernelDriverService.EnsureInstalled(startupLogger);
 
         await _host.StartAsync();
+
+        DisplayDiagnosticLogger.LogDisplays("STARTUP");
 
         _notifyIcon = new System.Windows.Forms.NotifyIcon();
         try
@@ -94,6 +114,8 @@ public partial class App : Application
 
     protected override async void OnExit(ExitEventArgs e)
     {
+        DisplayDiagnosticLogger.LogDisplays("EXIT");
+
         if (_notifyIcon != null)
         {
             _notifyIcon.Visible = false;

@@ -40,10 +40,15 @@
   <ItemGroup>
     <ProjectReference Include="PcStatsMonitor.PluginApi\PcStatsMonitor.PluginApi.csproj" />
   </ItemGroup>
-  <!-- Ensure WinRing0x64.sys is in the publish output directory -->
-  <Target Name="CopyWinRing0" AfterTargets="Build;Publish">
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\WinRing0x64.sys" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" ContinueOnError="true" />
-  </Target>
+  <!-- Ensure WinRing0x64.sys is correctly copied to Build and Publish directories -->
+  <ItemGroup>
+    <None Remove="WinRing0x64.sys" />
+    <Content Include="WinRing0x64.sys">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+  </ItemGroup>
   <ItemGroup>
     <ReferencePath Include="C:\Program Files\dotnet\packs\Microsoft.WindowsDesktop.App.Ref\9.0.11\ref\net9.0\Accessibility.dll" />
     <ReferencePath Include="C:\Users\shehe\.nuget\packages\blacksharp.core\1.0.7\lib\net9.0\BlackSharp.Core.dll" />
@@ -298,12 +303,16 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\ColorPickerWindow.g.cs" />
+    <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\Controls\BuiltInClockScreen.g.cs" />
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\Controls\CircularGauge.g.cs" />
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\Controls\DualCircularGauge.g.cs" />
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\Controls\GlassMessageBox.g.cs" />
+    <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\Controls\WeatherGallery.g.cs" />
+    <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\Controls\WeatherScreen.g.cs" />
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\MainWindow.g.cs" />
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\SettingsWindow.g.cs" />
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\App.g.cs" />
+    <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\PcStatsMonitor_Content.g.cs" />
     <Compile Include="E:\Github Repos\PC-Stats-Monitor\obj\Release\net9.0-windows\GeneratedInternalTypeHelper.g.cs" />
   </ItemGroup>
   <ItemGroup>
