@@ -29,9 +29,13 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Remove="PcStatsMonitor.PluginApi\**" />
+    <Compile Remove="Tools\**" />
     <EmbeddedResource Remove="PcStatsMonitor.PluginApi\**" />
+    <EmbeddedResource Remove="Tools\**" />
     <None Remove="PcStatsMonitor.PluginApi\**" />
+    <None Remove="Tools\**" />
     <Page Remove="PcStatsMonitor.PluginApi\**" />
+    <Page Remove="Tools\**" />
   </ItemGroup>
 
   <ItemGroup>

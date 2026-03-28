@@ -4,6 +4,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PcStatsMonitor.Services;
 using Serilog;
+using Microsoft.Extensions.Logging;
 using Application = System.Windows.Application;
 
 namespace PcStatsMonitor;
@@ -25,6 +26,7 @@ public partial class App : Application
             .UseSerilog()
             .ConfigureServices((context, services) =>
             {
+                services.AddSingleton<LicenseService>();
                 services.AddSingleton<IThemeService, ThemeService>();
                 services.AddSingleton<IHardwareMonitorService, HardwareMonitorService>();
                 services.AddHostedService(provider => (HardwareMonitorService)provider.GetRequiredService<IHardwareMonitorService>());
@@ -58,6 +60,20 @@ public partial class App : Application
         // LibreHardwareMonitor can read CPU temperature and clock via MSR on first run.
         var startupLogger = _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
         KernelDriverService.EnsureInstalled(startupLogger);
+
+        // ── Mandatory License Verification ───────────────────────────────────
+        var licenseService = _host.Services.GetRequiredService<LicenseService>();
+        if (!licenseService.CheckLicense(out string licenseError))
+        {
+            startupLogger.LogError("[License] Authentication failed: {e}", licenseError);
+            string machineId = licenseService.GetMachineId();
+            PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(null!, 
+                $"LICENSE SYSTEM FAILURE\n\n{licenseError}\n\nYour Machine ID:\n{machineId}", 
+                "Activation Required");
+            this.Shutdown();
+            return;
+        }
+        startupLogger.LogInformation("[License] Valid license detected. Proceeding to startup.");
 
         await _host.StartAsync();
 
