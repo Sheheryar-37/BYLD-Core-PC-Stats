@@ -8,6 +8,8 @@ using System.Windows.Controls;
 using System.Windows.Threading;
 using PcStatsMonitor.Models;
 using System.Windows.Media;
+using System.Windows.Media.Imaging;
+using System.Linq;
 
 namespace PcStatsMonitor.Controls
 {
@@ -178,32 +180,27 @@ namespace PcStatsMonitor.Controls
         TxtWind.Text = $"{data.wind.speed} {speedUnit}";
         TxtPressure.Text = $"{data.main.pressure} hPa";
 
-        UpdateLargeWeatherIcon(data.weather[0].icon, data.weather[0].id);
+        UpdateLargeWeatherIcon(data.weather[0].icon);
     }
 
-    private void UpdateLargeWeatherIcon(string iconCode, int conditionId)
+    private ImageSource GetImageFromOWMIcon(string iconCode)
     {
-        bool isNight = iconCode.EndsWith("n");
-        string resKey = GetIconResourceKey(conditionId, isNight);
-        
-        // Main hero card always uses Colored icons for premium look
-        if (Application.Current.TryFindResource("Icon_" + resKey) is DrawingGroup dg)
-        {
-            ImgMainWeather.Source = new DrawingImage(dg);
-        }
+        string[] allFiles = {
+            "01d Clear Sky.png", "01n Clear Sky.png", "02d Few Clouds.png", "02n Few Clouds.png",
+            "03d Scattered Clouds.png", "03n Scattered Clouds.png", "04d Broken Clouds.png", "04n Broken Clouds.png",
+            "50d Mist.png", "50n Mist.png", "09d Shower Rain.png", "09n Shower Rain.png",
+            "10d Rain.png", "10n Rain.png", "11d Thunderstorm.png", "11n Thunderstorm.png",
+            "13d Snow.png", "13n Snow.png"
+        };
+        string file = allFiles.FirstOrDefault(f => f.StartsWith(iconCode)) ?? "01d Clear Sky.png";
+        try {
+            return new BitmapImage(new Uri($"pack://application:,,,/Assets/Weather Icons/{file}", UriKind.Absolute));
+        } catch { return null; }
     }
 
-    private string GetIconResourceKey(int id, bool isNight)
+    private void UpdateLargeWeatherIcon(string iconCode)
     {
-        if (id == 800) return isNight ? "Moon_Pure" : "Sun_Pure";
-        if (id == 801) return isNight ? "Moon_Cloud" : "Sun_Cloud";
-        if (id == 802) return "Cloud_Double";
-        if (id >= 803 && id <= 804) return "Cloud_Pure";
-        if (id >= 200 && id < 300) return "Cloud_Lightning";
-        if (id >= 500 && id < 600) return "Cloud_Rain_Heavy";
-        if (id >= 600 && id < 700) return "Cloud_Snow";
-        if (id == 771) return "Wind_Pure";
-        return "Cloud_Pure";
+        ImgMainWeather.Source = GetImageFromOWMIcon(iconCode);
     }
 
     private void ForecastTab_Checked(object sender, RoutedEventArgs e)
@@ -251,21 +248,13 @@ namespace PcStatsMonitor.Controls
             var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
             string dayLabel = (selected == "NextDays") ? date.ToString("ddd").ToUpper() : date.ToString("HH:mm");
             
-            bool isNightItem = item.weather[0].icon.EndsWith("n");
-            string resKey = GetIconResourceKey(item.weather[0].id, isNightItem);
-            
-            // Forecast small cards always use Outlined icons for minimalist look
-            DrawingImage drawing = null;
-            if (Application.Current.TryFindResource("Out_Icon_" + resKey) is DrawingGroup dg)
-            {
-                drawing = new DrawingImage(dg);
-            }
+            ImageSource imgSrc = GetImageFromOWMIcon(item.weather[0].icon);
             
             forecastItems.Add(new ForecastViewItem
             {
                 Day = dayLabel,
                 DayBrush = subTextBrush,
-                IconDrawing = drawing,
+                IconImage = imgSrc,
                 Temp = $"{Math.Round(item.main.temp)}°",
                 TempBrush = textBrush,
                 CardBrush = cardBrush
@@ -360,7 +349,7 @@ namespace PcStatsMonitor.Controls
     public class ForecastViewItem { 
         public string Day { get; set; } 
         public Brush DayBrush { get; set; }
-        public DrawingImage IconDrawing { get; set; }
+        public ImageSource IconImage { get; set; }
         public string Temp { get; set; } 
         public Brush TempBrush { get; set; }
         public Brush CardBrush { get; set; }

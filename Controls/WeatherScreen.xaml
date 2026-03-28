@@ -121,7 +121,7 @@
                                     <StackPanel HorizontalAlignment="Center">
                                         <TextBlock Text="{Binding Day}" Foreground="{Binding DayBrush}" FontSize="11" FontWeight="Bold" HorizontalAlignment="Center"/>
                                         <Border Width="32" Height="32" Margin="0,10">
-                                            <Image Source="{Binding IconDrawing}" Stretch="Uniform"/>
+                                            <Image Source="{Binding IconImage}" Stretch="Uniform"/>
                                         </Border>
                                         <TextBlock Text="{Binding Temp}" Foreground="{Binding TempBrush}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
                                     </StackPanel>

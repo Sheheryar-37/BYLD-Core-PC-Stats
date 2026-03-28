@@ -41,8 +41,7 @@
                     <TextBlock x:Name="TxtDescription" Text="Clear sky" Foreground="#888888" FontSize="16" HorizontalAlignment="Center" Margin="10,15,10,0" TextWrapping="Wrap" TextAlignment="Center"/>
                     
                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,30,0,0">
-                        <CheckBox x:Name="ChkOutlineMode" Content="Outline Set" Margin="0,0,20,0" Checked="ModeToggle_Changed" Unchecked="ModeToggle_Changed"/>
-                        <ToggleButton x:Name="BtnNightToggle" Content="Night Mode" Foreground="White" Background="#222" Padding="15,8" Click="BtnNightToggle_Click"/>
+                        <!-- Controls removed for PNG gallery -->
                     </StackPanel>
                 </StackPanel>
             </Grid>
