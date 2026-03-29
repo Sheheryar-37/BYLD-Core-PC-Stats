@@ -211,35 +211,58 @@ public partial class MainWindow : Window
 
         if (targetScreen != null)
         {
+            // ── DPI-aware coordinate conversion ──────────────────────────────────
+            // System.Windows.Forms.Screen always returns physical pixel coordinates.
+            // WPF uses logical (device-independent) pixels. On a 4K screen at 200%
+            // DPI scaling, every physical pixel coordinate must be divided by 2.
+            // We read the current DPI from the WPF presentation source.
+            var source = PresentationSource.FromVisual(this);
+            double dpiScaleX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+            double dpiScaleY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
+            _logger.LogInformation("[Display] DPI scale detected: {sx}x, {sy}x", dpiScaleX, dpiScaleY);
+
             this.WindowState = WindowState.Normal;
             
             if (!targetScreen.Primary)
             {
-                this.Left = targetScreen.WorkingArea.Left;
-                this.Top = targetScreen.WorkingArea.Top;
-                this.Width = targetScreen.WorkingArea.Width;
-                this.Height = targetScreen.WorkingArea.Height;
+                // Convert physical screen coordinates to WPF logical coordinates
+                double logicalLeft   = targetScreen.WorkingArea.Left   / dpiScaleX;
+                double logicalTop    = targetScreen.WorkingArea.Top    / dpiScaleY;
+                double logicalWidth  = targetScreen.WorkingArea.Width  / dpiScaleX;
+                double logicalHeight = targetScreen.WorkingArea.Height / dpiScaleY;
+
+                this.Left   = logicalLeft;
+                this.Top    = logicalTop;
+                this.Width  = logicalWidth;
+                this.Height = logicalHeight;
                 this.WindowState = WindowState.Maximized;
-                _logger.LogInformation("[Display] Moving app to Secondary Screen '{n}' | Left={l}, Top={t}, Maximized=True", 
-                    targetScreen.DeviceName, this.Left, this.Top);
+                _logger.LogInformation(
+                    "[Display] Moving app to Secondary Screen '{n}' | Physical=({pl},{pt}) Logical=({ll},{lt}) | DPI={sx}x", 
+                    targetScreen.DeviceName, targetScreen.WorkingArea.Left, targetScreen.WorkingArea.Top,
+                    logicalLeft, logicalTop, dpiScaleX);
             }
             else
             {
                 vm = DataContext as MainViewModel;
-                this.Width = (vm != null) ? vm.Theme.WindowWidth : 480;
+                this.Width  = (vm != null) ? vm.Theme.WindowWidth  : 480;
                 this.Height = (vm != null) ? vm.Theme.WindowHeight : 854;
                 
+                double areaW = targetScreen.WorkingArea.Width  / dpiScaleX;
+                double areaH = targetScreen.WorkingArea.Height / dpiScaleY;
+                double areaL = targetScreen.WorkingArea.Left   / dpiScaleX;
+                double areaT = targetScreen.WorkingArea.Top    / dpiScaleY;
+
                 if (screens.Length == 1)
                 {
-                    this.Left = (targetScreen.WorkingArea.Width - this.Width) / 2;
-                    this.Top = (targetScreen.WorkingArea.Height - this.Height) / 2;
+                    this.Left = areaL + (areaW - this.Width)  / 2;
+                    this.Top  = areaT + (areaH - this.Height) / 2;
                     _logger.LogInformation("[Display] Moving app to center of single Primary '{n}' | Left={l}, Top={t}, W/H={w}x{h}", 
                         targetScreen.DeviceName, this.Left, this.Top, this.Width, this.Height);
                 }
                 else
                 {
-                    this.Left = targetScreen.WorkingArea.Left + 50;
-                    this.Top = targetScreen.WorkingArea.Top + 50;
+                    this.Left = areaL + 50;
+                    this.Top  = areaT + 50;
                     _logger.LogInformation("[Display] Moving app to offset of Primary '{n}' | Left={l}, Top={t}, W/H={w}x{h}", 
                         targetScreen.DeviceName, this.Left, this.Top, this.Width, this.Height);
                 }
