@@ -62,6 +62,23 @@ public interface IHardwareMonitorService
         {
             _logger.LogError(ex, "Failed to initialize LibreHardwareMonitor");
         }
+
+        // Warm up PerformanceCounter — first call always returns 0, second call returns real data.
+        // Do this in background so startup is not delayed.
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                _cpuClockCounter = new System.Diagnostics.PerformanceCounter("Processor Information", "Processor Frequency", "_Total", true);
+                _cpuClockCounter.NextValue(); // Discard warmup value — always 0
+                _logger.LogInformation("[CPU] PerformanceCounter warmed up successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[CPU] PerformanceCounter warmup failed — WMI fallback will be used.");
+                _cpuClockCounter = null;
+            }
+        });
     }
 
     /// <summary>
@@ -166,8 +183,18 @@ public interface IHardwareMonitorService
             _logger.LogDebug("[CPU] Processing '{hw}' (Type: {t})", hardware.Name, hardware.HardwareType);
 
             // ── CPU Temperature ──
-            var lhmTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.CpuTemp)
-                       ?? GetFirstSensorValue(hardware, SensorType.Temperature);
+            // For Zen 4 (Ryzen 7000): LHM exposes 'Core (Tctl/Tdie)' and per-core temps.
+            // Scan ALL temperature sensors to find the first non-zero reading (handles Zen 4 naming).
+            var lhmTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.CpuTemp);
+            if (!lhmTemp.HasValue || lhmTemp.Value <= 0)
+            {
+                // Try all temperature sensors and pick the first non-zero value
+                lhmTemp = hardware.Sensors
+                    .Where(s => s.SensorType == SensorType.Temperature && s.Value.HasValue && s.Value.Value > 0)
+                    .OrderBy(s => s.Name.Contains("Tctl") || s.Name.Contains("Tdie") ? 0 : 1) // Prefer Tctl/Tdie on AMD
+                    .Select(s => s.Value)
+                    .FirstOrDefault();
+            }
             if (lhmTemp.HasValue && lhmTemp.Value > 0)
             {
                 metrics.CpuTemp = lhmTemp.Value;
@@ -210,45 +237,34 @@ public interface IHardwareMonitorService
                 }
                 else
                 {
-                    _logger.LogDebug("[CPU] LHM clock = {v} (zero/null). Trying PerformanceCounter fallback...", lhmClock);
-                    try
+                    _logger.LogDebug("[CPU] LHM clock = {v} (zero/null). Trying fallbacks...", lhmClock);
+                    
+                    // ── Fallback 1: WMI ProcessorInformation (most reliable, no warmup needed) ──
+                    var wmiClock = WmiSensorService.GetCpuClockMhz(_logger);
+                    if (wmiClock.HasValue && wmiClock.Value > 0)
                     {
-                        if (_cpuClockCounter == null)
-                            _cpuClockCounter = new System.Diagnostics.PerformanceCounter("Processor Information", "Processor Frequency", "_Total", true);
-
-                        float perfVal = _cpuClockCounter.NextValue();
-                        if (perfVal > 0)
+                        metrics.CpuClock = wmiClock.Value;
+                        _logger.LogDebug("[CPU] Clock resolved via WMI: {v:F0} MHz", metrics.CpuClock);
+                    }
+                    else
+                    {
+                        // ── Fallback 2: PerformanceCounter (requires warmup — done at startup) ──
+                        try
                         {
-                            metrics.CpuClock = perfVal;
-                            _logger.LogDebug("[CPU] Clock resolved via PerformanceCounter: {v:F0} MHz", metrics.CpuClock);
-                        }
-                        else
-                        {
-                            _logger.LogDebug("[CPU] PerformanceCounter clock = {v}. Trying WMI Win32_Processor fallback...", perfVal);
-                            var wmiClock = WmiSensorService.GetCpuClockMhz(_logger);
-                            if (wmiClock.HasValue && wmiClock.Value > 0)
+                            float perfVal = _cpuClockCounter?.NextValue() ?? 0;
+                            if (perfVal > 0)
                             {
-                                metrics.CpuClock = wmiClock.Value;
-                                _logger.LogDebug("[CPU] Clock resolved via WMI Win32_Processor: {v:F0} MHz", metrics.CpuClock);
+                                metrics.CpuClock = perfVal;
+                                _logger.LogDebug("[CPU] Clock resolved via PerformanceCounter: {v:F0} MHz", metrics.CpuClock);
                             }
                             else
                             {
-                                _logger.LogWarning("[CPU] ⚠ ALL clock sources returned 0/null. CpuClock will display as 0. LHM={l}, PerfCounter={p}, WMI={w}", lhmClock, perfVal, wmiClock);
+                                _logger.LogWarning("[CPU] ⚠ ALL clock sources returned 0/null. LHM={l}, WMI={w}, PerfCounter={p}", lhmClock, wmiClock, perfVal);
                             }
                         }
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogDebug(ex, "[CPU] PerformanceCounter clock failed. Falling back to WMI...");
-                        var wmiClock = WmiSensorService.GetCpuClockMhz(_logger);
-                        if (wmiClock.HasValue && wmiClock.Value > 0)
+                        catch (Exception ex)
                         {
-                            metrics.CpuClock = wmiClock.Value;
-                            _logger.LogDebug("[CPU] Clock resolved via WMI after PerfCounter failure: {v:F0} MHz", metrics.CpuClock);
-                        }
-                        else
-                        {
-                            _logger.LogWarning("[CPU] ⚠ All clock fallbacks failed. Displaying 0.");
+                            _logger.LogWarning(ex, "[CPU] ⚠ PerformanceCounter failed. All CPU clock sources exhausted.");
                         }
                     }
                 }

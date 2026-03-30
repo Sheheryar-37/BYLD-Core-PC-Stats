@@ -292,11 +292,18 @@ namespace PcStatsMonitor.Controls
 
         double xStep = canvasWidth / (temps.Count - 1);
         var points = new List<Point>();
+        
+        // Internal padding (20% top, 10% bottom) so trends never hit zero boundaries
+        double innerHeight = canvasHeight * 0.70; 
+        double topPadding = canvasHeight * 0.20; 
+
         for (int i = 0; i < temps.Count; i++)
         {
             double x = i * xStep;
-            double normalized = (temps[i] - minTemp) / (maxTemp - minTemp);
-            double y = canvasHeight - (normalized * canvasHeight);
+            double normalized = (maxTemp == minTemp) ? 0.5 : (temps[i] - minTemp) / (maxTemp - minTemp);
+            
+            // Map temperature into the safe 'middle' vertical 70% of the canvas
+            double y = (canvasHeight - topPadding) - (normalized * innerHeight);
             points.Add(new Point(x, y));
         }
 
@@ -318,16 +325,31 @@ namespace PcStatsMonitor.Controls
         // Focus Point & Tooltip Positioning (Smart offset for bubble tip)
         if (points.Count >= 3)
         {
-            int targetIdx = (int)Math.Min(points.Count - 2, 2); // Focus on the 3rd item usually
+            int targetIdx = temps.IndexOf(temps.Max()); // Focus on the highest point
             var focusPoint = points[targetIdx];
             var focusItem = items[targetIdx];
 
-            GraphPointContainer.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 8, canvasHeight - focusPoint.Y - 8);
+            GraphPointContainer.Margin = new Thickness(focusPoint.X - 8, focusPoint.Y - 8, 0, 0);
             
             TxtTooltipTime.Text = focusItem.Day;
             TxtTooltipTemp.Text = focusItem.Temp;
             GraphTooltip.Opacity = 1;
-            GraphTooltip.Margin = new Thickness(0, 0, canvasWidth - focusPoint.X - 25, canvasHeight - focusPoint.Y + 12);
+            
+            // Size resolution for clamping constraints
+            TooltipBox.Measure(new Size(double.PositiveInfinity, double.PositiveInfinity));
+            double tWidth = Math.Max(50, TooltipBox.DesiredSize.Width);
+            
+            // Center naturally, but clamp gracefully against canvas constraints
+            double idealLeft = focusPoint.X - (tWidth / 2);
+            double clampedLeft = Math.Max(0, Math.Min(canvasWidth - tWidth, idealLeft));
+            
+            // Fixed height estimate (~48px total). Subtracted manually to align arrow correctly.
+            GraphTooltip.Margin = new Thickness(clampedLeft, focusPoint.Y - 56, 0, 0);
+            
+            // Dynamically slide the TooltipArrow to accurately hit focusPoint.X regardless of the box clamping
+            double arrowOffset = focusPoint.X - clampedLeft - 6; // Center offset for the 12px wide arrow
+            arrowOffset = Math.Max(8, Math.Min(tWidth - 20, arrowOffset)); // Padding so the corner avoids clipping the arrow tail bounds
+            TooltipArrow.Margin = new Thickness(arrowOffset, 0, 0, 0);
         }
     }
 

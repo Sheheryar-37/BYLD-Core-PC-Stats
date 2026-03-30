@@ -1,0 +1,37 @@
+﻿e4f91fb feat: 100ms polling, smooth gauge animations, DPI-aware display snapping, enhanced sensor logging
+a2cf58f Incorporate robust license generation logic with case-insensitive Machine ID handling and session tracking
+078ba8e Update License Generator with session loop and generation summary
+cb086bc Enhance license generator robustness
+e72304b Implement mandatory licensing system with License Generator tool
+e3f1524 Refactor weather system to use PNG icons, remove vector drawing engine, and purge WeatherCondition model
+0103c00 Fix screen auto-snapping and Memory Integrity warnings
+2fcdc3a Final Milestone 2: 110-icon Weather Library overhaul, XAML Property Compliance, and Ryzen sensor fixes
+d78a248 UI Precision: Aligned graph focus dot on curve and enhanced tooltip contrast
+4427a89 Fix: Corrected BrandBlue resource key mismatch for City Name visibility
+d7ed7d0 UI Polish: Swapped Date for 'Last Updated' timestamp and ensured City Name visibility
+907e1ac Fix: Corrected WeatherConfig property name mismatch (ThemeMode -> WeatherTheme)
+0c53b20 Milestone 2 Final Refinements: Enhanced Weather UI, Light Mode Contrast, and Logo Tinting
+2086384 Milestone 2 Final Polish: CPU temp fix and premium weather stats icons
+13d778b Added F11 full-screen toggle shortcut and updated documentation
+277c719 Exhaustive Weather UI overhaul with 18+ conditions and layout fixes
+65fb5ad Milestone 2 Polish: Modern weather icons, bottom box background, fan curve graphics, rounded arcs
+35359ff Milestone 2: Finalize interactive weather screen, horizontal scrolling, and theme stability fixes
+83e47d9 Milestone 2 Revisions: Inspiration-matched Weather UI (Light/Dark/System) and Global Modern Checkboxes
+5a83f01 Milestone 2 Refinement: Fixed square clock glow and added toggle for outer border
+d11c15f Milestone 2: Enhanced Weather Screen, Fixed Clock Glow, and Improved UI Interactivity
+018cdd0 fix: global background image now shows on clock screen
+5b560c1 fix: logo on clock screen - moved to MainWindow.xaml overlay (reliable binding)
+e38cc14 fix: deep clock overhaul - alignment, square shape & logo
+de059e3 fix: Phase 16 Clock - radial alignment & extra square faces
+60eecd3 fix: final Clock Phase 15 - Logo visibility & scrolling
+2c173f8 feat: Clock Phase 15 - 15 Premium Faces & UI Polish
+9f54bd8 feat: Clock Refinements - Visual Face Previews & Visibility Toggles
+eb1e964 fix: Clock screen rotation logic in TransitionTimer_Tick
+9e80435 fix: added missing built-in clock screen checkbox to Layout tab in Settings
+9939b98 feat: Phase 14 - Built-in Clock Screen, Clock Settings, Scrollbar Polish
+a33c41a Complete Milestone 2: Refined Screen Management, Neumorphic Clock, and UI alignment
+579c5b8 Finalize Milestone 1: Implement custom segmented gauges with 140-325 and 0-130 deg angles and layout refinements
+964e606 Added the stats and guages size and postion configurable feature
+d9f590b Fix: Resolved ColorPicker vertical crop & Screen-Swap visibility logic override
+8673658 UI Polish: Fixed Color Picker Height & Screen Swap Logic
+0d02586 Initial commit of BYLD Core PC Stats Monitor

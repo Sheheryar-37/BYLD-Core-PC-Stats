@@ -9,12 +9,14 @@
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\byld-icon.ico</ApplicationIcon>
+    <!-- Suppress NU1605: LHM pre-release has a lower transitive System.Management ref; our explicit pin wins -->
+    <NoWarn>$(NoWarn);NU1605</NoWarn>
   </PropertyGroup>
 
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.5" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.7-pre656" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />

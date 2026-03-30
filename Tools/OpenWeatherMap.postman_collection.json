@@ -1,0 +1,194 @@
+{
+  "info": {
+    "name": "PC Stats Monitor — OpenWeatherMap APIs",
+    "_postman_id": "pcstats-owm-collection-v1",
+    "description": "All OpenWeatherMap API endpoints used by PC Stats Monitor. Set the {{api_key}} and {{city}} variables in the Collection Variables tab before running.\n\nBase URL: https://api.openweathermap.org\nDocs: https://openweathermap.org/api",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "api_key",
+      "value": "YOUR_API_KEY_HERE",
+      "description": "Your OpenWeatherMap API key from https://home.openweathermap.org/api_keys"
+    },
+    {
+      "key": "city",
+      "value": "New York",
+      "description": "City name to query, e.g. 'New York', 'London', 'Pittsburgh'"
+    },
+    {
+      "key": "units",
+      "value": "metric",
+      "description": "Units: 'metric' (°C, m/s), 'imperial' (°F, mph), or 'standard' (Kelvin)"
+    },
+    {
+      "key": "lat",
+      "value": "40.7128",
+      "description": "Latitude for coordinate-based requests"
+    },
+    {
+      "key": "lon",
+      "value": "-74.0060",
+      "description": "Longitude for coordinate-based requests"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Current Weather (By City Name)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.openweathermap.org/data/2.5/weather?q={{city}}&appid={{api_key}}&units={{units}}",
+          "protocol": "https",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["data", "2.5", "weather"],
+          "query": [
+            { "key": "q",      "value": "{{city}}",    "description": "City name" },
+            { "key": "appid",  "value": "{{api_key}}", "description": "API Key" },
+            { "key": "units",  "value": "{{units}}",   "description": "Units: metric / imperial / standard" }
+          ]
+        },
+        "description": "⭐ PRIMARY ENDPOINT — The app calls this on every weather refresh cycle.\n\nReturns: current temperature, feels_like, humidity, pressure, wind speed, weather condition, and icon code.\n\nKey fields used by app:\n- weather[0].icon → Maps to local PNG files (e.g. '04d' → '04d Broken Clouds.png')\n- weather[0].description → Displayed as condition string\n- main.temp → Displayed as main temperature\n- main.humidity, main.pressure, wind.speed → Stats bar"
+      },
+      "response": []
+    },
+    {
+      "name": "2. Current Weather (By Coordinates)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.openweathermap.org/data/2.5/weather?lat={{lat}}&lon={{lon}}&appid={{api_key}}&units={{units}}",
+          "protocol": "https",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["data", "2.5", "weather"],
+          "query": [
+            { "key": "lat",   "value": "{{lat}}",     "description": "Latitude" },
+            { "key": "lon",   "value": "{{lon}}",     "description": "Longitude" },
+            { "key": "appid", "value": "{{api_key}}", "description": "API Key" },
+            { "key": "units", "value": "{{units}}",   "description": "Units" }
+          ]
+        },
+        "description": "Same as endpoint #1 but uses coordinates (lat/lon) instead of city name. Useful if city name is ambiguous."
+      },
+      "response": []
+    },
+    {
+      "name": "3. 5-Day Forecast (3-Hour Intervals, By City)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.openweathermap.org/data/2.5/forecast?q={{city}}&appid={{api_key}}&units={{units}}",
+          "protocol": "https",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["data", "2.5", "forecast"],
+          "query": [
+            { "key": "q",      "value": "{{city}}",    "description": "City name" },
+            { "key": "appid",  "value": "{{api_key}}", "description": "API Key" },
+            { "key": "units",  "value": "{{units}}",   "description": "Units" }
+          ]
+        },
+        "description": "⭐ PRIMARY ENDPOINT — The app calls this on every weather refresh to populate the Today / Tomorrow / Next 4 Days forecast tabs and the temperature trend graph.\n\nReturns: list of 40 forecast entries at 3-hour intervals (5 days × 8 per day).\n\nKey fields used by app:\n- list[].dt → Unix timestamp used to group by day\n- list[].main.temp → Temperature for each time slot\n- list[].weather[0].icon → Icon code for each forecast card"
+      },
+      "response": []
+    },
+    {
+      "name": "4. 5-Day Forecast (By Coordinates)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.openweathermap.org/data/2.5/forecast?lat={{lat}}&lon={{lon}}&appid={{api_key}}&units={{units}}",
+          "protocol": "https",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["data", "2.5", "forecast"],
+          "query": [
+            { "key": "lat",   "value": "{{lat}}",     "description": "Latitude" },
+            { "key": "lon",   "value": "{{lon}}",     "description": "Longitude" },
+            { "key": "appid", "value": "{{api_key}}", "description": "API Key" },
+            { "key": "units", "value": "{{units}}",   "description": "Units" }
+          ]
+        },
+        "description": "Same as endpoint #3 but using coordinates. Useful for precise location targeting."
+      },
+      "response": []
+    },
+    {
+      "name": "5. City Geocoding (Name → Lat/Lon)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://api.openweathermap.org/geo/1.0/direct?q={{city}}&limit=5&appid={{api_key}}",
+          "protocol": "http",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["geo", "1.0", "direct"],
+          "query": [
+            { "key": "q",      "value": "{{city}}",    "description": "City name (can include country code: 'London,GB')" },
+            { "key": "limit",  "value": "5",           "description": "Max results to return" },
+            { "key": "appid",  "value": "{{api_key}}", "description": "API Key" }
+          ]
+        },
+        "description": "Converts a city name to latitude/longitude coordinates. Useful for resolving ambiguous city names (e.g. multiple 'Springfield' cities).\n\nReturns: array of matches with lat, lon, country, state"
+      },
+      "response": []
+    },
+    {
+      "name": "6. Reverse Geocoding (Lat/Lon → City Name)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "http://api.openweathermap.org/geo/1.0/reverse?lat={{lat}}&lon={{lon}}&limit=1&appid={{api_key}}",
+          "protocol": "http",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["geo", "1.0", "reverse"],
+          "query": [
+            { "key": "lat",   "value": "{{lat}}",     "description": "Latitude" },
+            { "key": "lon",   "value": "{{lon}}",     "description": "Longitude" },
+            { "key": "limit", "value": "1",           "description": "Max results" },
+            { "key": "appid", "value": "{{api_key}}", "description": "API Key" }
+          ]
+        },
+        "description": "Converts coordinates back to a human-readable city name. Useful for GPS-based location detection."
+      },
+      "response": []
+    },
+    {
+      "name": "7. Weather Icon (PNG Download)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://openweathermap.org/img/wn/04d@2x.png",
+          "protocol": "https",
+          "host": ["openweathermap", "org"],
+          "path": ["img", "wn", "04d@2x.png"]
+        },
+        "description": "OWM Icon Codes → App PNG Mapping:\n\n  01d / 01n → Clear Sky\n  02d / 02n → Few Clouds\n  03d / 03n → Scattered Clouds\n  04d / 04n → Broken Clouds  ← Fixed (was showing mist icon)\n  09d / 09n → Shower Rain\n  10d / 10n → Rain\n  11d / 11n → Thunderstorm\n  13d / 13n → Snow\n  50d / 50n → Mist\n\nOWM also serves icons via CDN at this URL. The app uses local PNGs instead for offline support.\nChange '04d' in the URL path to test any icon code."
+      },
+      "response": []
+    },
+    {
+      "name": "8. API Key Test (Validate Key)",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://api.openweathermap.org/data/2.5/weather?q=London&appid={{api_key}}",
+          "protocol": "https",
+          "host": ["api", "openweathermap", "org"],
+          "path": ["data", "2.5", "weather"],
+          "query": [
+            { "key": "q",     "value": "London",     "description": "Use London as neutral test city" },
+            { "key": "appid", "value": "{{api_key}}", "description": "API Key to validate" }
+          ]
+        },
+        "description": "Quick API key validation. \n✅ 200 OK = key is valid and active\n❌ 401 Unauthorized = key is invalid or expired (new keys take up to 2 hours to activate)\n❌ 429 Too Many Requests = rate limit hit (free tier: 60 calls/minute)"
+      },
+      "response": []
+    }
+  ]
+}

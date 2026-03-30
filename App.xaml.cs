@@ -63,6 +63,7 @@ public partial class App : Application
 
         // ── Mandatory License Verification ───────────────────────────────────
         var licenseService = _host.Services.GetRequiredService<LicenseService>();
+#if !DEBUG
         if (!licenseService.CheckLicense(out string licenseError))
         {
             startupLogger.LogError("[License] Authentication failed: {e}", licenseError);
@@ -74,6 +75,9 @@ public partial class App : Application
             return;
         }
         startupLogger.LogInformation("[License] Valid license detected. Proceeding to startup.");
+#else
+        startupLogger.LogInformation("[License] Running in Debug Mode. Bypassing license check.");
+#endif
 
         await _host.StartAsync();
 

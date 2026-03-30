@@ -85,9 +85,14 @@ public partial class SettingsWindow : Window
         ChkMotherboard.IsChecked = theme.IsMotherboardEnabled;
         ChkNetwork.IsChecked = theme.IsNetworkEnabled;
 
+        // Gauges screen checkboxes
         ChkGaugesScreen.IsChecked = theme.ShowGaugesScreen;
         ChkStorageScreen.IsChecked = theme.ShowStorageScreen;
         ChkClockScreen.IsChecked = theme.ShowClockScreen;
+        
+        // SYNC BOTH WEATHER CHECKBOXES (Layout tab and Weather tab)
+        ChkWeatherScreenLayout.IsChecked = theme.ShowWeatherScreen;
+        ChkShowWeather.IsChecked = theme.ShowWeatherScreen;
 
         // Plugins
         PluginSettings.Clear();
@@ -413,7 +418,11 @@ public partial class SettingsWindow : Window
         if (ChkGaugesScreen.IsChecked == true) activeItems.Add("Gauges");
         if (ChkStorageScreen.IsChecked == true) activeItems.Add("Storage");
         if (ChkClockScreen.IsChecked == true) activeItems.Add("Clock");
-        if (ChkShowWeather != null && ChkShowWeather.IsChecked == true) activeItems.Add("Weather");
+        
+        // Check either checkbox (they should be synced anyway)
+        if ((ChkWeatherScreenLayout?.IsChecked == true) || (ChkShowWeather?.IsChecked == true)) 
+            activeItems.Add("Weather");
+            
         if (ChkWeatherGallery != null && ChkWeatherGallery.IsChecked == true) activeItems.Add("Gallery");
         foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
 
@@ -788,5 +797,65 @@ public partial class SettingsWindow : Window
         UpdateThemeObject();
         _themeService.NotifyThemeUpdated();
         PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Weather location updated.", "Weather");
+    }
+
+    // Weather City API Search Logic
+    private System.Windows.Threading.DispatcherTimer _citySearchTimer;
+
+    private void TxtWeatherCity_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter || e.Key == System.Windows.Input.Key.Up || e.Key == System.Windows.Input.Key.Down || e.Key == System.Windows.Input.Key.Escape) return;
+        
+        if (_citySearchTimer == null)
+        {
+            _citySearchTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _citySearchTimer.Tick += CitySearchTimer_Tick;
+        }
+        _citySearchTimer.Stop();
+        _citySearchTimer.Start();
+    }
+
+    private async void CitySearchTimer_Tick(object sender, EventArgs e)
+    {
+        _citySearchTimer.Stop();
+        string query = TxtWeatherCity.Text;
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 3) return;
+        
+        string apiKey = TxtWeatherApiKey.Password;
+        if (string.IsNullOrWhiteSpace(apiKey)) return;
+
+        try
+        {
+            float limit = 5;
+            string url = $"https://api.openweathermap.org/geo/1.0/direct?q={Uri.EscapeDataString(query)}&limit={limit}&appid={apiKey}";
+            using var client = new System.Net.Http.HttpClient();
+            var response = await client.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var items = System.Text.Json.JsonSerializer.Deserialize<List<GeoCity>>(json);
+                if (items != null && items.Count > 0)
+                {
+                    var tb = TxtWeatherCity.Template.FindName("PART_EditableTextBox", TxtWeatherCity) as System.Windows.Controls.TextBox;
+                    int caret = tb?.CaretIndex ?? query.Length;
+                    
+                    TxtWeatherCity.ItemsSource = items;
+                    TxtWeatherCity.Text = query;
+                    
+                    if (tb != null) tb.CaretIndex = caret;
+                    
+                    TxtWeatherCity.IsDropDownOpen = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    public class GeoCity
+    {
+        public string name { get; set; }
+        public string state { get; set; }
+        public string country { get; set; }
+        public override string ToString() => string.IsNullOrWhiteSpace(state) ? $"{name}, {country}" : $"{name}, {state}, {country}";
     }
 }
