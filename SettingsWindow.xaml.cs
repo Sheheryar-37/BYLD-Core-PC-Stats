@@ -61,6 +61,18 @@ public partial class SettingsWindow : Window
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
     }
 
+    public void JumpToSettingsTab(string tabHeaderName)
+    {
+        foreach (TabItem item in MainTabControl.Items)
+        {
+            if (item.Header?.ToString() == tabHeaderName)
+            {
+                MainTabControl.SelectedItem = item;
+                break;
+            }
+        }
+    }
+
     private void LoadCurrentSettings()
     {
         _isInitializing = true;
@@ -142,6 +154,42 @@ public partial class SettingsWindow : Window
 
         // Weather Settings
         LoadWeatherSettings();
+
+        // License Settings
+        try
+        {
+            var licenseSvc = new LicenseService();
+            TxtMachineId.Text = licenseSvc.GetMachineId();
+            bool isLicenseValid = false;
+
+            if (System.IO.File.Exists("license.key"))
+            {
+                TxtLicenseKey.Text = System.IO.File.ReadAllText("license.key");
+                if (licenseSvc.CheckLicense(out string errorMessage))
+                {
+                    TxtLicenseStatus.Text = "Status: License Activated and Valid";
+                    TxtLicenseStatus.Foreground = new SolidColorBrush(Colors.MediumSeaGreen);
+                    isLicenseValid = true;
+                }
+                else
+                {
+                    TxtLicenseStatus.Text = $"Status: {errorMessage}";
+                    TxtLicenseStatus.Foreground = new SolidColorBrush(Color.FromRgb(230, 57, 70)); // #E63946
+                }
+            }
+
+            if (!isLicenseValid)
+            {
+                foreach (TabItem item in MainTabControl.Items)
+                {
+                    if (item.Header?.ToString() != "Registration")
+                    {
+                        item.Visibility = Visibility.Collapsed;
+                    }
+                }
+            }
+        }
+        catch { }
 
         _isInitializing = false;
     }
@@ -849,6 +897,38 @@ public partial class SettingsWindow : Window
             }
         }
         catch { }
+    }
+
+    private void BtnApplyLicense_Click(object sender, RoutedEventArgs e)
+    {
+        string rawKey = TxtLicenseKey.Text.Trim();
+        if (string.IsNullOrWhiteSpace(rawKey))
+        {
+            PcStatsMonitor.Controls.CustomMessageBox.ShowDialog(this, "Please paste a valid license key string first.", "Missing Key", MessageBoxButton.OK);
+            return;
+        }
+
+        System.IO.File.WriteAllText("license.key", rawKey);
+        
+        var licenseSvc = new LicenseService();
+        if (licenseSvc.CheckLicense(out string errorMessage))
+        {
+            TxtLicenseStatus.Text = "Status: License Activated and Valid";
+            TxtLicenseStatus.Foreground = new SolidColorBrush(Colors.MediumSeaGreen);
+            
+            foreach (TabItem item in MainTabControl.Items)
+            {
+                item.Visibility = Visibility.Visible;
+            }
+            
+            PcStatsMonitor.Controls.CustomMessageBox.ShowDialog(this, "Thank you! License strictly verified and activated.", "Success", MessageBoxButton.OK);
+        }
+        else
+        {
+            TxtLicenseStatus.Text = $"Status: {errorMessage}";
+            TxtLicenseStatus.Foreground = new SolidColorBrush(Color.FromRgb(230, 57, 70)); // #E63946
+            PcStatsMonitor.Controls.CustomMessageBox.ShowDialog(this, $"Verification Failed:\n{errorMessage}", "Invalid License", MessageBoxButton.OK);
+        }
     }
 
     public class GeoCity

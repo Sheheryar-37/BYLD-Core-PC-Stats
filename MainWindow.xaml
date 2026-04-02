@@ -326,6 +326,25 @@
                 <controls:WeatherGallery x:Name="WeatherGalleryCtrl"/>
             </Grid>
 
+        <!-- License Missing / Invalid Overlay (Always on Top) -->
+            <Grid x:Name="UnlicensedGrid" Grid.ColumnSpan="2" Panel.ZIndex="100" Visibility="Collapsed" Background="#F00A0A0A">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="⚠️" FontSize="60" Foreground="#E63946" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock Text="LICENSE INVALID" FontSize="28" FontWeight="Bold" Foreground="#E63946" HorizontalAlignment="Center" FontFamily="{Binding Theme.FontFamily, FallbackValue=Segoe UI}"/>
+                    <TextBox x:Name="TxtLicenseError" Text="License key not found or expired." FontSize="14" Opacity="0.8" Foreground="White" Background="Transparent" BorderThickness="0" IsReadOnly="True" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="30,10,30,20"/>
+                    
+                    <Button Content="Open Registration Settings" Width="200" Height="40" Background="#3b82f6" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnOpenSettings_Click">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
         </Grid>
     </Viewbox>
 </Window>

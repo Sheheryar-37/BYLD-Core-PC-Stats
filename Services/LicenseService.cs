@@ -5,8 +5,6 @@ using System.Management;
 using System.Security.Cryptography;
 using System.Text;
 using System.Windows;
-using Microsoft.Extensions.Logging;
-using PcStatsMonitor.Controls;
 
 namespace PcStatsMonitor.Services
 {
@@ -15,13 +13,7 @@ namespace PcStatsMonitor.Services
     public class LicenseService
     {
         private const string LicenseFile = "license.key";
-        private const string SecretSalt = "BYLD_CORE_PRO_STATS_2026"; // Change for production
-        private readonly ILogger<LicenseService>? _logger;
-
-        public LicenseService(ILogger<LicenseService>? logger = null)
-        {
-            _logger = logger;
-        }
+        private const string PublicKeyXml = "<RSAKeyValue><Modulus>z3kSxekPCZRQE83ZGsRY5ozEqmaiHaqZslppeBuw+f2Tj+x4sjgVQRp1iQCFME4k074FD0eOAgjcka2eUCvjYs0lmF41RyHlbqhQB0aJQ1NpC0v3+stqphSF00l5edy34t9EnMLHzrF1QoyFYCI76wtJR7yoG1V+rPWPnjFFqOhaQZwjKfPm3/7sv1NwGq37n3xP0CLzxcyqJwnOriekH31k8cfNywGqa4cX4i1aQ5W95bIVTM+AmqtNf7QdLeCfIQKr0MZOhI3Y+7u+lC5JZo6ds1cESlOrjgCUW0W7Eg/BZyHQ4tL8kScmJ92dpmgUPdlAPuFwJgFlvet7+L68mQ==</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
 
         public bool CheckLicense(out string errorMessage)
         {
@@ -29,7 +21,7 @@ namespace PcStatsMonitor.Services
             
             if (!File.Exists(LicenseFile))
             {
-                errorMessage = "License key not found. Please contact support to obtain a valid license.";
+                errorMessage = "License key not found. Please register your software through Settings.";
                 return false;
             }
 
@@ -38,9 +30,8 @@ namespace PcStatsMonitor.Services
                 string key = File.ReadAllText(LicenseFile).Trim();
                 return ValidateKey(key, out errorMessage);
             }
-            catch (Exception ex)
+            catch (Exception)
             {
-                _logger?.LogError(ex, "Error reading license file.");
                 errorMessage = "Failed to read license file.";
                 return false;
             }
@@ -49,6 +40,12 @@ namespace PcStatsMonitor.Services
         public bool ValidateKey(string key, out string errorMessage)
         {
             errorMessage = "";
+            if (string.IsNullOrWhiteSpace(key))
+            {
+                errorMessage = "The provided license key string is empty.";
+                return false;
+            }
+
             try
             {
                 // Key format: Base64(MachineId|Type|Expiry|Signature)
@@ -65,15 +62,21 @@ namespace PcStatsMonitor.Services
                 string machineId = parts[0];
                 string typeStr = parts[1];
                 string expiryStr = parts[2];
-                string signature = parts[3];
+                string signatureBase64 = parts[3];
 
-                // 1. Verify Signature
+                // 1. Verify RSA Signature using Hardcoded Public Key
                 string payload = $"{machineId}|{typeStr}|{expiryStr}";
-                string expectedSignature = GenerateSignature(payload);
+                byte[] payloadBytes = Encoding.UTF8.GetBytes(payload);
+                byte[] signatureBytes = Convert.FromBase64String(signatureBase64);
 
-                if (signature != expectedSignature)
+                using var rsa = new RSACryptoServiceProvider(2048);
+                rsa.FromXmlString(PublicKeyXml);
+
+                bool isSignatureValid = rsa.VerifyData(payloadBytes, signatureBytes, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+
+                if (!isSignatureValid)
                 {
-                    errorMessage = "License key verification failed (Invalid Signature).";
+                    errorMessage = "License key verification failed (Cryptographic Signature is Invalid).";
                     return false;
                 }
 
@@ -81,7 +84,7 @@ namespace PcStatsMonitor.Services
                 string currentMachineId = GetMachineId();
                 if (!string.Equals(machineId, "ANY", StringComparison.OrdinalIgnoreCase) && machineId != currentMachineId)
                 {
-                    errorMessage = "This license key is not registered for this computer.";
+                    errorMessage = "This license key is not registered for this computer's motherboard.";
                     return false;
                 }
 
@@ -92,7 +95,7 @@ namespace PcStatsMonitor.Services
                     {
                         if (DateTime.Now > expiryDate)
                         {
-                            errorMessage = $"License expired on {expiryDate:dd MMM yyyy}. Please renew your subscription.";
+                            errorMessage = $"License expired on {expiryDate:dd MMM yyyy}.";
                             return false;
                         }
                     }
@@ -107,7 +110,7 @@ namespace PcStatsMonitor.Services
             }
             catch
             {
-                errorMessage = "Corrupt or invalid license key.";
+                errorMessage = "Corrupt or fundamentally invalid license key.";
                 return false;
             }
         }
@@ -124,22 +127,6 @@ namespace PcStatsMonitor.Services
             }
             catch { }
             return "UNKNOWN";
-        }
-
-        public string GenerateSignature(string payload)
-        {
-            using var sha256 = SHA256.Create();
-            byte[] hash = sha256.ComputeHash(Encoding.UTF8.GetBytes(payload + SecretSalt));
-            return Convert.ToBase64String(hash).Substring(0, 16); // 16 chars is enough for this
-        }
-
-        public string CreateKey(string machineId, LicenseType type, string expiryDate = "0")
-        {
-            string typeStr = type == LicenseType.Lifetime ? "L" : "T";
-            string payload = $"{machineId}|{typeStr}|{expiryDate}";
-            string signature = GenerateSignature(payload);
-            string fullPayload = $"{payload}|{signature}";
-            return Convert.ToBase64String(Encoding.UTF8.GetBytes(fullPayload));
         }
     }
 }

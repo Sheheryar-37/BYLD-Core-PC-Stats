@@ -29,6 +29,22 @@ public partial class MainWindow : Window
         _themeService = themeService;
         _logger = logger;
 
+        LicenseService licenseSvc = new LicenseService();
+        if (!licenseSvc.CheckLicense(out string errorMessage))
+        {
+            UnlicensedGrid.Visibility = Visibility.Visible;
+            TxtLicenseError.Text = $"{errorMessage}\n\nYour Machine ID (Hardware Signature):\n{licenseSvc.GetMachineId()}";
+            
+            // If license is invalid, halt rendering and transitions
+            _transitionTimer?.Stop();
+            GaugesContainer.Visibility = Visibility.Collapsed;
+            SsdScreen.Visibility = Visibility.Collapsed;
+            ClockScreen.Visibility = Visibility.Collapsed;
+            WeatherScreenArea.Visibility = Visibility.Collapsed;
+            WeatherGalleryArea.Visibility = Visibility.Collapsed;
+            PluginScreen.Visibility = Visibility.Collapsed;
+        }
+
         // Allow moving the borderless window by clicking anywhere
         MouseLeftButtonDown += (s, e) => { if (e.ButtonState == MouseButtonState.Pressed) DragMove(); };
         
@@ -272,6 +288,8 @@ public partial class MainWindow : Window
 
     private void EvaluateScreenVisibility(bool animate = true)
     {
+        if (UnlicensedGrid.Visibility == Visibility.Visible) return;
+        
         var vm = DataContext as MainViewModel;
         if (vm == null) return;
 
@@ -461,6 +479,8 @@ public partial class MainWindow : Window
 
     private void TransitionTimer_Tick(object? sender, EventArgs e)
     {
+        if (UnlicensedGrid.Visibility == Visibility.Visible) return;
+        
         var vm = DataContext as MainViewModel;
         if (vm == null || vm.Theme == null) return;
 
@@ -502,6 +522,43 @@ public partial class MainWindow : Window
     {
         // Added to resolve the XamlParseException for the 'Loaded' event in XAML.
         // You can add your custom loaded animations or logic here!
+    }
+
+    private void BtnOpenSettings_Click(object sender, RoutedEventArgs e)
+    {
+        // Must disable Topmost so SettingsWindow can appear above it
+        this.Topmost = false;
+        
+        var settingsWindow = new SettingsWindow(_themeService, _pluginManager);
+        settingsWindow.Owner = this;
+        settingsWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
+        
+        // Instruct settings window to open to Registration tab directly
+        settingsWindow.JumpToSettingsTab("Registration");
+        settingsWindow.ShowDialog();
+        
+        // After Settings closes, check if license became valid
+        LicenseService licenseSvc = new LicenseService();
+        if (licenseSvc.CheckLicense(out string errorMessage))
+        {
+            UnlicensedGrid.Visibility = Visibility.Collapsed;
+            EvaluateScreenVisibility(animate: false);
+            var vm = DataContext as MainViewModel;
+            if (vm?.Theme?.DisplayMode == DisplayMode.Auto) _transitionTimer?.Start();
+        }
+        else
+        {
+            TxtLicenseError.Text = $"{errorMessage}\n\nYour Machine ID (Hardware Signature):\n{licenseSvc.GetMachineId()}";
+            
+            GaugesContainer.Visibility = Visibility.Collapsed;
+            SsdScreen.Visibility = Visibility.Collapsed;
+            ClockScreen.Visibility = Visibility.Collapsed;
+            WeatherScreenArea.Visibility = Visibility.Collapsed;
+            WeatherGalleryArea.Visibility = Visibility.Collapsed;
+            PluginScreen.Visibility = Visibility.Collapsed;
+        }
+        
+        this.Topmost = true;
     }
 }
 

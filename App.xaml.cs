@@ -59,25 +59,17 @@ public partial class App : Application
         // Install the WinRing0x64 kernel driver BEFORE the host starts so that
         // LibreHardwareMonitor can read CPU temperature and clock via MSR on first run.
         var startupLogger = _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
-        KernelDriverService.EnsureInstalled(startupLogger);
-
-        // ── Mandatory License Verification ───────────────────────────────────
-        var licenseService = _host.Services.GetRequiredService<LicenseService>();
-#if !DEBUG
-        if (!licenseService.CheckLicense(out string licenseError))
+        try 
         {
-            startupLogger.LogError("[License] Authentication failed: {e}", licenseError);
-            string machineId = licenseService.GetMachineId();
-            PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(null!, 
-                $"LICENSE SYSTEM FAILURE\n\n{licenseError}\n\nYour Machine ID:\n{machineId}", 
-                "Activation Required");
-            this.Shutdown();
-            return;
+            KernelDriverService.EnsureInstalled(startupLogger);
         }
-        startupLogger.LogInformation("[License] Valid license detected. Proceeding to startup.");
-#else
-        startupLogger.LogInformation("[License] Running in Debug Mode. Bypassing license check.");
-#endif
+        catch (Exception kernelEx)
+        {
+            startupLogger.LogWarning(kernelEx, "Skipping KernelDriverService installation because the IDE terminal lacks elevation.");
+        }
+
+        // ── License Verification is now securely handled within MainWindow ──
+        startupLogger.LogInformation("[Startup] Passing execution to MainWindow for initialization...");
 
         await _host.StartAsync();
 
