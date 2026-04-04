@@ -16,12 +16,16 @@ public interface IHardwareMonitorService
     event EventHandler<HardwareMetrics>? MetricsUpdated;
 }
 
-public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
-{
-    private readonly ILogger<HardwareMonitorService> _logger;
-    private readonly IThemeService _themeService;
-    private readonly Computer _computer;
-    private HardwareMetrics _currentMetrics = new();
+    /// <summary>
+    /// Background service that continuously polls hardware sensors and updates the UI metrics.
+    /// </summary>
+    public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
+    {
+        private readonly ILogger<HardwareMonitorService> _logger;
+        private readonly IThemeService _themeService;
+        private readonly Computer _computer;
+        private HardwareMetrics _currentMetrics = new();
+        private System.Diagnostics.PerformanceCounter? _cpuClockCounter;
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -47,13 +51,39 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
         try
         {
             _computer.Open();
+            // Allow 2 seconds for initial polling to complete before taking a diagnostic snapshot.
+            // This ensures that the snapshot contains actual sensor values instead of 0s.
+            System.Threading.Tasks.Task.Run(async () => {
+                await System.Threading.Tasks.Task.Delay(2000);
+                SensorStartupLogger.LogHardwareSnapshot(_computer, _logger);
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to initialize LibreHardwareMonitor");
         }
+
+        // Warm up PerformanceCounter — first call always returns 0, second call returns real data.
+        // Do this in background so startup is not delayed.
+        System.Threading.Tasks.Task.Run(() =>
+        {
+            try
+            {
+                _cpuClockCounter = new System.Diagnostics.PerformanceCounter("Processor Information", "Processor Frequency", "_Total", true);
+                _cpuClockCounter.NextValue(); // Discard warmup value — always 0
+                _logger.LogInformation("[CPU] PerformanceCounter warmed up successfully.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "[CPU] PerformanceCounter warmup failed — WMI fallback will be used.");
+                _cpuClockCounter = null;
+            }
+        });
     }
 
+    /// <summary>
+    /// Direct access to the most recently polled hardware state.
+    /// </summary>
     public HardwareMetrics GetCurrentMetrics() => _currentMetrics;
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -69,13 +99,17 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
                 _logger.LogError(ex, "Error updating hardware metrics");
             }
 
-            // Update once per second
-            await Task.Delay(1000, stoppingToken);
+            // Update 10 times per second (100ms) for a real-time dashboard feel
+            await Task.Delay(100, stoppingToken);
         }
         
+        SensorStartupLogger.LogHardwareSnapshot(_computer, _logger, "EXIT");
         _computer.Close();
     }
 
+    /// <summary>
+    /// Iterates through all detected hardware components and triggers sensor reads.
+    /// </summary>
     private void UpdateMetrics()
     {
         var metrics = new HardwareMetrics();
@@ -125,6 +159,14 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
 
         _currentMetrics = metrics;
         MetricsUpdated?.Invoke(this, metrics);
+
+        // ── Resolved metrics summary (one line per poll cycle) ──────────────────
+        _logger.LogDebug(
+            "[METRICS] CPU: {ct:F0}°C / {cl:F0}% / {cc:F0}MHz | GPU: {gt:F0}°C / {gl:F0}% / {gc:F0}MHz | RAM: {rl:F0}% ({ru:F1}/{rt:F1}GB) | Net↑{nu:F0}B/s ↓{nd:F0}B/s",
+            metrics.CpuTemp, metrics.CpuLoad, metrics.CpuClock,
+            metrics.GpuTemp, metrics.GpuLoad, metrics.GpuClock,
+            metrics.RamLoad, metrics.RamUsedGb, metrics.RamTotalGb,
+            metrics.NetworkUp, metrics.NetworkDown);
     }
 
     private void ReadHardware(IHardware hardware, HardwareMetrics metrics)
@@ -138,40 +180,99 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
 
         if (hardware.HardwareType == HardwareType.Cpu)
         {
-            metrics.CpuTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.CpuTemp)
-                           ?? GetFirstSensorValue(hardware, SensorType.Temperature)
-                           ?? 0;
+            _logger.LogDebug("[CPU] Processing '{hw}' (Type: {t})", hardware.Name, hardware.HardwareType);
 
-            if (metrics.CpuLoad == 0)
-                metrics.CpuLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.CpuLoad)
-                               ?? GetFirstSensorValue(hardware, SensorType.Load)
-                               ?? 0;
-
-            if (metrics.CpuClock == 0)
-                metrics.CpuClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.CpuClock)
-                                ?? GetFirstSensorValue(hardware, SensorType.Clock)
-                                ?? 0;
-
-            // WMI fallback: when WinRing0 driver is blocked by Windows Defender
-            // (HP/Dell/Lenovo laptops with firmware security policy), LHM sensor
-            // values stay null/0. WMI reads the same ACPI data Core Temp uses.
-            if (metrics.CpuTemp == 0)
+            // ── CPU Temperature ──
+            // For Zen 4 (Ryzen 7000): LHM exposes 'Core (Tctl/Tdie)' and per-core temps.
+            // Scan ALL temperature sensors to find the first non-zero reading (handles Zen 4 naming).
+            var lhmTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.CpuTemp);
+            
+            if (!lhmTemp.HasValue || lhmTemp.Value <= 0)
             {
-                var wmiTemp = WmiSensorService.GetCpuTemperatureCelsius(_logger);
-                if (wmiTemp.HasValue && wmiTemp.Value > 0)
+                // Try all temperature sensors and pick the first non-zero value
+                var fallbackTemp = hardware.Sensors
+                    .Where(s => s.SensorType == SensorType.Temperature && s.Value.HasValue && s.Value.Value > 0)
+                    .OrderBy(s => (s.Name.Contains("Tctl") || s.Name.Contains("Tdie")) ? 0 : 1) // Prefer Tctl/Tdie on AMD
+                    .FirstOrDefault();
+
+                if (fallbackTemp != null)
                 {
-                    _logger.LogDebug("[WMI Fallback] Using WMI temp = {t:F1}°C", wmiTemp.Value);
-                    metrics.CpuTemp = wmiTemp.Value;
+                    lhmTemp = fallbackTemp.Value;
+                    _logger.LogDebug("[CPU] Temp resolved via fallback sensor '{n}': {v:F1}°C", fallbackTemp.Name, lhmTemp);
                 }
             }
 
+            if (lhmTemp.HasValue && lhmTemp.Value > 0)
+            {
+                metrics.CpuTemp = lhmTemp.Value;
+                _logger.LogDebug("[CPU] Temp resolved via LHM: {v:F1}°C", metrics.CpuTemp);
+            }
+            else
+            {
+                // Even if LHM returned 0, it might be that the sensor is just initialized. 
+                // Only try WMI if LHM returned nothing or we are consistently getting 0.
+                _logger.LogDebug("[CPU] LHM temp = {v} (zero/null). Trying WMI fallback...", lhmTemp);
+                var wmiTemp = WmiSensorService.GetCpuTemperatureCelsius(_logger);
+                if (wmiTemp.HasValue && wmiTemp.Value > 0)
+                {
+                    metrics.CpuTemp = wmiTemp.Value;
+                }
+                else if (lhmTemp.HasValue) 
+                {
+                    // If WMI also failed but LHM at least gave us 0, use 0 (don't override with null/prev)
+                    metrics.CpuTemp = 0;
+                }
+            }
+
+            // ── CPU Load ──
+            if (metrics.CpuLoad == 0)
+            {
+                var lhmLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.CpuLoad)
+                           ?? GetFirstSensorValue(hardware, SensorType.Load);
+                metrics.CpuLoad = lhmLoad ?? 0;
+                _logger.LogDebug("[CPU] Load = {v:F1}% (LHM)", metrics.CpuLoad);
+            }
+
+            // ── CPU Clock ──
             if (metrics.CpuClock == 0)
             {
-                var wmiClock = WmiSensorService.GetCpuClockMhz(_logger);
-                if (wmiClock.HasValue && wmiClock.Value > 0)
+                var lhmClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.CpuClock);
+                
+                if (!lhmClock.HasValue || lhmClock.Value <= 0)
+                    lhmClock = GetFirstSensorValue(hardware, SensorType.Clock);
+
+                if (lhmClock.HasValue && lhmClock.Value > 0)
                 {
-                    _logger.LogDebug("[WMI Fallback] Using WMI clock = {c:F0} MHz", wmiClock.Value);
-                    metrics.CpuClock = wmiClock.Value;
+                    metrics.CpuClock = lhmClock.Value;
+                    _logger.LogDebug("[CPU] Clock resolved via LHM: {v:F0} MHz", metrics.CpuClock);
+                }
+                else
+                {
+                    _logger.LogDebug("[CPU] LHM clock = {v} (zero/null). Trying WMI fallback...", lhmClock);
+                    
+                    // ── Fallback 1: WMI ProcessorInformation (most reliable, no warmup needed) ──
+                    var wmiClock = WmiSensorService.GetCpuClockMhz(_logger);
+                    if (wmiClock.HasValue && wmiClock.Value > 0)
+                    {
+                        metrics.CpuClock = wmiClock.Value;
+                    }
+                    else
+                    {
+                        // ── Fallback 2: PerformanceCounter (requires warmup — done at startup) ──
+                        try
+                        {
+                            float perfVal = _cpuClockCounter?.NextValue() ?? 0;
+                            if (perfVal > 0)
+                            {
+                                metrics.CpuClock = perfVal;
+                            }
+                            else if (lhmClock.HasValue)
+                            {
+                                metrics.CpuClock = lhmClock.Value; // Last resort: even if 0, keep it from LHM
+                            }
+                        }
+                        catch { }
+                    }
                 }
             }
         }
@@ -179,50 +280,89 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
               || hardware.HardwareType == HardwareType.GpuAmd
               || hardware.HardwareType == HardwareType.GpuIntel)
         {
+            _logger.LogDebug("[GPU] Processing '{hw}' (Type: {t})", hardware.Name, hardware.HardwareType);
+
+            // ── GPU Temperature ──
             if (metrics.GpuTemp == 0)
-                metrics.GpuTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.GpuTemp)
-                               ?? GetFirstSensorValue(hardware, SensorType.Temperature)
-                               ?? 0;
-
-            if (metrics.GpuLoad == 0)
-                metrics.GpuLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.GpuLoad)
-                               ?? GetFirstSensorValue(hardware, SensorType.Load)
-                               ?? 0;
-
-            if (metrics.GpuClock == 0)
-                metrics.GpuClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.GpuClock)
-                                ?? GetFirstSensorValue(hardware, SensorType.Clock)
-                                ?? 0;
-
-            // WMI fallback for Intel integrated GPU — WinRing0 doesn't work for
-            // Intel iGPU either. Use Windows GPU Performance Counters (Task Manager source)
-            // for load, and ACPI thermal zone max for temperature.
-            if (metrics.GpuLoad == 0)
             {
-                var wmiLoad = WmiSensorService.GetGpuLoadPercent(_logger);
-                if (wmiLoad.HasValue && wmiLoad.Value > 0)
+                var lhmTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.GpuTemp)
+                           ?? GetFirstSensorValue(hardware, SensorType.Temperature);
+                if (lhmTemp.HasValue && lhmTemp.Value > 0)
                 {
-                    _logger.LogDebug("[WMI Fallback] GPU load = {l:F1}%", wmiLoad.Value);
-                    metrics.GpuLoad = wmiLoad.Value;
+                    metrics.GpuTemp = lhmTemp.Value;
+                    _logger.LogDebug("[GPU] Temp resolved via LHM: {v:F1}°C", metrics.GpuTemp);
+                }
+                else
+                {
+                    _logger.LogDebug("[GPU] LHM temp = {v}. Trying WMI fallback...", lhmTemp);
+                    var wmiTemp = WmiSensorService.GetGpuTemperatureCelsius(_logger);
+                    if (wmiTemp.HasValue && wmiTemp.Value > 0)
+                    {
+                        metrics.GpuTemp = wmiTemp.Value;
+                        _logger.LogDebug("[GPU] Temp resolved via WMI: {v:F1}°C", metrics.GpuTemp);
+                    }
+                    else
+                    {
+                        _logger.LogWarning("[GPU] ⚠ ALL temp sources returned 0/null. GpuTemp will display as 0.");
+                        metrics.GpuTemp = 0;
+                    }
                 }
             }
 
-            if (metrics.GpuTemp == 0)
+            // ── GPU Load ──
+            if (metrics.GpuLoad == 0)
             {
-                var wmiTemp = WmiSensorService.GetGpuTemperatureCelsius(_logger);
-                if (wmiTemp.HasValue && wmiTemp.Value > 0)
+                var lhmLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.GpuLoad)
+                           ?? GetFirstSensorValue(hardware, SensorType.Load);
+                if (lhmLoad.HasValue && lhmLoad.Value > 0)
                 {
-                    _logger.LogDebug("[WMI Fallback] GPU temp = {t:F1}°C", wmiTemp.Value);
-                    metrics.GpuTemp = wmiTemp.Value;
+                    metrics.GpuLoad = lhmLoad.Value;
+                    _logger.LogDebug("[GPU] Load resolved via LHM: {v:F1}%", metrics.GpuLoad);
+                }
+                else
+                {
+                    _logger.LogDebug("[GPU] LHM load = {v}. Trying WMI fallback...", lhmLoad);
+                    var wmiLoad = WmiSensorService.GetGpuLoadPercent(_logger);
+                    if (wmiLoad.HasValue && wmiLoad.Value > 0)
+                    {
+                        metrics.GpuLoad = wmiLoad.Value;
+                        _logger.LogDebug("[GPU] Load resolved via WMI: {v:F1}%", metrics.GpuLoad);
+                    }
+                    else
+                    {
+                        _logger.LogDebug("[GPU] ⚠ All GPU load sources = 0 (GPU may be idle).");
+                    }
+                }
+            }
+
+            // ── GPU Clock ──
+            if (metrics.GpuClock == 0)
+            {
+                var lhmClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.GpuClock)
+                            ?? GetFirstSensorValue(hardware, SensorType.Clock);
+                if (lhmClock.HasValue && lhmClock.Value > 0)
+                {
+                    metrics.GpuClock = lhmClock.Value;
+                    _logger.LogDebug("[GPU] Clock resolved via LHM: {v:F0} MHz", metrics.GpuClock);
+                }
+                else
+                {
+                    _logger.LogDebug("[GPU] LHM clock = {v}. WMI GPU clock not available.", lhmClock);
+                    _logger.LogWarning("[GPU] ⚠ GpuClock will display as 0. LHM={l}. (WMI does not expose dGPU clock)", lhmClock);
                 }
             }
         }
-        else if (hardware.HardwareType == HardwareType.Memory)
+        else if (hardware.HardwareType == HardwareType.Memory || hardware.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase))
         {
-            metrics.RamLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.RamLoad) ?? 0;
+            var load = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.RamLoad) 
+                    ?? GetFirstSensorValue(hardware, SensorType.Load);
+            
+            if (load.HasValue) metrics.RamLoad = load.Value;
+
             metrics.RamUsedGb = GetSensorValue(hardware, SensorType.Data, Constants.SensorDataMemoryUsed) ?? 0;
             var available = GetSensorValue(hardware, SensorType.Data, Constants.SensorDataMemoryAvailable) ?? 0;
             metrics.RamTotalGb = metrics.RamUsedGb + available;
+            _logger.LogDebug("[RAM] Load={l:F1}% | Used={u:F2} GB / Total={t:F2} GB", metrics.RamLoad, metrics.RamUsedGb, metrics.RamTotalGb);
         }
         else if (hardware.HardwareType == HardwareType.Storage)
         {
@@ -238,6 +378,8 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
                 vendor = parts[0].ToUpper();
                 model = parts[1];
             }
+
+            _logger.LogDebug("[Storage] '{n}' | Load={l:F1}% | Used={u:F2} GB", hardware.Name, load, used);
 
             metrics.Drives.Add(new DriveMetrics
             {
@@ -256,13 +398,16 @@ public class HardwareMonitorService : BackgroundService, IHardwareMonitorService
             
             if (metrics.FanSpeed == 0)
                 metrics.FanSpeed = GetFirstSensorValue(hardware, SensorType.Fan) ?? 0;
+
+            _logger.LogDebug("[SuperIO] '{n}' | MBTemp={t:F1}°C | Fan={f:F0} RPM", hardware.Name, metrics.MotherboardTemp, metrics.FanSpeed);
         }
         else if (hardware.HardwareType == HardwareType.Network)
         {
-            metrics.NetworkUp += GetSensorValue(hardware, SensorType.Throughput, "Upload") ?? 0;
-            metrics.NetworkDown += GetSensorValue(hardware, SensorType.Throughput, "Download") ?? 0;
+            metrics.NetworkUp += GetSensorValue(hardware, SensorType.Throughput, Constants.NetUpload) ?? 0;
+            metrics.NetworkDown += GetSensorValue(hardware, SensorType.Throughput, Constants.NetDownload) ?? 0;
         }
     }
+
 
     private float? GetSensorValue(IHardware hardware, SensorType type, IEnumerable<string> names)
     {

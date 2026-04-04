@@ -1,0 +1,1477 @@
+<ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!-- Modular Components (Base Shapes) - Unified 100x100 Grid -->
+    <PathGeometry x:Key="BaseCloud" Figures="M 25,60 C 10,60 10,40 25,40 C 25,20 45,20 50,30 C 60,20 80,30 75,50 C 90,50 90,70 75,70 L 25,70 Z"/>
+    <Geometry x:Key="BaseSun">M 50,20 A 30,30 0 1 1 50,80 A 30,30 0 1 1 50,20 M 50,5 V 15 M 50,85 V 95 M 5,50 H 15 M 85,50 H 95 M 18,18 L 25,25 M 75,75 L 82,82 M 75,25 L 82,18 M 18,82 L 25,75</Geometry>
+    <Geometry x:Key="BaseMoon">M 50,20 A 30,30 0 1 1 50,80 A 40,40 0 0 0 50,20</Geometry>
+    <Geometry x:Key="BaseRainDrop">M 50,40 C 40,55 40,70 50,80 C 60,70 60,55 50,40</Geometry>
+    <Geometry x:Key="BaseRainSlash">M 45,40 L 35,60</Geometry>
+    <Geometry x:Key="BaseSnowflake">M 50,20 L 50,80 M 24,35 L 76,65 M 24,65 L 76,35 M 40,40 L 60,60 M 60,40 L 40,60</Geometry>
+    <Geometry x:Key="BaseSnowDot">M 48,48 A 4,4 0 1 1 48,40 A 4,4 0 1 1 48,48</Geometry>
+    <Geometry x:Key="BaseWindWavy">M 10,40 C 25,25 45,55 60,40 S 80,25 90,40 M 10,55 C 25,40 45,70 60,55 S 80,40 90,55</Geometry>
+    <Geometry x:Key="BaseLightning">M 55,10 L 35,45 L 55,45 L 45,90 L 65,40 L 45,40 Z</Geometry>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 1: CORE BASICS (1-10)                                           -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 1: Simple Cloud -->
+    <DrawingGroup x:Key="Icon_1_Cloud_Pure">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 2: Double Cloud -->
+    <DrawingGroup x:Key="Icon_2_Cloud_Double">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#DDE4E8" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 3: Pure Sun -->
+    <DrawingGroup x:Key="Icon_3_Sun_Pure">
+        <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+    </DrawingGroup>
+
+    <!-- Icon 4: Sun Low/Setting -->
+    <DrawingGroup x:Key="Icon_4_Sun_Low">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFA500" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 5: Pure Moon -->
+    <DrawingGroup x:Key="Icon_5_Moon_Pure">
+        <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+    </DrawingGroup>
+
+    <!-- Icon 6: Moon + Cloud (Night Partly Cloudy) -->
+    <DrawingGroup x:Key="Icon_6_Moon_Cloud">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.6" ScaleY="0.6" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 7: Sun + Cloud (Partly Cloudy) -->
+    <DrawingGroup x:Key="Icon_7_Sun_Cloud">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.6" ScaleY="0.6" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 8: Large Snowflake (Premium) -->
+    <DrawingGroup x:Key="Icon_8_Snowflake_Large">
+        <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+            <GeometryDrawing.Pen>
+                <Pen Brush="White" Thickness="4"/>
+            </GeometryDrawing.Pen>
+        </GeometryDrawing>
+    </DrawingGroup>
+
+    <!-- Icon 9: Double Cloud High Contrast -->
+    <DrawingGroup x:Key="Icon_9_Cloud_Overlay_L">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 10: Triple Cloud Ensemble -->
+    <DrawingGroup x:Key="Icon_10_Cloud_Triple">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-20" Y="-15"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#D1D8DB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="15" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 2: DAY RAIN VARIANTS (11-20)                                     -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 11: Cloud + Light Rain Slashes -->
+    <DrawingGroup x:Key="Icon_11_Cloud_Rain_Slashes_1">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="3"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="3"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 12: Cloud + Moderate Rain Slashes -->
+    <DrawingGroup x:Key="Icon_12_Cloud_Rain_Slashes_2">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="3"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="0" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="3"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="15" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="3"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 13: Cloud + Rain Drops (1) -->
+    <DrawingGroup x:Key="Icon_13_Cloud_Rain_Drop_1">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.25" ScaleY="0.25" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 14: Cloud + Rain Drops (4) -->
+    <DrawingGroup x:Key="Icon_14_Cloud_Rain_Drop_4">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-15" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-5" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="5" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 15: Cloud + Heavy Rain Ensemble -->
+    <DrawingGroup x:Key="Icon_15_Cloud_Rain_Heavy">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-5" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#DDE4E8" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-10" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="10" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 16: Sun + Cloud + Light Rain Slashes -->
+    <DrawingGroup x:Key="Icon_16_Sun_Cloud_Rain_Slashes">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-5" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 17: Sun + Cloud + Moderate Rain Slashes -->
+    <DrawingGroup x:Key="Icon_17_Sun_Cloud_Rain_Mod">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="0" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 18: Sun + Cloud + Drizzle -->
+    <DrawingGroup x:Key="Icon_18_Sun_Cloud_Drizzle">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 19: Sun + Cloud + Rain (4 drops) -->
+    <DrawingGroup x:Key="Icon_19_Sun_Cloud_Rain_4">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-10" Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="10" Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 20: Sun + Double Cloud + Heavy Rain -->
+    <DrawingGroup x:Key="Icon_20_Sun_Cloud_Heavy">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-5" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-12" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="0" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="12" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 3: NIGHT RAIN VARIANTS (21-30)                                   -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 21: Moon + Cloud + Light Rain Slashes -->
+    <DrawingGroup x:Key="Icon_21_Moon_Cloud_Rain_Slashes">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-5" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="2"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="2"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 22: Moon + Cloud + Moderate Rain Slashes -->
+    <DrawingGroup x:Key="Icon_22_Moon_Cloud_Rain_Mod">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="0" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 23: Moon + Cloud + Drizzle -->
+    <DrawingGroup x:Key="Icon_23_Moon_Cloud_Drizzle">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 24: Moon + Cloud + Rain (4 drops) -->
+    <DrawingGroup x:Key="Icon_24_Moon_Cloud_Rain_4">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-10" Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="10" Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 25: Moon + Double Cloud + Heavy Rain -->
+    <DrawingGroup x:Key="Icon_25_Moon_Cloud_Heavy">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-5" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-12" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.15" ScaleY="0.15" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="12" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 26: Double Cloud Ensemble + Rain Slashes -->
+    <DrawingGroup x:Key="Icon_26_DoubleCloud_Rain_Slashes">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-8" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="8" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 27: Double Cloud Ensemble + Moderate Rain -->
+    <DrawingGroup x:Key="Icon_27_DoubleCloud_Rain_Mod">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-12" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="0" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="12" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 28: Double Cloud + Rain Drop (1) -->
+    <DrawingGroup x:Key="Icon_28_DoubleCloud_Rain_1">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 29: Double Cloud + Rain Drops (4) -->
+    <DrawingGroup x:Key="Icon_29_DoubleCloud_Rain_4">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-12" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="12" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 30: Double Cloud Ensemble + Heavy Rain -->
+    <DrawingGroup x:Key="Icon_30_DoubleCloud_Rain_Heavy">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="-12"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#DDE4E8" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="-8"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-15" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="0" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseRainDrop}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 4: THUNDER & LIGHTNING VARIANTS (31-40)                          -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 31: Moon + Cloud + Lightning -->
+    <DrawingGroup x:Key="Icon_31_Moon_Cloud_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.4" ScaleY="0.4" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 32: Double Cloud + Lightning -->
+    <DrawingGroup x:Key="Icon_32_DoubleCloud_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.45" ScaleY="0.45" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 33: Multi-Cloud Ensemble + Lightning -->
+    <DrawingGroup x:Key="Icon_33_MultiCloud_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="-12"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#DDE4E8" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="-8"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.45" ScaleY="0.45" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 34: Moon + Double Cloud + Lightning -->
+    <DrawingGroup x:Key="Icon_34_Moon_DoubleCloud_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.4" ScaleY="0.4" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 35: Extreme Multi-Cloud Core Lightning -->
+    <DrawingGroup x:Key="Icon_35_System_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#DDE4E8" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="15" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="30"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 36: Sun + Cloud + Lightning -->
+    <DrawingGroup x:Key="Icon_36_Sun_Cloud_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.4" ScaleY="0.4" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 37: Sun + Double Cloud + Lightning -->
+    <DrawingGroup x:Key="Icon_37_Sun_DoubleCloud_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.4" ScaleY="0.4" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 38: Double Cloud High Contrast + Lightning -->
+    <DrawingGroup x:Key="Icon_38_HighContrast_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#CFD8DC" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.45" ScaleY="0.45" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 39: Sun + Ensemble Cloud + Lightning -->
+    <DrawingGroup x:Key="Icon_39_SunEnsemble_Lightning">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="-12"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#DDE4E8" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="-8"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.4" ScaleY="0.4" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 40: Extreme System Thunder Ensemble -->
+    <DrawingGroup x:Key="Icon_40_Extreme_Thunder">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-20" Y="-15"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#B0BEC5" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="15" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#CFD8DC" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="30"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 5: SNOW & ICE VARIANTS (41-50)                                   -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 41: Cloud + Light Snow Ensemble -->
+    <DrawingGroup x:Key="Icon_41_Cloud_Snow_Light">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 42: Cloud + Heavy Snow Stars -->
+    <DrawingGroup x:Key="Icon_42_Cloud_Snow_Heavy">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.25" ScaleY="0.25" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-15" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#ECF0F1" Thickness="1.5"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.25" ScaleY="0.25" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="0" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#ECF0F1" Thickness="1.5"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.25" ScaleY="0.25" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#ECF0F1" Thickness="1.5"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 43: Moon + Cloud + Light Snow -->
+    <DrawingGroup x:Key="Icon_43_Moon_Cloud_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-5" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 44: Moon + Double Cloud + Heavy Snow -->
+    <DrawingGroup x:Key="Icon_44_Moon_Double_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-8" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen><Pen Brush="#ECF0F1" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="8" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen><Pen Brush="#ECF0F1" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 45: Sun + Cloud + Light Snow -->
+    <DrawingGroup x:Key="Icon_45_Sun_Cloud_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <TranslateTransform X="-5" Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <TranslateTransform X="5" Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 46: Sun + Double Cloud + Heavy Snow -->
+    <DrawingGroup x:Key="Icon_46_Sun_Double_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-5"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-10" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen><Pen Brush="#ECF0F1" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.2" ScaleY="0.2" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="10" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen><Pen Brush="#ECF0F1" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 47: Double Cloud + Snow Ensemble -->
+    <DrawingGroup x:Key="Icon_47_DoubleCloud_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-12" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="12" Y="25"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 48: Multi-Cloud Ensemble + Heavy Snow -->
+    <DrawingGroup x:Key="Icon_48_MultiCloud_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="-12"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#DDE4E8" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="-8"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-15" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen><Pen Brush="#ECF0F1" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="0" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen><Pen Brush="#ECF0F1" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.18" ScaleY="0.18" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="15" Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen><Pen Brush="#ECF0F1" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 49: High Contrast Double Cloud + Snow -->
+    <DrawingGroup x:Key="Icon_49_HighContrast_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#CFD8DC" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="22"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#ECF0F1" Geometry="{StaticResource BaseSnowDot}"/>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 50: Extreme Snow System Ensemble -->
+    <DrawingGroup x:Key="Icon_50_Extreme_Snow">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-20" Y="-15"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#B0BEC5" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="15" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#CFD8DC" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.3" ScaleY="0.3" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="30"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseSnowflake}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#ECF0F1" Thickness="2"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- ==================================================================== -->
+    <!-- ROW 6: WIND & CUSTOM ENSEMBLES (51-60)                               -->
+    <!-- ==================================================================== -->
+
+    <!-- Icon 51: Wind Flow (Pure) -->
+    <DrawingGroup x:Key="Icon_51_Wind_Pure">
+        <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+            <GeometryDrawing.Pen><Pen Brush="#BDC3C7" Thickness="4"/></GeometryDrawing.Pen>
+        </GeometryDrawing>
+    </DrawingGroup>
+
+    <!-- Icon 52: Cloud + Wind Ensemble -->
+    <DrawingGroup x:Key="Icon_52_Cloud_Wind">
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.7" ScaleY="0.7" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#BDC3C7" Thickness="2"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 53: Double Cloud + Wind Ensemble -->
+    <DrawingGroup x:Key="Icon_53_DoubleCloud_Wind">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.7" ScaleY="0.7" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#BDC3C7" Thickness="2"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 54: Moon + Cloud + Wind Ensemble -->
+    <DrawingGroup x:Key="Icon_54_Moon_Cloud_Wind">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.6" ScaleY="0.6" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen><Pen Brush="#BDC3C7" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 55: Sun + Cloud + Wind Ensemble -->
+    <DrawingGroup x:Key="Icon_55_Sun_Cloud_Wind">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.6" ScaleY="0.6" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="22"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen><Pen Brush="#BDC3C7" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 56: Multiensemble Cloud + Wind Core -->
+    <DrawingGroup x:Key="Icon_56_Ensemble_Wind">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="-8"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.8" ScaleY="0.8" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="30"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen><Pen Brush="#BDC3C7" Thickness="3"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 57: Cloud Core Ensemble System -->
+    <DrawingGroup x:Key="Icon_57_System_Core">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-25" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#D1D8DB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="20" Y="-12"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#E1E8EB" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+    </DrawingGroup>
+
+    <!-- Icon 58: Sun + Cloud + Storm System (Rain + Wind) -->
+    <DrawingGroup x:Key="Icon_58_Sun_Storm">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#FFD700" Geometry="{StaticResource BaseSun}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen><Pen Brush="#BDC3C7" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 59: Moon + Cloud + Storm System (Rain + Wind) -->
+    <DrawingGroup x:Key="Icon_59_Moon_Storm">
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="20" Y="-15"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#3498DB" Geometry="{StaticResource BaseMoon}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="10" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen><Pen Brush="#3498DB" Thickness="2"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.5" ScaleY="0.5" CenterX="50" CenterY="50"/>
+                    <TranslateTransform Y="28"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen><Pen Brush="#BDC3C7" Thickness="1.5"/></GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+    <!-- Icon 60: Extreme Weather System (Multi Cloud + Lightning + Rain + Wind) -->
+    <DrawingGroup x:Key="Icon_60_Extreme_System">
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="-15" Y="-10"/></DrawingGroup.Transform>
+            <GeometryDrawing Brush="#B0BEC5" Geometry="{StaticResource BaseCloud}"/>
+        </DrawingGroup>
+        <GeometryDrawing Brush="White" Geometry="{StaticResource BaseCloud}"/>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.3" ScaleY="0.3" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="-15" Y="25"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Brush="#F1C40F" Geometry="{StaticResource BaseLightning}"/>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform><TranslateTransform X="5" Y="20"/></DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseRainSlash}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#3498DB" Thickness="2"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+        <DrawingGroup>
+            <DrawingGroup.Transform>
+                <TransformGroup>
+                    <ScaleTransform ScaleX="0.4" ScaleY="0.4" CenterX="50" CenterY="50"/>
+                    <TranslateTransform X="10" Y="30"/>
+                </TransformGroup>
+            </DrawingGroup.Transform>
+            <GeometryDrawing Geometry="{StaticResource BaseWindWavy}">
+                <GeometryDrawing.Pen>
+                    <Pen Brush="#BDC3C7" Thickness="2"/>
+                </GeometryDrawing.Pen>
+            </GeometryDrawing>
+        </DrawingGroup>
+    </DrawingGroup>
+
+</ResourceDictionary>

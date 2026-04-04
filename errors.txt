@@ -1,0 +1,7 @@
+﻿E:\Github Repos\PC-Stats-Monitor\SettingsWindow.xaml.cs(70,17): error CS0103: The name 'tabControl' does not exist in the current context [E:\Github Repos\PC-Stats-Monitor\PcStatsMonitor_z23t2nda_wpftmp.csproj]
+
+Build FAILED.
+    29 Warning(s)
+    1 Error(s)
+
+Time Elapsed 00:00:03.48

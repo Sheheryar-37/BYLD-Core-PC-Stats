@@ -2,26 +2,58 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using Microsoft.Win32.TaskScheduler;
 using PcStatsMonitor.Services;
 using System.Windows.Input;
 using System.Windows.Media;
 using System.Collections.ObjectModel;
 using System.Linq;
+using PcStatsMonitor.Models;
 
 namespace PcStatsMonitor;
 
 public partial class SettingsWindow : Window
 {
     private readonly IThemeService _themeService;
+    private readonly PluginManager? _pluginManager;
     private bool _isInitializing = true;
     public ObservableCollection<string> ActiveMonitors { get; set; } = new();
+    public ObservableCollection<string> ScreenRotationList { get; set; } = new();
+    public ObservableCollection<PluginToggle> PluginSettings { get; set; } = new();
 
-    public SettingsWindow(IThemeService themeService)
+    public class PluginToggle : System.ComponentModel.INotifyPropertyChanged
+    {
+        private string _name = "";
+        private bool _isEnabled;
+
+        public string Name 
+        { 
+            get => _name; 
+            set { _name = value; OnPropertyChanged(); } 
+        }
+        public bool IsEnabled 
+        { 
+            get => _isEnabled; 
+            set { _isEnabled = value; OnPropertyChanged(); } 
+        }
+
+        public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+        protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? name = null)
+        {
+            PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(name));
+        }
+    }
+
+    public SettingsWindow(IThemeService themeService, PluginManager? pluginManager = null)
     {
         InitializeComponent();
         _themeService = themeService;
+        _pluginManager = pluginManager;
         
         LstOrder.ItemsSource = ActiveMonitors;
+        LstScreenOrder.ItemsSource = ScreenRotationList;
+        ItemsPlugins.ItemsSource = PluginSettings;
+
         LoadCurrentSettings();
     }
 
@@ -30,17 +62,32 @@ public partial class SettingsWindow : Window
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
     }
 
+    public void JumpToSettingsTab(string tabHeaderName)
+    {
+        foreach (TabItem item in MainTabControl.Items)
+        {
+            if (item.Header?.ToString() == tabHeaderName)
+            {
+                MainTabControl.SelectedItem = item;
+                break;
+            }
+        }
+    }
+
     private void LoadCurrentSettings()
     {
         _isInitializing = true;
         var theme = _themeService.CurrentTheme;
+
+        // General
+        ChkLaunchOnStartup.IsChecked = theme.LaunchOnStartup;
 
         // Theme Colors
         BtnBgColor.Background = new BrushConverter().ConvertFromString(theme.BackgroundColor) as SolidColorBrush;
         BtnBgColor.Tag = theme.BackgroundColor;
         BtnFgColor.Background = new BrushConverter().ConvertFromString(theme.ForegroundColor) as SolidColorBrush;
         BtnFgColor.Tag = theme.ForegroundColor;
-        BtnAccentColor.Background = new BrushConverter().ConvertFromString(theme.AccentColor) as SolidColorBrush; // Actually AccentColor is used for glows, but let's assume it maps
+        BtnAccentColor.Background = new BrushConverter().ConvertFromString(theme.AccentColor) as SolidColorBrush;
         BtnAccentColor.Tag = theme.AccentColor;
         BtnTrackColor.Background = new BrushConverter().ConvertFromString(theme.TrackColor) as SolidColorBrush;
         BtnTrackColor.Tag = theme.TrackColor;
@@ -54,20 +101,126 @@ public partial class SettingsWindow : Window
         ChkMotherboard.IsChecked = theme.IsMotherboardEnabled;
         ChkNetwork.IsChecked = theme.IsNetworkEnabled;
 
-        ChkGaugesScreen.IsChecked = theme.DisplayMode == "Auto" || theme.DisplayMode == "Gauges";
-        ChkStorageScreen.IsChecked = theme.DisplayMode == "Auto" || theme.DisplayMode == "Storage";
+        // Gauges screen checkboxes
+        ChkGaugesScreen.IsChecked = theme.ShowGaugesScreen;
+        ChkStorageScreen.IsChecked = theme.ShowStorageScreen;
+        ChkClockScreen.IsChecked = theme.ShowClockScreen;
+        
+        // SYNC BOTH WEATHER CHECKBOXES (Layout tab and Weather tab)
+        ChkWeatherScreenLayout.IsChecked = theme.ShowWeatherScreen;
+        ChkShowWeather.IsChecked = theme.ShowWeatherScreen;
 
-        // Ordering List
+        // Plugins
+        PluginSettings.Clear();
+        if (_pluginManager != null)
+        {
+            foreach (var plugin in _pluginManager.LoadedPlugins)
+            {
+                bool isEnabled = theme.EnabledPlugins != null && theme.EnabledPlugins.Contains(plugin.Name);
+                PluginSettings.Add(new PluginToggle { Name = plugin.Name, IsEnabled = isEnabled });
+            }
+        }
+        else
+        {
+            // Fallback for design-time or if manager is missing
+            foreach (var pName in theme.EnabledPlugins ?? new List<string>())
+            {
+                PluginSettings.Add(new PluginToggle { Name = pName, IsEnabled = true });
+            }
+        }
+
+        // Gauges Ordering List
         ActiveMonitors.Clear();
         foreach (var m in theme.ActiveMonitorsOrder) ActiveMonitors.Add(m);
+
+        // Global Screen Rotation Sequence
+        ScreenRotationList.Clear();
+        if (theme.ScreenRotationOrder == null || theme.ScreenRotationOrder.Count == 0)
+        {
+            // Fallback default
+            theme.ScreenRotationOrder = new List<string> { "Gauges", "Storage" };
+            foreach(var p in theme.EnabledPlugins) theme.ScreenRotationOrder.Add(p);
+        }
+
+        foreach (var s in theme.ScreenRotationOrder) ScreenRotationList.Add(s);
 
         // Images
         TxtLogo.Text = theme.LogoPath;
         TxtBgImage.Text = theme.BackgroundImagePath;
+        SldOpacity.Value = theme.BackgroundOpacity;
+        
         // Transition Delay
         SldInterval.Value = theme.TransitionDelaySeconds;
+        ChkAutoRotate.IsChecked = (theme.DisplayMode == DisplayMode.Auto);
+
+        // Clock Settings
+        LoadClockSettings();
+
+        // Weather Settings
+        LoadWeatherSettings();
+
+        // License Settings
+        try
+        {
+            var licenseSvc = new LicenseService();
+            TxtMachineId.Text = licenseSvc.GetMachineId();
+            bool isLicenseValid = false;
+
+            if (System.IO.File.Exists("license.key"))
+            {
+                TxtLicenseKey.Text = System.IO.File.ReadAllText("license.key");
+                if (licenseSvc.CheckLicense(out string errorMessage))
+                {
+                    TxtLicenseStatus.Text = "Status: License Activated and Valid";
+                    TxtLicenseStatus.Foreground = new SolidColorBrush(Colors.MediumSeaGreen);
+                    isLicenseValid = true;
+                }
+                else
+                {
+                    TxtLicenseStatus.Text = $"Status: {errorMessage}";
+                    TxtLicenseStatus.Foreground = new SolidColorBrush(Color.FromRgb(230, 57, 70)); // #E63946
+                }
+            }
+
+            if (!isLicenseValid)
+            {
+                foreach (TabItem item in MainTabControl.Items)
+                {
+                    if (item.Header?.ToString() != "Registration")
+                    {
+                        item.Visibility = Visibility.Collapsed;
+                    }
+                }
+            }
+        }
+        catch { }
 
         _isInitializing = false;
+    }
+
+    private void LoadWeatherSettings()
+    {
+        var weather = _themeService.CurrentTheme.Weather ?? new WeatherConfig();
+        ChkShowWeather.IsChecked = _themeService.CurrentTheme.ShowWeatherScreen;
+        if (ChkWeatherGallery != null) ChkWeatherGallery.IsChecked = weather.ShowWeatherGallery;
+        TxtWeatherApiKey.Password = weather.ApiKey ?? "";
+        TxtWeatherCity.Text = weather.City ?? "";
+        if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = weather.City ?? "";
+        
+        SetColorButton(BtnWeatherGlowColor, weather.GlowColor ?? "#3b82f6");
+        SetComboItem(CmbWeatherUnits, weather.Units == "imperial" ? "Imperial (°F)" : "Metric (°C)");
+        SetComboItem(CmbWeatherTheme, weather.WeatherTheme ?? "Dark");
+        
+        string intervalText = weather.UpdateIntervalMinutes switch
+        {
+            1 => "1 Minute",
+            5 => "5 Minutes",
+            15 => "15 Minutes",
+            30 => "30 Minutes",
+            60 => "1 Hour",
+            _ => "15 Minutes" // Default
+        };
+        SetComboItem(CmbWeatherInterval, intervalText);
     }
 
     private void UpdateThemeObject()
@@ -88,12 +241,15 @@ public partial class SettingsWindow : Window
         theme.IsMotherboardEnabled = ChkMotherboard.IsChecked ?? false;
         theme.IsNetworkEnabled = ChkNetwork.IsChecked ?? false;
 
-        if (ChkGaugesScreen.IsChecked == true && ChkStorageScreen.IsChecked == true)
-            theme.DisplayMode = "Auto";
-        else if (ChkGaugesScreen.IsChecked == true)
-            theme.DisplayMode = "Gauges";
-        else
-            theme.DisplayMode = "Storage";
+        theme.ShowGaugesScreen = ChkGaugesScreen.IsChecked ?? true;
+        theme.ShowStorageScreen = ChkStorageScreen.IsChecked ?? true;
+        theme.ShowClockScreen = ChkClockScreen.IsChecked ?? true;
+        theme.ShowWeatherScreen = ChkWeatherScreenLayout.IsChecked ?? false;
+        if (theme.Weather == null) theme.Weather = new WeatherConfig();
+        theme.Weather.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
+
+        theme.EnabledPlugins = PluginSettings.Where(ps => ps.IsEnabled).Select(ps => ps.Name).ToList();
+        theme.ScreenRotationOrder = ScreenRotationList.ToList();
         
         theme.ActiveMonitorsOrder = ActiveMonitors.ToList();
 
@@ -101,8 +257,45 @@ public partial class SettingsWindow : Window
         theme.BackgroundImagePath = TxtBgImage.Text;
         theme.BackgroundOpacity = SldOpacity.Value;
         theme.TransitionDelaySeconds = (int)SldInterval.Value;
-
+        theme.DisplayMode = ChkAutoRotate.IsChecked == true ? DisplayMode.Auto : DisplayMode.Manual;
+        
+        if (theme.LaunchOnStartup != (ChkLaunchOnStartup.IsChecked == true))
+        {
+            theme.LaunchOnStartup = ChkLaunchOnStartup.IsChecked == true;
+            try { UpdateStartupTask(theme.LaunchOnStartup); } catch { }
+        }
+ 
+        SaveClockSettings();
+        SaveWeatherSettings();
+ 
+        // Persist to disk and update UI
+        _themeService.SaveTheme(true);
         _themeService.NotifyThemeUpdated();
+        UserActionLogger.LogAction("Updated global theme configuration.");
+    }
+
+    private void SaveWeatherSettings()
+    {
+        var theme = _themeService.CurrentTheme;
+        theme.Weather ??= new WeatherConfig();
+        var w = theme.Weather;
+
+        theme.ShowWeatherScreen = ChkShowWeather.IsChecked ?? false;
+        if (ChkWeatherGallery != null) w.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
+        w.ApiKey = TxtWeatherApiKey.Password;
+        w.City = TxtWeatherCity.Text;
+        if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = w.City;
+        
+        w.Units = (CmbWeatherUnits.SelectedItem as ComboBoxItem)?.Content?.ToString()?.Contains("°F") == true ? "imperial" : "metric";
+        w.WeatherTheme = (CmbWeatherTheme.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Dark";
+        
+        var intervalItem = CmbWeatherInterval.SelectedItem as ComboBoxItem;
+        if (intervalItem != null && int.TryParse(intervalItem.Tag?.ToString(), out int mins))
+        {
+            w.UpdateIntervalMinutes = mins;
+        }
+
+        w.GlowColor = BtnWeatherGlowColor.Tag?.ToString() ?? "#3b82f6";
     }
 
     private void BtnColorPick_Click(object sender, RoutedEventArgs e)
@@ -197,8 +390,8 @@ public partial class SettingsWindow : Window
         {
             var map = new System.Collections.Generic.Dictionary<string, string>
             {
-                { "ChkCpu", "CPU" }, { "ChkGpu", "GPU" }, { "ChkMemory", "RAM" },
-                { "ChkMotherboard", "MOTHERBOARD" }, { "ChkNetwork", "NETWORK" }
+                { "ChkCpu", Constants.GaugeCpu }, { "ChkGpu", Constants.GaugeGpu }, { "ChkMemory", Constants.GaugeRam },
+                { "ChkMotherboard", Constants.GaugeMotherboard }, { "ChkNetwork", Constants.GaugeNetwork }
             };
 
             if (map.TryGetValue(chk.Name, out var monitorName))
@@ -207,7 +400,7 @@ public partial class SettingsWindow : Window
                 {
                     if (ActiveMonitors.Count >= 3)
                     {
-                        MessageBox.Show(this, "Maximum of 3 monitors can be displayed at a time.", "Limit Reached", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Maximum of 3 monitors can be displayed at a time.", "Limit Reached");
                         _isInitializing = true;
                         chk.IsChecked = false;
                         _isInitializing = false;
@@ -227,18 +420,107 @@ public partial class SettingsWindow : Window
     private void OnScreenSettingChanged(object sender, RoutedEventArgs e)
     {
         if (_isInitializing) return;
+        if (!ValidateActiveScreenCount(sender)) return;
 
-        if (ChkGaugesScreen.IsChecked == false && ChkStorageScreen.IsChecked == false)
+        UpdateScreenRotationList();
+        UpdateThemeObject();
+    }
+
+    private bool ValidateActiveScreenCount(object sender)
+    {
+        int activeCount = (ChkGaugesScreen.IsChecked == true ? 1 : 0) + 
+                          (ChkStorageScreen.IsChecked == true ? 1 : 0) + 
+                          (ChkClockScreen.IsChecked == true ? 1 : 0) + 
+                          (ChkWeatherScreenLayout?.IsChecked == true || ChkShowWeather?.IsChecked == true ? 1 : 0) +
+                          (ChkWeatherGallery?.IsChecked == true ? 1 : 0) +
+                          PluginSettings.Count(ps => ps.IsEnabled);
+
+        if (activeCount == 0)
         {
-            MessageBox.Show(this, "At least one screen must be active.", "Requirement", MessageBoxButton.OK, MessageBoxImage.Information);
+            PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "At least one screen must be active.", "Requirement");
             _isInitializing = true;
-            if (sender == ChkGaugesScreen) ChkGaugesScreen.IsChecked = true;
-            else if (sender == ChkStorageScreen) ChkStorageScreen.IsChecked = true;
+            if (sender is CheckBox cb) cb.IsChecked = true;
             _isInitializing = false;
-            return;
+            return false;
+        }
+        return true;
+    }
+
+    private void OnPluginSettingChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+        
+        // Ensure the model is updated before we rebuild the list
+        if (sender is CheckBox cb && cb.DataContext is PluginToggle toggle)
+        {
+            // Temporarily store old value for rollback
+            bool oldVal = toggle.IsEnabled;
+            toggle.IsEnabled = cb.IsChecked ?? false;
+
+            if (!ValidateActiveScreenCount(sender))
+            {
+                toggle.IsEnabled = oldVal; // Rollback model too
+                return;
+            }
         }
 
+        UpdateScreenRotationList();
         UpdateThemeObject();
+    }
+
+    private void UpdateScreenRotationList()
+    {
+        // Add/Remove items from ScreenRotationList based on current checkboxes
+        // but preserve order if they already exist
+        var activeItems = new List<string>();
+        if (ChkGaugesScreen.IsChecked == true) activeItems.Add("Gauges");
+        if (ChkStorageScreen.IsChecked == true) activeItems.Add("Storage");
+        if (ChkClockScreen.IsChecked == true) activeItems.Add("Clock");
+        
+        // Check either checkbox (they should be synced anyway)
+        if ((ChkWeatherScreenLayout?.IsChecked == true) || (ChkShowWeather?.IsChecked == true)) 
+            activeItems.Add("Weather");
+            
+        if (ChkWeatherGallery != null && ChkWeatherGallery.IsChecked == true) activeItems.Add("Gallery");
+        foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
+
+        // 1. Remove items no longer active
+        for (int i = ScreenRotationList.Count - 1; i >= 0; i--)
+        {
+            if (!activeItems.Contains(ScreenRotationList[i])) ScreenRotationList.RemoveAt(i);
+        }
+
+        // 2. Add new active items 
+        foreach(var item in activeItems)
+        {
+            if (!ScreenRotationList.Contains(item)) ScreenRotationList.Add(item);
+        }
+    }
+
+    private void BtnMoveScreenUp_Click(object sender, RoutedEventArgs e)
+    {
+        int idx = LstScreenOrder.SelectedIndex;
+        if (idx > 0) 
+        {
+            var item = ScreenRotationList[idx];
+            ScreenRotationList.RemoveAt(idx);
+            ScreenRotationList.Insert(idx - 1, item);
+            LstScreenOrder.SelectedIndex = idx - 1;
+            UpdateThemeObject();
+        }
+    }
+
+    private void BtnMoveScreenDown_Click(object sender, RoutedEventArgs e)
+    {
+        int idx = LstScreenOrder.SelectedIndex;
+        if (idx >= 0 && idx < ScreenRotationList.Count - 1)
+        {
+            var item = ScreenRotationList[idx];
+            ScreenRotationList.RemoveAt(idx);
+            ScreenRotationList.Insert(idx + 1, item);
+            LstScreenOrder.SelectedIndex = idx + 1;
+            UpdateThemeObject();
+        }
     }
 
     private void SldOpacity_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => UpdateThemeObject();
@@ -263,8 +545,444 @@ public partial class SettingsWindow : Window
     {
         UpdateThemeObject();
         _themeService.SaveTheme(true);
-        MessageBox.Show(this, "Settings saved successfully!", "Saved", MessageBoxButton.OK, MessageBoxImage.Information);
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Settings saved successfully!", "Saved");
     }
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
+
+    // ── Clock Settings ─────────────────────────────────────────────────────────
+
+    private static readonly string[] FaceNames = { 
+        "Classic", "Neon", "Minimal", "Glow", "Bold", 
+        "Luxury", "Square", "Techno", "Roman", "Gold", 
+        "Dot", "Orbit", "Industrial", "Retro", "Futura",
+        "Square Minimal", "Square Luxury"
+    };
+    private string _selectedFace = "Classic";
+
+    private void LoadClockSettings()
+    {
+        var theme = _themeService.CurrentTheme;
+        theme.Clock ??= new ClockConfig();
+        var clk = theme.Clock;
+        _selectedFace = clk.FaceName ?? "Classic";
+
+        // Populate face selector cards
+        PnlFaces.Children.Clear();
+        foreach (var face in FaceNames)
+        {
+            bool isSelected = face == _selectedFace;
+            var card = new Border
+            {
+                Width = 100, Height = 100, CornerRadius = new CornerRadius(10),
+                Margin = new Thickness(0, 0, 10, 0),
+                Background = isSelected 
+                    ? new SolidColorBrush(Color.FromArgb(50, 59, 130, 246))
+                    : new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
+                BorderBrush = isSelected
+                    ? new SolidColorBrush(Color.FromArgb(200, 59, 130, 246))
+                    : new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
+                BorderThickness = new Thickness(isSelected ? 2 : 1),
+                Cursor = System.Windows.Input.Cursors.Hand,
+                Tag = face
+            };
+
+            var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
+            
+            // Visual Preview (Mini Clock)
+            var previewBox = new Viewbox { Width = 60, Height = 60, Margin = new Thickness(0,0,0,5) };
+            var previewClock = new PcStatsMonitor.Controls.BuiltInClockScreen();
+            var prevCfg = new ClockConfig { 
+                FaceName = face, ClockScale = 0.9,
+                HourHandColor = "#FFFFFF", MinuteHandColor = "#FFFFFF", SecondHandColor = "#3b82f6",
+                ClockFaceColor = "#1A1A1A",
+                ShowDigitalClock = false, ShowDate = false
+            };
+            previewClock.ApplyConfig(prevCfg, new ThemeConfig { BackgroundColor = "Transparent" });
+            previewBox.Child = previewClock;
+            stack.Children.Add(previewBox);
+
+            var label = new TextBlock
+            {
+                Text = face, HorizontalAlignment = HorizontalAlignment.Center,
+                Foreground = Brushes.White, Opacity = isSelected ? 1.0 : 0.7,
+                FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal,
+                FontSize = 11
+            };
+            stack.Children.Add(label);
+            card.Child = stack;
+
+            card.MouseLeftButtonDown += (s, _) =>
+            {
+                if (s is Border b && b.Tag is string faceName)
+                {
+                    _selectedFace = faceName;
+                    SaveClockSettings(); // Save the new selection
+                    LoadClockSettings(); // Re-render cards to show selection
+                    _themeService.NotifyThemeUpdated();
+                }
+            };
+            PnlFaces.Children.Add(card);
+        }
+
+        // Setup color buttons
+        SetColorButton(BtnClockHourColor,  clk.HourHandColor);
+        SetColorButton(BtnClockMinColor,   clk.MinuteHandColor);
+        SetColorButton(BtnClockSecColor,   clk.SecondHandColor);
+        SetColorButton(BtnClockFaceColor,  clk.ClockFaceColor);
+        SetColorButton(BtnDigitalColor,    clk.DigitalColor);
+        SetColorButton(BtnDateColor,       clk.DateColor);
+        SetColorButton(BtnClockBgColor,    clk.CustomBackgroundColor);
+
+        // Sliders
+        SldDigitalSize.Value = clk.DigitalFontSize;
+        SldDateSize.Value =    clk.DateFontSize;
+        SldClockBgOpacity.Value = clk.CustomBackgroundOpacity;
+
+        // Position labels
+        TxtClockScale.Text  = $"{clk.ClockScale:F1}x";
+        TxtClockX.Text      = ((int)clk.ClockOffsetX).ToString();
+        TxtClockY.Text      = ((int)clk.ClockOffsetY).ToString();
+        TxtDigitalX.Text    = ((int)clk.DigitalOffsetX).ToString();
+        TxtDigitalY.Text    = ((int)clk.DigitalOffsetY).ToString();
+        TxtDateX.Text       = ((int)clk.DateOffsetX).ToString();
+        TxtDateY.Text       = ((int)clk.DateOffsetY).ToString();
+
+        // ComboBoxes
+        SetComboItem(CmbDigitalFont,   clk.DigitalFontFamily);
+        SetComboItem(CmbDateFont,      clk.DateFontFamily);
+        SetComboItem(CmbDigitalFormat, clk.DigitalFormat);
+        SetComboItem(CmbDateFormat,    clk.DateFormat);
+
+        TxtClockBgImage.Text     = clk.CustomBackgroundImagePath ?? "";
+
+        // Marker Color
+        SetColorButton(BtnClockMarkerColor, clk.MarkerColor ?? "#888888");
+
+        // Glow
+        ChkClockShowGlow.IsChecked = clk.ShowGlow;
+        ChkClockShowOuterRing.IsChecked = clk.ShowOuterRing;
+        SetColorButton(BtnClockGlowColor, clk.GlowColor ?? "#3b82f6");
+        SldClockGlowWidth.Value = clk.GlowWidth;
+
+        // Motion
+        ChkClockMotion.IsChecked = clk.ContinuousMotion;
+    }
+
+    private void SaveClockSettings()
+    {
+        var theme = _themeService.CurrentTheme;
+        theme.Clock ??= new ClockConfig();
+        var clk = theme.Clock;
+
+        clk.FaceName           = _selectedFace;
+        clk.HourHandColor      = BtnClockHourColor.Tag?.ToString()  ?? clk.HourHandColor;
+        clk.MinuteHandColor    = BtnClockMinColor.Tag?.ToString()    ?? clk.MinuteHandColor;
+        clk.SecondHandColor    = BtnClockSecColor.Tag?.ToString()    ?? clk.SecondHandColor;
+        clk.ClockFaceColor     = BtnClockFaceColor.Tag?.ToString()   ?? clk.ClockFaceColor;
+        clk.DigitalColor       = BtnDigitalColor.Tag?.ToString()     ?? clk.DigitalColor;
+        clk.DateColor          = BtnDateColor.Tag?.ToString()        ?? clk.DateColor;
+        clk.CustomBackgroundColor = BtnClockBgColor.Tag?.ToString()  ?? clk.CustomBackgroundColor;
+
+        clk.DigitalFontSize    = SldDigitalSize.Value;
+        clk.DateFontSize       = SldDateSize.Value;
+        clk.CustomBackgroundOpacity = SldClockBgOpacity.Value;
+
+        clk.DigitalFontFamily  = (CmbDigitalFont.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? clk.DigitalFontFamily;
+        clk.DateFontFamily     = (CmbDateFont.SelectedItem    as ComboBoxItem)?.Content?.ToString() ?? clk.DateFontFamily;
+        clk.DigitalFormat      = (CmbDigitalFormat.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? clk.DigitalFormat;
+        clk.DateFormat         = (CmbDateFormat.SelectedItem   as ComboBoxItem)?.Content?.ToString() ?? clk.DateFormat;
+
+        clk.UseCustomBackground        = ChkClockCustomBg.IsChecked ?? false;
+        clk.ShowDigitalClock           = ChkShowDigital.IsChecked ?? true;
+        clk.ShowDate                  = ChkShowDate.IsChecked ?? true;
+        clk.CustomBackgroundImagePath  = TxtClockBgImage.Text;
+
+        clk.MarkerColor                = BtnClockMarkerColor.Tag?.ToString() ?? clk.MarkerColor;
+        clk.ShowGlow                   = ChkClockShowGlow.IsChecked ?? false;
+        clk.ShowOuterRing              = ChkClockShowOuterRing.IsChecked ?? true;
+        clk.GlowColor                  = BtnClockGlowColor.Tag?.ToString() ?? clk.GlowColor;
+        clk.GlowWidth                  = SldClockGlowWidth.Value;
+        clk.ContinuousMotion           = ChkClockMotion.IsChecked ?? false;
+    }
+
+    private void BtnClockColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var initialHex = btn.Tag?.ToString() ?? "#FFFFFF";
+        var picker = new ColorPickerWindow(initialHex) { Owner = this };
+        if (picker.ShowDialog() == true)
+        {
+            SetColorButton(btn, picker.SelectedHex);
+            SaveClockSettings();
+            _themeService.NotifyThemeUpdated();
+        }
+    }
+
+    private void BtnClockPos_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn) return;
+        var clk = _themeService.CurrentTheme.Clock!;
+        const double step = 5.0;
+        switch (btn.Name)
+        {
+            case "BtnClockScaleUp":   clk.ClockScale    = Math.Min(3.0, clk.ClockScale + 0.1); break;
+            case "BtnClockScaleDn":   clk.ClockScale    = Math.Max(0.3, clk.ClockScale - 0.1); break;
+            case "BtnClockLeft":      clk.ClockOffsetX -= step; break;
+            case "BtnClockRight":     clk.ClockOffsetX += step; break;
+            case "BtnClockUp":        clk.ClockOffsetY -= step; break;
+            case "BtnClockDown":      clk.ClockOffsetY += step; break;
+            case "BtnDigitalLeft":    clk.DigitalOffsetX -= step; break;
+            case "BtnDigitalRight":   clk.DigitalOffsetX += step; break;
+            case "BtnDigitalUp":      clk.DigitalOffsetY -= step; break;
+            case "BtnDigitalDown":    clk.DigitalOffsetY += step; break;
+            case "BtnDateLeft":       clk.DateOffsetX -= step; break;
+            case "BtnDateRight":      clk.DateOffsetX += step; break;
+            case "BtnDateUp":         clk.DateOffsetY -= step; break;
+            case "BtnDateDown":       clk.DateOffsetY += step; break;
+        }
+        TxtClockScale.Text = $"{clk.ClockScale:F1}x";
+        TxtClockX.Text     = ((int)clk.ClockOffsetX).ToString();
+        TxtClockY.Text     = ((int)clk.ClockOffsetY).ToString();
+        TxtDigitalX.Text   = ((int)clk.DigitalOffsetX).ToString();
+        TxtDigitalY.Text   = ((int)clk.DigitalOffsetY).ToString();
+        TxtDateX.Text      = ((int)clk.DateOffsetX).ToString();
+        TxtDateY.Text      = ((int)clk.DateOffsetY).ToString();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void OnClockSettingChanged(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+        bool customBg = ChkClockCustomBg.IsChecked ?? false;
+        PnlClockCustomBg.Visibility = customBg ? Visibility.Visible : Visibility.Collapsed;
+        TxtClockBgInfo.Visibility   = customBg ? Visibility.Collapsed : Visibility.Visible;
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void OnClockSettingChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void OnClockSettingChanged(object sender, System.Windows.RoutedPropertyChangedEventArgs<double> e)
+    {
+        if (_isInitializing) return;
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void BtnBrowseClockBg_Click(object sender, RoutedEventArgs e)
+    {
+        var dlg = new OpenFileDialog { Filter = "Image Files|*.png;*.jpg;*.jpeg" };
+        if (dlg.ShowDialog() == true) { TxtClockBgImage.Text = dlg.FileName; SaveClockSettings(); _themeService.NotifyThemeUpdated(); }
+    }
+
+    private void BtnClearClockBg_Click(object sender, RoutedEventArgs e)
+    {
+        TxtClockBgImage.Text = "";
+        SaveClockSettings();
+        _themeService.NotifyThemeUpdated();
+    }
+
+    private void ScrFaces_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is ScrollViewer scrollViewer)
+        {
+            if (e.Delta > 0) scrollViewer.LineLeft();
+            else scrollViewer.LineRight();
+            e.Handled = true;
+        }
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────────────────
+    private static void SetColorButton(Button btn, string hex)
+    {
+        try
+        {
+            btn.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+            btn.Tag = hex;
+        }
+        catch { btn.Tag = hex; }
+    }
+
+    private static void SetComboItem(ComboBox cmb, string value)
+    {
+        foreach (ComboBoxItem item in cmb.Items)
+        {
+            if (item.Content?.ToString()?.Equals(value, StringComparison.OrdinalIgnoreCase) == true)
+            {
+                cmb.SelectedItem = item;
+                return;
+            }
+        }
+        if (cmb.Items.Count > 0) cmb.SelectedIndex = 0;
+    }
+
+    private void OnWeatherSettingChanged(object sender, RoutedEventArgs e) 
+    {
+        if (_isInitializing) return;
+        
+        // Sync the two checkboxes if they exist
+        if (sender == ChkShowWeather && ChkWeatherScreenLayout != null) ChkWeatherScreenLayout.IsChecked = ChkShowWeather.IsChecked;
+        else if (sender == ChkWeatherScreenLayout && ChkShowWeather != null) ChkShowWeather.IsChecked = ChkWeatherScreenLayout.IsChecked;
+
+        // Validation for unchecking
+        if (!ValidateActiveScreenCount(sender)) return;
+
+        // Sync City textboxes
+        if (sender == TxtWeatherCity && TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = TxtWeatherCity.Text;
+        else if (sender == TxtWeatherCityLayout && TxtWeatherCity != null) TxtWeatherCity.Text = TxtWeatherCityLayout.Text;
+
+        UpdateScreenRotationList();
+        UpdateThemeObject();
+    }
+    private void OnWeatherSettingChanged(object sender, SelectionChangedEventArgs e) => UpdateThemeObject();
+    private void WeatherApiKey_PasswordChanged(object sender, RoutedEventArgs e) { /* Don't update theme on every keystroke for security/perf */ }
+    
+    private void BtnSaveWeatherKey_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateThemeObject();
+        _themeService.SaveTheme(true);
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "API Key saved.", "Weather");
+    }
+
+    private void BtnUpdateWeather_Click(object sender, RoutedEventArgs e)
+    {
+        UpdateThemeObject();
+        _themeService.NotifyThemeUpdated();
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Weather location updated.", "Weather");
+    }
+
+    // Weather City API Search Logic
+    private System.Windows.Threading.DispatcherTimer _citySearchTimer;
+
+    private void TxtWeatherCity_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter || e.Key == System.Windows.Input.Key.Up || e.Key == System.Windows.Input.Key.Down || e.Key == System.Windows.Input.Key.Escape) return;
+        
+        if (_citySearchTimer == null)
+        {
+            _citySearchTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _citySearchTimer.Tick += CitySearchTimer_Tick;
+        }
+        _citySearchTimer.Stop();
+        _citySearchTimer.Start();
+    }
+
+    private async void CitySearchTimer_Tick(object sender, EventArgs e)
+    {
+        _citySearchTimer.Stop();
+        string query = TxtWeatherCity.Text;
+        if (string.IsNullOrWhiteSpace(query) || query.Length < 3) return;
+        
+        string apiKey = TxtWeatherApiKey.Password;
+        if (string.IsNullOrWhiteSpace(apiKey)) return;
+
+        try
+        {
+            float limit = 5;
+            string url = $"https://api.openweathermap.org/geo/1.0/direct?q={Uri.EscapeDataString(query)}&limit={limit}&appid={apiKey}";
+            using var client = new System.Net.Http.HttpClient();
+            var response = await client.GetAsync(url);
+            if (response.IsSuccessStatusCode)
+            {
+                var json = await response.Content.ReadAsStringAsync();
+                var items = System.Text.Json.JsonSerializer.Deserialize<List<GeoCity>>(json);
+                if (items != null && items.Count > 0)
+                {
+                    var tb = TxtWeatherCity.Template.FindName("PART_EditableTextBox", TxtWeatherCity) as System.Windows.Controls.TextBox;
+                    int caret = tb?.CaretIndex ?? query.Length;
+                    
+                    TxtWeatherCity.ItemsSource = items;
+                    TxtWeatherCity.Text = query;
+                    
+                    if (tb != null) tb.CaretIndex = caret;
+                    
+                    TxtWeatherCity.IsDropDownOpen = true;
+                }
+            }
+        }
+        catch { }
+    }
+
+    private void BtnApplyLicense_Click(object sender, RoutedEventArgs e)
+    {
+        string rawKey = TxtLicenseKey.Text.Trim();
+        if (string.IsNullOrWhiteSpace(rawKey))
+        {
+            PcStatsMonitor.Controls.CustomMessageBox.ShowDialog(this, "Please paste a valid license key string first.", "Missing Key", MessageBoxButton.OK);
+            return;
+        }
+
+        System.IO.File.WriteAllText("license.key", rawKey);
+        
+        var licenseSvc = new LicenseService();
+        if (licenseSvc.CheckLicense(out string errorMessage))
+        {
+            TxtLicenseStatus.Text = "Status: License Activated and Valid";
+            TxtLicenseStatus.Foreground = new SolidColorBrush(Colors.MediumSeaGreen);
+            
+            foreach (TabItem item in MainTabControl.Items)
+            {
+                item.Visibility = Visibility.Visible;
+            }
+            
+            PcStatsMonitor.Controls.CustomMessageBox.ShowDialog(this, "Thank you! License strictly verified and activated.", "Success", MessageBoxButton.OK);
+        }
+        else
+        {
+            TxtLicenseStatus.Text = $"Status: {errorMessage}";
+            TxtLicenseStatus.Foreground = new SolidColorBrush(Color.FromRgb(230, 57, 70)); // #E63946
+            PcStatsMonitor.Controls.CustomMessageBox.ShowDialog(this, $"Verification Failed:\n{errorMessage}", "Invalid License", MessageBoxButton.OK);
+        }
+    }
+
+    public class GeoCity
+    {
+        public string name { get; set; }
+        public string state { get; set; }
+        public string country { get; set; }
+        public override string ToString() => string.IsNullOrWhiteSpace(state) ? $"{name}, {country}" : $"{name}, {state}, {country}";
+    }
+
+    private void UpdateStartupTask(bool enable)
+    {
+        string taskName = "BYLDCore_PCStatsMonitor_Startup";
+        string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+
+        if (string.IsNullOrEmpty(exePath)) return;
+
+        using (var ts = new TaskService())
+        {
+            if (enable)
+            {
+                TaskDefinition td = ts.NewTask();
+                td.RegistrationInfo.Description = "Starts BYLD Core (PC Stats Monitor) on User Logon with Highest Privileges";
+                td.Principal.RunLevel = TaskRunLevel.Highest;
+                
+                // Trigger at logon of the current user
+                td.Triggers.Add(new LogonTrigger { UserId = System.Security.Principal.WindowsIdentity.GetCurrent().Name });
+
+                // Action: Start the program
+                string workingDir = System.IO.Path.GetDirectoryName(exePath);
+                td.Actions.Add(new ExecAction(exePath, null, workingDir));
+
+                // Robust settings for background apps
+                td.Settings.DisallowStartIfOnBatteries = false;
+                td.Settings.StopIfGoingOnBatteries = false;
+                td.Settings.ExecutionTimeLimit = TimeSpan.Zero;
+                td.Settings.Priority = System.Diagnostics.ProcessPriorityClass.Normal;
+
+                ts.RootFolder.RegisterTaskDefinition(taskName, td);
+            }
+            else
+            {
+                ts.RootFolder.DeleteTask(taskName, false);
+            }
+        }
+    }
 }

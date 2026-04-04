@@ -2,23 +2,27 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net9.0-windows</TargetFramework>
+    <TargetFramework>net10.0-windows</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <ApplicationIcon>Assets\icon-black.ico</ApplicationIcon>
+    <ApplicationIcon>Assets\byld-icon.ico</ApplicationIcon>
+    <!-- Suppress NU1605: LHM pre-release has a lower transitive System.Management ref; our explicit pin wins -->
+    <NoWarn>$(NoWarn);NU1605</NoWarn>
+    <RollForward>Major</RollForward>
   </PropertyGroup>
 
   <ItemGroup>
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.6" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.7-pre656" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
+    <PackageReference Include="TaskScheduler" Version="2.11.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="System.Management" Version="10.0.3" />
+    <PackageReference Include="System.Management" Version="10.0.5" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\**" />
@@ -27,9 +31,29 @@
     </None>
   
   </ItemGroup>
-  <!-- Ensure WinRing0x64.sys is in the publish output directory -->
-  <Target Name="CopyWinRing0" AfterTargets="Build;Publish">
-    <Copy SourceFiles="$(MSBuildProjectDirectory)\WinRing0x64.sys" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" ContinueOnError="true" />
-  </Target>
+  <ItemGroup>
+    <Compile Remove="PcStatsMonitor.PluginApi\**" />
+    <Compile Remove="Tools\**" />
+    <EmbeddedResource Remove="PcStatsMonitor.PluginApi\**" />
+    <EmbeddedResource Remove="Tools\**" />
+    <None Remove="PcStatsMonitor.PluginApi\**" />
+    <None Remove="Tools\**" />
+    <Page Remove="PcStatsMonitor.PluginApi\**" />
+    <Page Remove="Tools\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="PcStatsMonitor.PluginApi\PcStatsMonitor.PluginApi.csproj" />
+  </ItemGroup>
+
+  <!-- Ensure WinRing0x64.sys is correctly copied to Build and Publish directories -->
+  <ItemGroup>
+    <None Remove="WinRing0x64.sys" />
+    <Content Include="WinRing0x64.sys">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+    </Content>
+  </ItemGroup>
 
 </Project>

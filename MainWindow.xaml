@@ -35,9 +35,19 @@
                    Grid.ColumnSpan="2" />
 
             <!-- Container for everything Gauges-related -->
-            <Grid x:Name="GaugesContainer" Grid.ColumnSpan="2">
-                <!-- Top Logo Area. The client image has the logo ABOVE the gauges. -->
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
+            <Grid x:Name="GaugesContainer" Grid.ColumnSpan="2" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <!-- Top Logo Area. Uses an OpacityMask to tint the logo (White in Dark mode, Black in Light mode) -->
+                <Grid x:Name="LogoGrid" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
+                    <Image x:Name="LogoImage" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImage, Path=ActualWidth}" Height="{Binding ElementName=LogoImage, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImage, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
 
                 <!-- Screen 1: Gauges. Replaced rigid StackPanel with a dynamic ItemsControl -->
                 <Viewbox MaxHeight="620" VerticalAlignment="Top" Margin="0,100,0,0" StretchDirection="DownOnly">
@@ -159,9 +169,9 @@
                                                             <DataTemplate>
                                                                 <Border Width="192" Height="60" Margin="0,0,0,20" CornerRadius="12" Background="#11FFFFFF" Visibility="{Binding DataContext.Theme.IsNetworkEnabled, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVis}}">
                                                                     <Grid Margin="15,0">
-                                                                        <TextBlock Text="NETWORK UP/DOWN" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#DCDCDC'}" Opacity="0.5" FontSize="9" FontWeight="SemiBold" VerticalAlignment="Top" Margin="0,8,0,0"/>
-                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkDown, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=DL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="12" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,10"/>
-                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkUp, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=UL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="12" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,10"/>
+                                                                        <TextBlock Text="NETWORK UP/DOWN" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#DCDCDC'}" Opacity="0.8" FontSize="11" FontWeight="Bold" VerticalAlignment="Top" Margin="0,8,0,0"/>
+                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkDown, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=DL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="14" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Left" Margin="0,0,0,10"/>
+                                                                        <TextBlock Text="{Binding DataContext.Metrics.NetworkUp, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat=UL: {0:0.0} B/s}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#FFFFFF'}" FontSize="14" FontWeight="Bold" VerticalAlignment="Bottom" HorizontalAlignment="Right" Margin="0,0,0,10"/>
                                                                     </Grid>
                                                                 </Border>
                                                             </DataTemplate>
@@ -177,19 +187,24 @@
                     </ItemsControl>
                 </Viewbox>
 
+
+
                 <!-- Bottom text metrics -->
                 <Grid VerticalAlignment="Bottom" Margin="30,0,30,30">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*" />
                         <ColumnDefinition Width="*" />
                     </Grid.ColumnDefinitions>
-                    <TextBlock Grid.Column="0" Text="{Binding Metrics.CpuClock, StringFormat=CPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.6" FontSize="11" FontWeight="{Binding Theme.FontWeight, FallbackValue=Normal}" HorizontalAlignment="Left" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
-                    <TextBlock Grid.Column="1" Text="{Binding Metrics.GpuClock, StringFormat=GPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.6" FontSize="11" FontWeight="{Binding Theme.FontWeight, FallbackValue=Normal}" HorizontalAlignment="Right" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
+                    <TextBlock Grid.Column="0" Text="{Binding Metrics.CpuClock, StringFormat=CPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.85" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
+                    <TextBlock Grid.Column="1" Text="{Binding Metrics.GpuClock, StringFormat=GPU CLOCK: {0:0} MHz}" Foreground="{Binding Theme.ForegroundColor, FallbackValue=#FFFFFF}" Opacity="0.85" FontSize="13" FontWeight="Bold" HorizontalAlignment="Right" FontFamily="{Binding Theme.FontFamily, FallbackValue='Segoe UI'}" />
                 </Grid>
             </Grid>
 
             <!-- Screen 2: SSDs. Constrain in a fixed grid area preserving equal gap top and bottom -->
-            <Grid x:Name="SsdScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0">
+            <Grid x:Name="SsdScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
                 <!-- TOP LOGO Area (Same as Gauges) -->
                 <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
 
@@ -273,6 +288,63 @@
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>
             </Grid>
+
+            <!-- Screen 3: Hero Plugin Screen. Shows one plugin at a time in rotation. -->
+            <Grid x:Name="PluginScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
+                
+                <ContentControl x:Name="PluginHost" Margin="0,100,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
+            </Grid>
+
+            <!-- Screen 4: Built-in Clock Screen -->
+            <Grid x:Name="ClockScreen" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <controls:BuiltInClockScreen x:Name="BuiltInClock"/>
+            </Grid>
+
+            <!-- Screen 5: Weather Screen -->
+            <Grid x:Name="WeatherScreenArea" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <controls:WeatherScreen x:Name="WeatherCtrl"/>
+            </Grid>
+
+            <!-- Screen 6: Internal Weather Gallery (Debug Only) -->
+            <Grid x:Name="WeatherGalleryArea" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <!-- No logo for gallery to maximize icon viewing area -->
+                <controls:WeatherGallery x:Name="WeatherGalleryCtrl"/>
+            </Grid>
+
+        <!-- License Missing / Invalid Overlay (Always on Top) -->
+            <Grid x:Name="UnlicensedGrid" Grid.ColumnSpan="2" Panel.ZIndex="100" Visibility="Collapsed" Background="#F00A0A0A">
+                <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
+                    <TextBlock Text="⚠️" FontSize="60" Foreground="#E63946" HorizontalAlignment="Center" Margin="0,0,0,10"/>
+                    <TextBlock Text="LICENSE INVALID" FontSize="28" FontWeight="Bold" Foreground="#E63946" HorizontalAlignment="Center" FontFamily="{Binding Theme.FontFamily, FallbackValue=Segoe UI}"/>
+                    <TextBox x:Name="TxtLicenseError" Text="License key not found or expired." FontSize="14" Opacity="0.8" Foreground="White" Background="Transparent" BorderThickness="0" IsReadOnly="True" HorizontalAlignment="Center" TextAlignment="Center" TextWrapping="Wrap" Margin="30,10,30,20"/>
+                    
+                    <Button Content="Open Registration Settings" Width="200" Height="40" Background="#3b82f6" Foreground="White" BorderThickness="0" Cursor="Hand" Click="BtnOpenSettings_Click">
+                        <Button.Template>
+                            <ControlTemplate TargetType="Button">
+                                <Border Background="{TemplateBinding Background}" CornerRadius="6">
+                                    <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Border>
+                            </ControlTemplate>
+                        </Button.Template>
+                    </Button>
+                </StackPanel>
+            </Grid>
+
         </Grid>
     </Viewbox>
 </Window>

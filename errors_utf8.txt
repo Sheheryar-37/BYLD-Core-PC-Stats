@@ -1,0 +1,10 @@
+﻿E:\Github Repos\PC-Stats-Monitor\MainWindow.xaml.cs(516,49): error CS1503: Argument 1: cannot convert from 'PcStatsMonitor.ViewModels.MainViewModel' to 'PcStatsMonitor.Services.IThemeService' [E:\Github Repos\PC-Stats-Monitor\PcStatsMonitor_zw3weabq_wpftmp.csproj]
+E:\Github Repos\PC-Stats-Monitor\Services\LicenseService.cs(75,70): error CS1503: Argument 2: cannot convert from 'System.Security.Cryptography.HashAlgorithmName' to 'byte[]' [E:\Github Repos\PC-Stats-Monitor\PcStatsMonitor_zw3weabq_wpftmp.csproj]
+E:\Github Repos\PC-Stats-Monitor\Services\LicenseService.cs(75,96): error CS1503: Argument 3: cannot convert from 'System.Security.Cryptography.RSASignaturePadding' to 'System.Security.Cryptography.HashAlgorithmName' [E:\Github Repos\PC-Stats-Monitor\PcStatsMonitor_zw3weabq_wpftmp.csproj]
+E:\Github Repos\PC-Stats-Monitor\Services\LicenseService.cs(75,123): error CS1503: Argument 4: cannot convert from 'byte[]' to 'System.Security.Cryptography.RSASignaturePadding' [E:\Github Repos\PC-Stats-Monitor\PcStatsMonitor_zw3weabq_wpftmp.csproj]
+
+Build FAILED.
+    29 Warning(s)
+    4 Error(s)
+
+Time Elapsed 00:00:02.48

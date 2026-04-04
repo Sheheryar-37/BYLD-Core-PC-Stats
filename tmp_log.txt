@@ -1,0 +1,6 @@
+﻿e4f91fb feat: 100ms polling, smooth gauge animations, DPI-aware display snapping, enhanced sensor logging
+Controls/CircularGauge.xaml.cs
+Controls/DualCircularGauge.xaml.cs
+MainWindow.xaml.cs
+PcStatsMonitor.csproj
+Services/HardwareMonitorService.cs
