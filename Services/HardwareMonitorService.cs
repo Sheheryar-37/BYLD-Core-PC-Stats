@@ -186,15 +186,22 @@ public interface IHardwareMonitorService
             // For Zen 4 (Ryzen 7000): LHM exposes 'Core (Tctl/Tdie)' and per-core temps.
             // Scan ALL temperature sensors to find the first non-zero reading (handles Zen 4 naming).
             var lhmTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.CpuTemp);
+            
             if (!lhmTemp.HasValue || lhmTemp.Value <= 0)
             {
                 // Try all temperature sensors and pick the first non-zero value
-                lhmTemp = hardware.Sensors
+                var fallbackTemp = hardware.Sensors
                     .Where(s => s.SensorType == SensorType.Temperature && s.Value.HasValue && s.Value.Value > 0)
-                    .OrderBy(s => s.Name.Contains("Tctl") || s.Name.Contains("Tdie") ? 0 : 1) // Prefer Tctl/Tdie on AMD
-                    .Select(s => s.Value)
+                    .OrderBy(s => (s.Name.Contains("Tctl") || s.Name.Contains("Tdie")) ? 0 : 1) // Prefer Tctl/Tdie on AMD
                     .FirstOrDefault();
+
+                if (fallbackTemp != null)
+                {
+                    lhmTemp = fallbackTemp.Value;
+                    _logger.LogDebug("[CPU] Temp resolved via fallback sensor '{n}': {v:F1}°C", fallbackTemp.Name, lhmTemp);
+                }
             }
+
             if (lhmTemp.HasValue && lhmTemp.Value > 0)
             {
                 metrics.CpuTemp = lhmTemp.Value;
@@ -202,16 +209,17 @@ public interface IHardwareMonitorService
             }
             else
             {
+                // Even if LHM returned 0, it might be that the sensor is just initialized. 
+                // Only try WMI if LHM returned nothing or we are consistently getting 0.
                 _logger.LogDebug("[CPU] LHM temp = {v} (zero/null). Trying WMI fallback...", lhmTemp);
                 var wmiTemp = WmiSensorService.GetCpuTemperatureCelsius(_logger);
                 if (wmiTemp.HasValue && wmiTemp.Value > 0)
                 {
                     metrics.CpuTemp = wmiTemp.Value;
-                    _logger.LogDebug("[CPU] Temp resolved via WMI ACPI: {v:F1}°C", metrics.CpuTemp);
                 }
-                else
+                else if (lhmTemp.HasValue) 
                 {
-                    _logger.LogWarning("[CPU] ⚠ ALL temp sources returned 0/null. CpuTemp will display as 0. LHM={l}, WMI={w}", lhmTemp, wmiTemp);
+                    // If WMI also failed but LHM at least gave us 0, use 0 (don't override with null/prev)
                     metrics.CpuTemp = 0;
                 }
             }
@@ -228,8 +236,11 @@ public interface IHardwareMonitorService
             // ── CPU Clock ──
             if (metrics.CpuClock == 0)
             {
-                var lhmClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.CpuClock)
-                            ?? GetFirstSensorValue(hardware, SensorType.Clock);
+                var lhmClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.CpuClock);
+                
+                if (!lhmClock.HasValue || lhmClock.Value <= 0)
+                    lhmClock = GetFirstSensorValue(hardware, SensorType.Clock);
+
                 if (lhmClock.HasValue && lhmClock.Value > 0)
                 {
                     metrics.CpuClock = lhmClock.Value;
@@ -237,14 +248,13 @@ public interface IHardwareMonitorService
                 }
                 else
                 {
-                    _logger.LogDebug("[CPU] LHM clock = {v} (zero/null). Trying fallbacks...", lhmClock);
+                    _logger.LogDebug("[CPU] LHM clock = {v} (zero/null). Trying WMI fallback...", lhmClock);
                     
                     // ── Fallback 1: WMI ProcessorInformation (most reliable, no warmup needed) ──
                     var wmiClock = WmiSensorService.GetCpuClockMhz(_logger);
                     if (wmiClock.HasValue && wmiClock.Value > 0)
                     {
                         metrics.CpuClock = wmiClock.Value;
-                        _logger.LogDebug("[CPU] Clock resolved via WMI: {v:F0} MHz", metrics.CpuClock);
                     }
                     else
                     {
@@ -255,17 +265,13 @@ public interface IHardwareMonitorService
                             if (perfVal > 0)
                             {
                                 metrics.CpuClock = perfVal;
-                                _logger.LogDebug("[CPU] Clock resolved via PerformanceCounter: {v:F0} MHz", metrics.CpuClock);
                             }
-                            else
+                            else if (lhmClock.HasValue)
                             {
-                                _logger.LogWarning("[CPU] ⚠ ALL clock sources returned 0/null. LHM={l}, WMI={w}, PerfCounter={p}", lhmClock, wmiClock, perfVal);
+                                metrics.CpuClock = lhmClock.Value; // Last resort: even if 0, keep it from LHM
                             }
                         }
-                        catch (Exception ex)
-                        {
-                            _logger.LogWarning(ex, "[CPU] ⚠ PerformanceCounter failed. All CPU clock sources exhausted.");
-                        }
+                        catch { }
                     }
                 }
             }

@@ -12,6 +12,7 @@ public class ThemeConfig
     public string AccentColor { get; set; } = Constants.DefaultThemeAccent;
     public string TrackColor { get; set; } = Constants.DefaultThemeTrack;
     public string AlertColor { get; set; } = Constants.DefaultThemeAlert;
+    public bool LaunchOnStartup { get; set; } = false;
 
     // ── Branding ─────────────────────────────────────────────────────────────
     public string LogoPath { get; set; } = Constants.DefaultLogoPath;

@@ -31,27 +31,30 @@ public class ThemeService : IThemeService
 
     public void ReloadTheme()
     {
-        try
+        if (File.Exists(_themePath))
         {
-            if (File.Exists(_themePath))
+            try
             {
                 var json = File.ReadAllText(_themePath);
-                var config = JsonSerializer.Deserialize<ThemeConfig>(json);
+                // Allow string enum values (e.g. "Auto") from older theme.json files
+                var opts = new JsonSerializerOptions { Converters = { new System.Text.Json.Serialization.JsonStringEnumConverter() } };
+                var config = JsonSerializer.Deserialize<ThemeConfig>(json, opts);
                 if (config != null)
                 {
                     CurrentTheme = config;
                     NotifyThemeUpdated();
+                    return;
                 }
             }
-            else
+            catch (Exception ex)
             {
-                SaveTheme(true);
+                _logger.LogWarning(ex, "[Theme] Failed to parse theme.json — resetting to defaults and overwriting.");
             }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to load theme.json");
-        }
+
+        // Either file doesn't exist, or it was corrupt: reset to defaults and write fresh file.
+        CurrentTheme = new ThemeConfig();
+        SaveTheme(true);
     }
 
     public void SaveTheme(bool writeToDisk = true)

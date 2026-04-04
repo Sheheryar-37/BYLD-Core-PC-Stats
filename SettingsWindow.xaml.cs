@@ -2,6 +2,7 @@ using System;
 using System.Windows;
 using System.Windows.Controls;
 using Microsoft.Win32;
+using Microsoft.Win32.TaskScheduler;
 using PcStatsMonitor.Services;
 using System.Windows.Input;
 using System.Windows.Media;
@@ -77,6 +78,9 @@ public partial class SettingsWindow : Window
     {
         _isInitializing = true;
         var theme = _themeService.CurrentTheme;
+
+        // General
+        ChkLaunchOnStartup.IsChecked = theme.LaunchOnStartup;
 
         // Theme Colors
         BtnBgColor.Background = new BrushConverter().ConvertFromString(theme.BackgroundColor) as SolidColorBrush;
@@ -254,6 +258,12 @@ public partial class SettingsWindow : Window
         theme.BackgroundOpacity = SldOpacity.Value;
         theme.TransitionDelaySeconds = (int)SldInterval.Value;
         theme.DisplayMode = ChkAutoRotate.IsChecked == true ? DisplayMode.Auto : DisplayMode.Manual;
+        
+        if (theme.LaunchOnStartup != (ChkLaunchOnStartup.IsChecked == true))
+        {
+            theme.LaunchOnStartup = ChkLaunchOnStartup.IsChecked == true;
+            try { UpdateStartupTask(theme.LaunchOnStartup); } catch { }
+        }
  
         SaveClockSettings();
         SaveWeatherSettings();
@@ -937,5 +947,42 @@ public partial class SettingsWindow : Window
         public string state { get; set; }
         public string country { get; set; }
         public override string ToString() => string.IsNullOrWhiteSpace(state) ? $"{name}, {country}" : $"{name}, {state}, {country}";
+    }
+
+    private void UpdateStartupTask(bool enable)
+    {
+        string taskName = "BYLDCore_PCStatsMonitor_Startup";
+        string exePath = System.Diagnostics.Process.GetCurrentProcess().MainModule?.FileName;
+
+        if (string.IsNullOrEmpty(exePath)) return;
+
+        using (var ts = new TaskService())
+        {
+            if (enable)
+            {
+                TaskDefinition td = ts.NewTask();
+                td.RegistrationInfo.Description = "Starts BYLD Core (PC Stats Monitor) on User Logon with Highest Privileges";
+                td.Principal.RunLevel = TaskRunLevel.Highest;
+                
+                // Trigger at logon of the current user
+                td.Triggers.Add(new LogonTrigger { UserId = System.Security.Principal.WindowsIdentity.GetCurrent().Name });
+
+                // Action: Start the program
+                string workingDir = System.IO.Path.GetDirectoryName(exePath);
+                td.Actions.Add(new ExecAction(exePath, null, workingDir));
+
+                // Robust settings for background apps
+                td.Settings.DisallowStartIfOnBatteries = false;
+                td.Settings.StopIfGoingOnBatteries = false;
+                td.Settings.ExecutionTimeLimit = TimeSpan.Zero;
+                td.Settings.Priority = System.Diagnostics.ProcessPriorityClass.Normal;
+
+                ts.RootFolder.RegisterTaskDefinition(taskName, td);
+            }
+            else
+            {
+                ts.RootFolder.DeleteTask(taskName, false);
+            }
+        }
     }
 }

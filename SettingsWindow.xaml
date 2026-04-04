@@ -315,6 +315,19 @@
             </Grid>
 
             <TabControl x:Name="MainTabControl" Grid.Row="1">
+                <!-- GENERAL SETTINGS -->
+                <TabItem Header="General">
+                    <StackPanel Margin="5,10">
+                        <Border Style="{StaticResource SectionBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="SYSTEM SETTINGS" Style="{StaticResource SectionHeaderStyle}"/>
+                                <CheckBox x:Name="ChkLaunchOnStartup" Content="Launch BYLD Core on Startup" Click="OnSettingChanged" Margin="0,0,0,10" ToolTip="Opens the app automatically when you log into Windows (runs as Admin via Task Scheduler)."/>
+                                <TextBlock Text="Note: This will create a Windows Scheduled Task with highest privileges to bypass the UAC popup." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="25,0,0,10" FontStyle="Italic"/>
+                            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </TabItem>
+
                 <!-- THEME AND COLORS -->
                 <TabItem Header="Colors">
                     <StackPanel Margin="5,10">

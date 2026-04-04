@@ -54,8 +54,20 @@ public partial class App : Application
     }
 
     protected override async void OnStartup(StartupEventArgs e)
-
     {
+        // ── Mandatory Administrator Check ──
+        if (!IsRunAsAdmin())
+        {
+            MessageBox.Show(
+                "BYLD Core requires Administrator privileges to access hardware sensors (CPU Temp, Clock, etc.).\n\nPlease close the app and 'Run as Administrator'.", 
+                "Elevation Required", 
+                MessageBoxButton.OK, 
+                MessageBoxImage.Warning);
+            
+            // We don't shutdown here to allow the user to at least see the UI, 
+            // but the warning explains why it's empty.
+        }
+
         // Install the WinRing0x64 kernel driver BEFORE the host starts so that
         // LibreHardwareMonitor can read CPU temperature and clock via MSR on first run.
         var startupLogger = _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
@@ -141,5 +153,16 @@ public partial class App : Application
         
         Log.CloseAndFlush();
         base.OnExit(e);
+    }
+
+    private static bool IsRunAsAdmin()
+    {
+        try
+        {
+            using var identity = System.Security.Principal.WindowsIdentity.GetCurrent();
+            var principal = new System.Security.Principal.WindowsPrincipal(identity);
+            return principal.IsInRole(System.Security.Principal.WindowsBuiltInRole.Administrator);
+        }
+        catch { return false; }
     }
 }
