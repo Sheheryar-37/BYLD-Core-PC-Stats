@@ -26,6 +26,11 @@ public interface IHardwareMonitorService
         private readonly Computer _computer;
         private HardwareMetrics _currentMetrics = new();
         private System.Diagnostics.PerformanceCounter? _cpuClockCounter;
+
+        // ── WMI GPU throttle: only query every N cycles to avoid hammering the system ──
+        private int _wmiGpuCycleCounter = 0;
+        private const int WmiGpuQueryInterval = 5; // Query WMI GPU load every 5 seconds (5 × 1000ms)
+        private float _cachedWmiGpuLoad = 0f;
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -99,8 +104,9 @@ public interface IHardwareMonitorService
                 _logger.LogError(ex, "Error updating hardware metrics");
             }
 
-            // Update 10 times per second (100ms) for a real-time dashboard feel
-            await Task.Delay(100, stoppingToken);
+            // Update once per second — hardware stats don't change fast enough to need 10Hz.
+            // This reduces CPU usage by ~90% compared to the previous 100ms interval.
+            await Task.Delay(1000, stoppingToken);
         }
         
         SensorStartupLogger.LogHardwareSnapshot(_computer, _logger, "EXIT");
@@ -159,6 +165,9 @@ public interface IHardwareMonitorService
 
         _currentMetrics = metrics;
         MetricsUpdated?.Invoke(this, metrics);
+
+        // Increment WMI GPU throttle counter
+        _wmiGpuCycleCounter++;
 
         // ── Resolved metrics summary (one line per poll cycle) ──────────────────
         _logger.LogDebug(
@@ -280,10 +289,26 @@ public interface IHardwareMonitorService
               || hardware.HardwareType == HardwareType.GpuAmd
               || hardware.HardwareType == HardwareType.GpuIntel)
         {
-            _logger.LogDebug("[GPU] Processing '{hw}' (Type: {t})", hardware.Name, hardware.HardwareType);
+            // ── Discrete GPU preference: skip integrated GPUs if a discrete GPU exists ──
+            // Integrated GPUs (e.g. "AMD Radeon(TM) Graphics") report 512MB VRAM.
+            // Discrete GPUs (e.g. "AMD Radeon RX 9070") report 16GB+ VRAM.
+            var totalVram = hardware.Sensors
+                .Where(s => s.SensorType == SensorType.SmallData && s.Name == "GPU Memory Total")
+                .Select(s => s.Value ?? 0)
+                .FirstOrDefault();
+
+            bool isLikelyIntegrated = totalVram > 0 && totalVram < 2048; // < 2GB = integrated
+            bool haveDiscreteData = metrics.GpuTemp > 0 || metrics.GpuLoad > 0 || metrics.GpuClock > 0;
+
+            if (isLikelyIntegrated && haveDiscreteData)
+            {
+                _logger.LogDebug("[GPU] Skipping integrated GPU '{hw}' (VRAM={v}MB) — discrete GPU already has data.", hardware.Name, totalVram);
+                return; // Don't overwrite discrete GPU values with integrated GPU values
+            }
+
+            _logger.LogDebug("[GPU] Processing '{hw}' (Type: {t}, VRAM={v}MB)", hardware.Name, hardware.HardwareType, totalVram);
 
             // ── GPU Temperature ──
-            if (metrics.GpuTemp == 0)
             {
                 var lhmTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.GpuTemp)
                            ?? GetFirstSensorValue(hardware, SensorType.Temperature);
@@ -292,25 +317,18 @@ public interface IHardwareMonitorService
                     metrics.GpuTemp = lhmTemp.Value;
                     _logger.LogDebug("[GPU] Temp resolved via LHM: {v:F1}°C", metrics.GpuTemp);
                 }
-                else
+                else if (metrics.GpuTemp == 0)
                 {
                     _logger.LogDebug("[GPU] LHM temp = {v}. Trying WMI fallback...", lhmTemp);
                     var wmiTemp = WmiSensorService.GetGpuTemperatureCelsius(_logger);
                     if (wmiTemp.HasValue && wmiTemp.Value > 0)
                     {
                         metrics.GpuTemp = wmiTemp.Value;
-                        _logger.LogDebug("[GPU] Temp resolved via WMI: {v:F1}°C", metrics.GpuTemp);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("[GPU] ⚠ ALL temp sources returned 0/null. GpuTemp will display as 0.");
-                        metrics.GpuTemp = 0;
                     }
                 }
             }
 
-            // ── GPU Load ──
-            if (metrics.GpuLoad == 0)
+            // ── GPU Load (throttled WMI fallback) ──
             {
                 var lhmLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.GpuLoad)
                            ?? GetFirstSensorValue(hardware, SensorType.Load);
@@ -319,24 +337,20 @@ public interface IHardwareMonitorService
                     metrics.GpuLoad = lhmLoad.Value;
                     _logger.LogDebug("[GPU] Load resolved via LHM: {v:F1}%", metrics.GpuLoad);
                 }
-                else
+                else if (metrics.GpuLoad == 0)
                 {
-                    _logger.LogDebug("[GPU] LHM load = {v}. Trying WMI fallback...", lhmLoad);
-                    var wmiLoad = WmiSensorService.GetGpuLoadPercent(_logger);
-                    if (wmiLoad.HasValue && wmiLoad.Value > 0)
+                    // Only query WMI every N cycles to avoid hammering the system
+                    if (_wmiGpuCycleCounter % WmiGpuQueryInterval == 0)
                     {
-                        metrics.GpuLoad = wmiLoad.Value;
-                        _logger.LogDebug("[GPU] Load resolved via WMI: {v:F1}%", metrics.GpuLoad);
+                        _logger.LogDebug("[GPU] LHM load = {v}. Querying WMI (throttled, every {n}s)...", lhmLoad, WmiGpuQueryInterval);
+                        var wmiLoad = WmiSensorService.GetGpuLoadPercent(_logger);
+                        _cachedWmiGpuLoad = wmiLoad ?? 0f;
                     }
-                    else
-                    {
-                        _logger.LogDebug("[GPU] ⚠ All GPU load sources = 0 (GPU may be idle).");
-                    }
+                    metrics.GpuLoad = _cachedWmiGpuLoad;
                 }
             }
 
-            // ── GPU Clock ──
-            if (metrics.GpuClock == 0)
+            // ── GPU Clock (prefer discrete GPU's non-zero value) ──
             {
                 var lhmClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.GpuClock)
                             ?? GetFirstSensorValue(hardware, SensorType.Clock);
@@ -345,10 +359,9 @@ public interface IHardwareMonitorService
                     metrics.GpuClock = lhmClock.Value;
                     _logger.LogDebug("[GPU] Clock resolved via LHM: {v:F0} MHz", metrics.GpuClock);
                 }
-                else
+                else if (metrics.GpuClock == 0)
                 {
-                    _logger.LogDebug("[GPU] LHM clock = {v}. WMI GPU clock not available.", lhmClock);
-                    _logger.LogWarning("[GPU] ⚠ GpuClock will display as 0. LHM={l}. (WMI does not expose dGPU clock)", lhmClock);
+                    _logger.LogDebug("[GPU] LHM clock = {v}. No WMI fallback available for GPU clock.", lhmClock);
                 }
             }
         }

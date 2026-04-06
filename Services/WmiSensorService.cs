@@ -28,6 +28,7 @@ public static class WmiSensorService
     /// </summary>
     public static float? GetCpuTemperatureCelsius(ILogger? logger = null)
     {
+        // Attempt 1: ACPI Thermal Zones (works on many laptops)
         try
         {
             using var searcher = new ManagementObjectSearcher(
@@ -39,13 +40,11 @@ public static class WmiSensorService
 
             foreach (ManagementObject obj in searcher.Get())
             {
-                // CurrentTemperature is in tenths of Kelvin
                 var raw     = Convert.ToSingle(obj["CurrentTemperature"]);
                 var celsius = (raw - KelvinTenthsOffset) / 10f;
 
                 logger?.LogDebug("[WMI] ThermalZone raw={r} → {c:F1}°C", raw, celsius);
 
-                // Take the highest reasonable zone temp (up to 110C) as "CPU package" peak
                 if (celsius > 0 && celsius < 110 && celsius > best)
                 {
                     best  = celsius;
@@ -53,13 +52,45 @@ public static class WmiSensorService
                 }
             }
 
-            return found ? best : null;
+            if (found) return best;
         }
         catch (Exception ex)
         {
             logger?.LogDebug(ex, "[WMI] MSAcpi_ThermalZoneTemperature unavailable.");
-            return null;
         }
+
+        // Attempt 2: Win32_PerfFormattedData_Counters_ThermalZoneInformation (Windows 11 desktops)
+        try
+        {
+            using var searcher2 = new ManagementObjectSearcher(
+                "SELECT Temperature FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation");
+
+            float best2 = float.MinValue;
+            bool found2 = false;
+
+            foreach (ManagementObject obj in searcher2.Get())
+            {
+                // Temperature is in Kelvin (integer) on this counter
+                var kelvin = Convert.ToSingle(obj["Temperature"]);
+                var celsius = kelvin - 273.15f;
+
+                logger?.LogDebug("[WMI] ThermalZoneInfo = {c:F1}°C (Kelvin={k})", celsius, kelvin);
+
+                if (celsius > 0 && celsius < 110 && celsius > best2)
+                {
+                    best2  = celsius;
+                    found2 = true;
+                }
+            }
+
+            if (found2) return best2;
+        }
+        catch (Exception ex)
+        {
+            logger?.LogDebug(ex, "[WMI] ThermalZoneInformation counter unavailable.");
+        }
+
+        return null;
     }
 
     // ── CPU Clock ───────────────────────────────────────────────────────────
@@ -72,7 +103,19 @@ public static class WmiSensorService
     {
         try
         {
-            // Prefer Win32_PerfFormattedData_Counters_ProcessorInformation for dynamic frequency
+            // Prefer Win32_Processor.CurrentClockSpeed — this updates dynamically with P-states
+            using var searcherProc = new ManagementObjectSearcher("SELECT CurrentClockSpeed FROM Win32_Processor");
+            foreach (ManagementObject obj in searcherProc.Get())
+            {
+                var clock = Convert.ToSingle(obj["CurrentClockSpeed"]);
+                if (clock > 0)
+                {
+                    logger?.LogDebug("[WMI] CPU CurrentClockSpeed = {f} MHz", clock);
+                    return clock;
+                }
+            }
+
+            // Fallback: ProcessorFrequency from performance counters (may return static base freq)
             using var searcherPerf = new ManagementObjectSearcher(
                 "SELECT ProcessorFrequency FROM Win32_PerfFormattedData_Counters_ProcessorInformation WHERE Name='_Total'");
             
@@ -81,17 +124,9 @@ public static class WmiSensorService
                 var freq = Convert.ToSingle(obj["ProcessorFrequency"]);
                 if (freq > 0) 
                 {
-                    logger?.LogDebug("[WMI] CPU ProcessorFrequency = {f} MHz", freq);
+                    logger?.LogDebug("[WMI] CPU ProcessorFrequency = {f} MHz (static fallback)", freq);
                     return freq;
                 }
-            }
-
-            // Fallback to Win32_Processor
-            using var searcherProc = new ManagementObjectSearcher("SELECT CurrentClockSpeed FROM Win32_Processor");
-            foreach (ManagementObject obj in searcherProc.Get())
-            {
-                var clock = Convert.ToSingle(obj["CurrentClockSpeed"]);
-                if (clock > 0) return clock;
             }
 
             return null;
@@ -114,8 +149,6 @@ public static class WmiSensorService
     {
         try
         {
-            // Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine gives per-pid,
-            // per-engine GPU utilization. We want the 3D engine, sum across all pids.
             using var searcher = new ManagementObjectSearcher(
                 @"root\CIMv2",
                 "SELECT Name, UtilizationPercentage FROM Win32_PerfFormattedData_GPUPerformanceCounters_GPUEngine");
@@ -126,17 +159,20 @@ public static class WmiSensorService
             foreach (ManagementObject obj in searcher.Get())
             {
                 var name = obj["Name"]?.ToString() ?? "";
-                // Only sum the 3D engine entries (matches Task Manager's "GPU 3D" column)
                 if (!name.Contains("engtype_3D", StringComparison.OrdinalIgnoreCase))
                     continue;
 
                 var util = Convert.ToSingle(obj["UtilizationPercentage"]);
-                logger?.LogDebug("[WMI] GPU 3D engine {n} = {u}%", name, util);
+                // Only log non-zero entries to avoid hundreds of spam lines
+                if (util > 0)
+                    logger?.LogDebug("[WMI] GPU 3D engine {n} = {u}%", name, util);
                 totalLoad += util;
                 found      = true;
             }
 
-            // Clamp to 100% since individual engine entries can theoretically overlap
+            if (found)
+                logger?.LogDebug("[WMI] GPU total 3D load = {l:F1}%", Math.Min(totalLoad, 100f));
+
             return found ? Math.Min(totalLoad, 100f) : null;
         }
         catch (Exception ex)
