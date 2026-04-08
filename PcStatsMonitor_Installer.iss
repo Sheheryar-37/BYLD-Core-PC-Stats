@@ -34,8 +34,7 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; IMPORTANT: Run 'dotnet publish -c Release -r win-x64 --self-contained' before compiling this script
 ; Or adjust the source path to your actual build output.
-Source: "e:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
-Source: "e:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\WinRing0x64.sys"; DestDir: "{app}"; Flags: ignoreversion
+Source: "e:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"

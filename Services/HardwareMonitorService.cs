@@ -31,6 +31,9 @@ public interface IHardwareMonitorService
         private int _wmiGpuCycleCounter = 0;
         private const int WmiGpuQueryInterval = 5; // Query WMI GPU load every 5 seconds (5 × 1000ms)
         private float _cachedWmiGpuLoad = 0f;
+
+        // ── AMD iGPU SoC temp: used as CPU temp proxy when WinRing0 is blocked by HVCI ──
+        private float _cachedIgpuSocTemp = 0f;
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -133,6 +136,13 @@ public interface IHardwareMonitorService
             // Also read sub-hardware sensors
             foreach (var sub in hardware.SubHardware)
                 ReadHardware(sub, metrics);
+        }
+
+        // ── Post-loop fallback: use AMD iGPU SoC temp as CPU temp proxy ──────────────
+        if (metrics.CpuTemp <= 0 && _cachedIgpuSocTemp > 0)
+        {
+            metrics.CpuTemp = _cachedIgpuSocTemp;
+            _logger.LogDebug("[CPU] Using AMD iGPU SoC temperature as CPU proxy: {t:F0}°C", _cachedIgpuSocTemp);
         }
 
         // Try to map DriveInfo sizes (Logical partitions) to the Physical Drives listed by LHM
@@ -299,6 +309,21 @@ public interface IHardwareMonitorService
 
             bool isLikelyIntegrated = totalVram > 0 && totalVram < 2048; // < 2GB = integrated
             bool haveDiscreteData = metrics.GpuTemp > 0 || metrics.GpuLoad > 0 || metrics.GpuClock > 0;
+
+            // ── AMD iGPU SoC temp: always cache it for CPU temp fallback, even if we skip the iGPU for display ──
+            if (isLikelyIntegrated && hardware.HardwareType == HardwareType.GpuAmd)
+            {
+                var socTemp = hardware.Sensors
+                    .Where(s => s.SensorType == SensorType.Temperature && s.Name.Contains("SoC", StringComparison.OrdinalIgnoreCase))
+                    .Select(s => s.Value ?? 0)
+                    .FirstOrDefault();
+
+                if (socTemp > 0)
+                {
+                    _cachedIgpuSocTemp = socTemp;
+                    _logger.LogDebug("[GPU] Cached AMD iGPU SoC temp: {t:F0}°C (for CPU fallback)", socTemp);
+                }
+            }
 
             if (isLikelyIntegrated && haveDiscreteData)
             {

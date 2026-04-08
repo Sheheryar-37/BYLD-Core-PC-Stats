@@ -76,7 +76,8 @@ public static class WmiSensorService
 
                 logger?.LogDebug("[WMI] ThermalZoneInfo = {c:F1}°C (Kelvin={k})", celsius, kelvin);
 
-                if (celsius > 0 && celsius < 110 && celsius > best2)
+                // Reject 24–26°C as likely BIOS default (e.g., 298K = 24.85°C on many AMD boards)
+                if (celsius > 26 && celsius < 110 && celsius > best2)
                 {
                     best2  = celsius;
                     found2 = true;
@@ -96,36 +97,60 @@ public static class WmiSensorService
     // ── CPU Clock ───────────────────────────────────────────────────────────
 
     /// <summary>
-    /// Reads current CPU clock speed (MHz) from Win32_Processor.
-    /// Updates every few seconds and reflects P-state changes.
+    /// Reads current CPU clock speed (MHz) using dynamic performance counters.
+    /// On AMD Ryzen with HVCI, Win32_Processor.CurrentClockSpeed returns a static
+    /// base frequency.  We use PercentofMaximumFrequency instead — it updates in
+    /// real time with boost/throttle and works without a kernel driver.
     /// </summary>
     public static float? GetCpuClockMhz(ILogger? logger = null)
     {
         try
         {
-            // Prefer Win32_Processor.CurrentClockSpeed — this updates dynamically with P-states
+            // ── Attempt 1: Dynamic clock via PercentofMaximumFrequency ──
+            // This counter updates every second and reflects actual P-state / boost.
+            // Actual MHz = MaxClockSpeed × (PercentofMaximumFrequency / 100)
+            float percentOfMax = 0f;
+            try
+            {
+                using var searcherPct = new ManagementObjectSearcher(
+                    "SELECT PercentofMaximumFrequency FROM Win32_PerfFormattedData_Counters_ProcessorInformation WHERE Name='_Total'");
+
+                foreach (ManagementObject obj in searcherPct.Get())
+                {
+                    percentOfMax = Convert.ToSingle(obj["PercentofMaximumFrequency"]);
+                    break;
+                }
+            }
+            catch (Exception ex)
+            {
+                logger?.LogDebug(ex, "[WMI] PercentofMaximumFrequency unavailable.");
+            }
+
+            if (percentOfMax > 0)
+            {
+                // Get the base reference frequency from Win32_Processor
+                using var searcherMax = new ManagementObjectSearcher("SELECT MaxClockSpeed FROM Win32_Processor");
+                foreach (ManagementObject obj in searcherMax.Get())
+                {
+                    var maxClock = Convert.ToSingle(obj["MaxClockSpeed"]);
+                    if (maxClock > 0)
+                    {
+                        var actualClock = maxClock * (percentOfMax / 100f);
+                        logger?.LogDebug("[WMI] CPU dynamic clock = {f:F0} MHz ({p}% of {m} MHz base)", actualClock, percentOfMax, maxClock);
+                        return actualClock;
+                    }
+                }
+            }
+
+            // ── Attempt 2: Static fallback — CurrentClockSpeed ──
             using var searcherProc = new ManagementObjectSearcher("SELECT CurrentClockSpeed FROM Win32_Processor");
             foreach (ManagementObject obj in searcherProc.Get())
             {
                 var clock = Convert.ToSingle(obj["CurrentClockSpeed"]);
                 if (clock > 0)
                 {
-                    logger?.LogDebug("[WMI] CPU CurrentClockSpeed = {f} MHz", clock);
+                    logger?.LogDebug("[WMI] CPU CurrentClockSpeed = {f} MHz (static fallback)", clock);
                     return clock;
-                }
-            }
-
-            // Fallback: ProcessorFrequency from performance counters (may return static base freq)
-            using var searcherPerf = new ManagementObjectSearcher(
-                "SELECT ProcessorFrequency FROM Win32_PerfFormattedData_Counters_ProcessorInformation WHERE Name='_Total'");
-            
-            foreach (ManagementObject obj in searcherPerf.Get())
-            {
-                var freq = Convert.ToSingle(obj["ProcessorFrequency"]);
-                if (freq > 0) 
-                {
-                    logger?.LogDebug("[WMI] CPU ProcessorFrequency = {f} MHz (static fallback)", freq);
-                    return freq;
                 }
             }
 
