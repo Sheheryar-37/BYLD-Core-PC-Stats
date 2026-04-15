@@ -18,7 +18,7 @@ public interface IThemeService
 public class ThemeService : IThemeService
 {
     private readonly ILogger<ThemeService> _logger;
-    private readonly string _themePath = "theme.json";
+    private readonly string _themePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "theme.json");
     public ThemeConfig CurrentTheme { get; private set; } = new();
 
     public event EventHandler<ThemeConfig>? ThemeChanged;

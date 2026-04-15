@@ -170,7 +170,8 @@ namespace PcStatsMonitor.Controls
     private void UpdateCurrentUI(WeatherResponse data)
     {
         TxtCity.Text = (data.name ?? _config.City ?? "UNKNOWN").ToUpper();
-        TxtDateHeader.Text = $"LAST UPDATED: {DateTime.Now:t}";
+        string timeFmt = (_config.TimeFormat == "24h") ? "HH:mm" : "h:mm tt";
+        TxtDateHeader.Text = $"LAST UPDATED: {DateTime.Now.ToString(timeFmt)}";
         string unitSymbol = (_config.Units == "imperial") ? "°F" : "°C";
         TxtTemp.Text = $"{Math.Round(data.main.temp)}{unitSymbol}";
         TxtCondition.Text = data.weather[0].description.ToUpper();
@@ -223,7 +224,7 @@ namespace PcStatsMonitor.Controls
                 ? _fullForecast.list.Where(x => DateTimeOffset.FromUnixTimeSeconds(x.dt).LocalDateTime.Date == DateTime.Now.Date.AddDays(1)).Where((x, i) => i % 2 == 0).ToList()
                 : _fullForecast.list.GroupBy(x => DateTimeOffset.FromUnixTimeSeconds(x.dt).LocalDateTime.Date)
                                     .Where(g => g.Key > DateTime.Now.Date)
-                                    .Select(g => g.First())
+                                    .Select(g => g.OrderBy(x => Math.Abs(DateTimeOffset.FromUnixTimeSeconds(x.dt).LocalDateTime.Hour - 14)).First())
                                     .Take(4).ToList();
 
         // Theme colors for cards
@@ -246,17 +247,33 @@ namespace PcStatsMonitor.Controls
         foreach (var item in todayList)
         {
             var date = DateTimeOffset.FromUnixTimeSeconds(item.dt).LocalDateTime;
-            string dayLabel = (selected == "NextDays") ? date.ToString("ddd").ToUpper() : date.ToString("HH:mm");
-            
+            string timeFmt = (_config.TimeFormat == "24h") ? "HH:mm" : "h:mm tt";
+            string dayLabel = (selected == "NextDays") ? date.ToString("ddd").ToUpper() : date.ToString(timeFmt);
             ImageSource imgSrc = GetImageFromOWMIcon(item.weather[0].icon);
             
+            string tempHigh = $"{Math.Round(item.main.temp)}°";
+            string tempLow = "";
+
+            if (selected == "NextDays")
+            {
+                var dailySlices = _fullForecast.list.Where(x => DateTimeOffset.FromUnixTimeSeconds(x.dt).LocalDateTime.Date == date.Date).ToList();
+                if (dailySlices.Any())
+                {
+                    double min = dailySlices.Min(x => x.main.temp);
+                    double max = dailySlices.Max(x => x.main.temp);
+                    tempHigh = $"{Math.Round(max)}°";
+                    tempLow = $"{Math.Round(min)}°";
+                }
+            }
+
             forecastItems.Add(new ForecastViewItem
             {
                 Day = dayLabel,
                 DayBrush = subTextBrush,
                 IconImage = imgSrc,
-                Temp = $"{Math.Round(item.main.temp)}°",
+                Temp = tempHigh,
                 TempBrush = textBrush,
+                TempLow = tempLow,
                 CardBrush = cardBrush
             });
         }
@@ -368,12 +385,14 @@ namespace PcStatsMonitor.Controls
     public class WeatherInfo { public int id { get; set; } public string main { get; set; } public string description { get; set; } public string icon { get; set; } }
     public class MainInfo { public double temp { get; set; } public double temp_min { get; set; } public double temp_max { get; set; } public double feels_like { get; set; } public int humidity { get; set; } public int pressure { get; set; } }
     public class WindInfo { public double speed { get; set; } }
-    public class ForecastViewItem { 
-        public string Day { get; set; } 
+    public class ForecastViewItem
+    {
+        public string Day { get; set; }
         public Brush DayBrush { get; set; }
         public ImageSource IconImage { get; set; }
-        public string Temp { get; set; } 
+        public string Temp { get; set; }
         public Brush TempBrush { get; set; }
+        public string TempLow { get; set; }
         public Brush CardBrush { get; set; }
     }
 

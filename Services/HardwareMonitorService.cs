@@ -26,6 +26,18 @@ public interface IHardwareMonitorService
         private readonly Computer _computer;
         private HardwareMetrics _currentMetrics = new();
         private System.Diagnostics.PerformanceCounter? _cpuClockCounter;
+
+        // ── WMI GPU throttle: only query every N cycles to avoid hammering the system ──
+        private int _wmiGpuCycleCounter = 0;
+        private const int WmiGpuQueryInterval = 5; // Query WMI GPU load every 5 seconds (5 × 1000ms)
+        private float _cachedWmiGpuLoad = 0f;
+
+        // ── AMD iGPU SoC temp: used as CPU temp proxy when WinRing0 is blocked by HVCI ──
+        private float _cachedIgpuSocTemp = 0f;
+
+        // ── Discrete GPU fan/temp: used as motherboard fallback when Super I/O is blocked ──
+        private float _cachedDiscreteGpuFanRpm = 0f;
+        private float _cachedDiscreteGpuTemp = 0f;
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -99,8 +111,9 @@ public interface IHardwareMonitorService
                 _logger.LogError(ex, "Error updating hardware metrics");
             }
 
-            // Update 10 times per second (100ms) for a real-time dashboard feel
-            await Task.Delay(100, stoppingToken);
+            // Update once per second — hardware stats don't change fast enough to need 10Hz.
+            // This reduces CPU usage by ~90% compared to the previous 100ms interval.
+            await Task.Delay(1000, stoppingToken);
         }
         
         SensorStartupLogger.LogHardwareSnapshot(_computer, _logger, "EXIT");
@@ -127,6 +140,28 @@ public interface IHardwareMonitorService
             // Also read sub-hardware sensors
             foreach (var sub in hardware.SubHardware)
                 ReadHardware(sub, metrics);
+        }
+
+        // ── Post-loop fallback: use AMD iGPU SoC temp as CPU temp proxy ──────────────
+        if (metrics.CpuTemp <= 0 && _cachedIgpuSocTemp > 0)
+        {
+            metrics.CpuTemp = _cachedIgpuSocTemp;
+            _logger.LogDebug("[CPU] Using AMD iGPU SoC temperature as CPU proxy: {t:F0}°C", _cachedIgpuSocTemp);
+        }
+
+        // ── Post-loop fallback: use discrete GPU fan/temp for motherboard gauge ─────────
+        _logger.LogDebug("[Board] Post-loop check: MBTemp={t:F0}°C | FanSpeed={f:F0} RPM | CachedGpuFan={gf:F0} RPM | CachedGpuTemp={gt:F0}°C",
+            metrics.MotherboardTemp, metrics.FanSpeed, _cachedDiscreteGpuFanRpm, _cachedDiscreteGpuTemp);
+
+        if (metrics.FanSpeed <= 0 && _cachedDiscreteGpuFanRpm >= 0)
+        {
+            metrics.FanSpeed = _cachedDiscreteGpuFanRpm;
+            _logger.LogDebug("[Board] → Using discrete GPU fan speed as fallback: {f:F0} RPM", _cachedDiscreteGpuFanRpm);
+        }
+        if (metrics.MotherboardTemp <= 0 && _cachedDiscreteGpuTemp > 0)
+        {
+            metrics.MotherboardTemp = _cachedDiscreteGpuTemp;
+            _logger.LogDebug("[Board] → Using discrete GPU temp as VRM proxy: {t:F0}°C", _cachedDiscreteGpuTemp);
         }
 
         // Try to map DriveInfo sizes (Logical partitions) to the Physical Drives listed by LHM
@@ -159,6 +194,9 @@ public interface IHardwareMonitorService
 
         _currentMetrics = metrics;
         MetricsUpdated?.Invoke(this, metrics);
+
+        // Increment WMI GPU throttle counter
+        _wmiGpuCycleCounter++;
 
         // ── Resolved metrics summary (one line per poll cycle) ──────────────────
         _logger.LogDebug(
@@ -280,10 +318,41 @@ public interface IHardwareMonitorService
               || hardware.HardwareType == HardwareType.GpuAmd
               || hardware.HardwareType == HardwareType.GpuIntel)
         {
-            _logger.LogDebug("[GPU] Processing '{hw}' (Type: {t})", hardware.Name, hardware.HardwareType);
+            // ── Discrete GPU preference: skip integrated GPUs if a discrete GPU exists ──
+            // Integrated GPUs (e.g. "AMD Radeon(TM) Graphics") report 512MB VRAM.
+            // Discrete GPUs (e.g. "AMD Radeon RX 9070") report 16GB+ VRAM.
+            var totalVram = hardware.Sensors
+                .Where(s => s.SensorType == SensorType.SmallData && s.Name == "GPU Memory Total")
+                .Select(s => s.Value ?? 0)
+                .FirstOrDefault();
+
+            bool isLikelyIntegrated = totalVram > 0 && totalVram < 2048; // < 2GB = integrated
+            bool haveDiscreteData = metrics.GpuTemp > 0 || metrics.GpuLoad > 0 || metrics.GpuClock > 0;
+
+            // ── AMD iGPU SoC temp: always cache it for CPU temp fallback, even if we skip the iGPU for display ──
+            if (isLikelyIntegrated && hardware.HardwareType == HardwareType.GpuAmd)
+            {
+                var socTemp = hardware.Sensors
+                    .Where(s => s.SensorType == SensorType.Temperature && s.Name.Contains("SoC", StringComparison.OrdinalIgnoreCase))
+                    .Select(s => s.Value ?? 0)
+                    .FirstOrDefault();
+
+                if (socTemp > 0)
+                {
+                    _cachedIgpuSocTemp = socTemp;
+                    _logger.LogDebug("[GPU] Cached AMD iGPU SoC temp: {t:F0}°C (for CPU fallback)", socTemp);
+                }
+            }
+
+            if (isLikelyIntegrated && haveDiscreteData)
+            {
+                _logger.LogDebug("[GPU] Skipping integrated GPU '{hw}' (VRAM={v}MB) — discrete GPU already has data.", hardware.Name, totalVram);
+                return; // Don't overwrite discrete GPU values with integrated GPU values
+            }
+
+            _logger.LogDebug("[GPU] Processing '{hw}' (Type: {t}, VRAM={v}MB)", hardware.Name, hardware.HardwareType, totalVram);
 
             // ── GPU Temperature ──
-            if (metrics.GpuTemp == 0)
             {
                 var lhmTemp = GetSensorValue(hardware, SensorType.Temperature, _themeService.CurrentTheme.SensorNames.GpuTemp)
                            ?? GetFirstSensorValue(hardware, SensorType.Temperature);
@@ -292,25 +361,18 @@ public interface IHardwareMonitorService
                     metrics.GpuTemp = lhmTemp.Value;
                     _logger.LogDebug("[GPU] Temp resolved via LHM: {v:F1}°C", metrics.GpuTemp);
                 }
-                else
+                else if (metrics.GpuTemp == 0)
                 {
                     _logger.LogDebug("[GPU] LHM temp = {v}. Trying WMI fallback...", lhmTemp);
                     var wmiTemp = WmiSensorService.GetGpuTemperatureCelsius(_logger);
                     if (wmiTemp.HasValue && wmiTemp.Value > 0)
                     {
                         metrics.GpuTemp = wmiTemp.Value;
-                        _logger.LogDebug("[GPU] Temp resolved via WMI: {v:F1}°C", metrics.GpuTemp);
-                    }
-                    else
-                    {
-                        _logger.LogWarning("[GPU] ⚠ ALL temp sources returned 0/null. GpuTemp will display as 0.");
-                        metrics.GpuTemp = 0;
                     }
                 }
             }
 
-            // ── GPU Load ──
-            if (metrics.GpuLoad == 0)
+            // ── GPU Load (throttled WMI fallback) ──
             {
                 var lhmLoad = GetSensorValue(hardware, SensorType.Load, _themeService.CurrentTheme.SensorNames.GpuLoad)
                            ?? GetFirstSensorValue(hardware, SensorType.Load);
@@ -319,24 +381,20 @@ public interface IHardwareMonitorService
                     metrics.GpuLoad = lhmLoad.Value;
                     _logger.LogDebug("[GPU] Load resolved via LHM: {v:F1}%", metrics.GpuLoad);
                 }
-                else
+                else if (metrics.GpuLoad == 0)
                 {
-                    _logger.LogDebug("[GPU] LHM load = {v}. Trying WMI fallback...", lhmLoad);
-                    var wmiLoad = WmiSensorService.GetGpuLoadPercent(_logger);
-                    if (wmiLoad.HasValue && wmiLoad.Value > 0)
+                    // Only query WMI every N cycles to avoid hammering the system
+                    if (_wmiGpuCycleCounter % WmiGpuQueryInterval == 0)
                     {
-                        metrics.GpuLoad = wmiLoad.Value;
-                        _logger.LogDebug("[GPU] Load resolved via WMI: {v:F1}%", metrics.GpuLoad);
+                        _logger.LogDebug("[GPU] LHM load = {v}. Querying WMI (throttled, every {n}s)...", lhmLoad, WmiGpuQueryInterval);
+                        var wmiLoad = WmiSensorService.GetGpuLoadPercent(_logger);
+                        _cachedWmiGpuLoad = wmiLoad ?? 0f;
                     }
-                    else
-                    {
-                        _logger.LogDebug("[GPU] ⚠ All GPU load sources = 0 (GPU may be idle).");
-                    }
+                    metrics.GpuLoad = _cachedWmiGpuLoad;
                 }
             }
 
-            // ── GPU Clock ──
-            if (metrics.GpuClock == 0)
+            // ── GPU Clock (prefer discrete GPU's non-zero value) ──
             {
                 var lhmClock = GetSensorValue(hardware, SensorType.Clock, _themeService.CurrentTheme.SensorNames.GpuClock)
                             ?? GetFirstSensorValue(hardware, SensorType.Clock);
@@ -345,11 +403,25 @@ public interface IHardwareMonitorService
                     metrics.GpuClock = lhmClock.Value;
                     _logger.LogDebug("[GPU] Clock resolved via LHM: {v:F0} MHz", metrics.GpuClock);
                 }
-                else
+                else if (metrics.GpuClock == 0)
                 {
-                    _logger.LogDebug("[GPU] LHM clock = {v}. WMI GPU clock not available.", lhmClock);
-                    _logger.LogWarning("[GPU] ⚠ GpuClock will display as 0. LHM={l}. (WMI does not expose dGPU clock)", lhmClock);
+                    _logger.LogDebug("[GPU] LHM clock = {v}. No WMI fallback available for GPU clock.", lhmClock);
                 }
+            }
+
+            // ── Cache discrete GPU fan/temp for motherboard fallback ──
+            if (!isLikelyIntegrated)
+            {
+                var gpuFan = GetFirstSensorValue(hardware, SensorType.Fan);
+                _logger.LogDebug("[GPU] Discrete GPU '{n}' fan sensor: {v} RPM", hardware.Name, gpuFan);
+
+                if (gpuFan.HasValue)
+                    _cachedDiscreteGpuFanRpm = gpuFan.Value;
+
+                if (metrics.GpuTemp > 0)
+                    _cachedDiscreteGpuTemp = (float)metrics.GpuTemp;
+
+                _logger.LogDebug("[GPU] Cached for board fallback → Fan={f:F0} RPM | Temp={t:F0}°C", _cachedDiscreteGpuFanRpm, _cachedDiscreteGpuTemp);
             }
         }
         else if (hardware.HardwareType == HardwareType.Memory || hardware.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase))
@@ -391,15 +463,44 @@ public interface IHardwareMonitorService
                 SizeString = ""
             });
         }
+        else if (hardware.HardwareType == HardwareType.Motherboard)
+        {
+            // Log motherboard detection and what sub-hardware is available
+            var sensorCount = hardware.Sensors.Length;
+            var subHwCount = hardware.SubHardware.Length;
+            _logger.LogInformation("[Board] Motherboard detected: '{n}' | Sensors={s} | SubHardware={sub}",
+                hardware.Name, sensorCount, subHwCount);
+
+            // List all sub-hardware types (SuperIO chips are where VRM/Fan data comes from)
+            foreach (var sub in hardware.SubHardware)
+                _logger.LogInformation("[Board]   SubHW: '{n}' (Type={t}, Sensors={s})",
+                    sub.Name, sub.HardwareType, sub.Sensors.Length);
+
+            if (subHwCount == 0)
+                _logger.LogWarning("[Board] ⚠ No sub-hardware (Super I/O) detected — HVCI/VBS likely blocking port I/O access. VRM temp and fan speed will use GPU fallback.");
+        }
         else if (hardware.HardwareType == HardwareType.SuperIO)
         {
+            // Log ALL available sensor types on this Super I/O chip for diagnostics
+            var tempSensors = hardware.Sensors.Where(s => s.SensorType == SensorType.Temperature).ToList();
+            var fanSensors  = hardware.Sensors.Where(s => s.SensorType == SensorType.Fan).ToList();
+            var voltSensors = hardware.Sensors.Where(s => s.SensorType == SensorType.Voltage).ToList();
+
+            _logger.LogInformation("[SuperIO] '{n}' | TempSensors={tc} | FanSensors={fc} | VoltageSensors={vc}",
+                hardware.Name, tempSensors.Count, fanSensors.Count, voltSensors.Count);
+
+            foreach (var t in tempSensors)
+                _logger.LogDebug("[SuperIO]   Temp: '{n}' = {v}°C", t.Name, t.Value);
+            foreach (var f in fanSensors)
+                _logger.LogDebug("[SuperIO]   Fan:  '{n}' = {v} RPM", f.Name, f.Value);
+
             if (metrics.MotherboardTemp == 0)
                 metrics.MotherboardTemp = GetFirstSensorValue(hardware, SensorType.Temperature) ?? 0;
             
             if (metrics.FanSpeed == 0)
                 metrics.FanSpeed = GetFirstSensorValue(hardware, SensorType.Fan) ?? 0;
 
-            _logger.LogDebug("[SuperIO] '{n}' | MBTemp={t:F1}°C | Fan={f:F0} RPM", hardware.Name, metrics.MotherboardTemp, metrics.FanSpeed);
+            _logger.LogDebug("[SuperIO] Final => MBTemp={t:F1}°C | Fan={f:F0} RPM", metrics.MotherboardTemp, metrics.FanSpeed);
         }
         else if (hardware.HardwareType == HardwareType.Network)
         {

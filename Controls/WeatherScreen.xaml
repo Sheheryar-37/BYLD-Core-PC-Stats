@@ -123,7 +123,10 @@
                                         <Border Width="28" Height="28" Margin="0,6">
                                             <Image Source="{Binding IconImage}" Stretch="Uniform"/>
                                         </Border>
-                                        <TextBlock Text="{Binding Temp}" Foreground="{Binding TempBrush}" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
+                                            <TextBlock Text="{Binding Temp}" Foreground="{Binding TempBrush}" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding TempLow}" Foreground="#888888" FontSize="14" FontWeight="SemiBold" Margin="4,2,0,0"/>
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

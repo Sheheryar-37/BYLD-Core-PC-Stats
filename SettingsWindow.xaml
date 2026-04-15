@@ -95,7 +95,7 @@
                                 <RowDefinition Height="Auto"/>
                                 <RowDefinition Height="*"/>
                             </Grid.RowDefinitions>
-                            <TabPanel Grid.Row="0" IsItemsHost="True" Background="Transparent" Margin="0,0,0,15"/>
+                            <WrapPanel Grid.Row="0" IsItemsHost="True" Background="Transparent" Margin="0,0,0,15"/>
                             <ContentPresenter Grid.Row="1" ContentSource="SelectedContent"/>
                         </Grid>
                     </ControlTemplate>
@@ -114,7 +114,6 @@
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Border" Property="Background" Value="#22FFFFFF"/>
                                 <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="{StaticResource BrandBlue}"/>
-                                <Setter TargetName="ContentSite" Property="TextElement.FontWeight" Value="Bold"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Border" Property="Background" Value="#11FFFFFF"/>
@@ -181,7 +180,7 @@
                                 </ToggleButton.Template>
                             </ToggleButton>
                             <ContentPresenter Name="ContentSite" Margin="10,3,30,3" VerticalAlignment="Center" HorizontalAlignment="Left" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" IsHitTestVisible="False"/>
-                            <TextBox x:Name="PART_EditableTextBox" Margin="10,3,30,3" VerticalAlignment="Center" HorizontalAlignment="Stretch" Background="Transparent" Foreground="White" BorderThickness="0" Visibility="Hidden"/>
+                            <TextBox x:Name="PART_EditableTextBox" Margin="10,3,30,3" VerticalAlignment="Center" HorizontalAlignment="Stretch" Background="Transparent" Foreground="White" BorderThickness="0" Visibility="Hidden" ScrollViewer.HorizontalScrollBarVisibility="Hidden"/>
                             <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
                                 <Grid Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
                                     <Border x:Name="DropDownBorder" Background="#222222" BorderThickness="1" BorderBrush="#444444" CornerRadius="6"/>
@@ -421,14 +420,16 @@
                                                   Visibility="{Binding Source={x:Static models:Constants.IsDebugMode}, Converter={StaticResource BooleanToVisibilityConverter}}"
                                                   Click="OnScreenSettingChanged"/>
 
+                                        <!-- Temporarily disabled location input per client request
                                         <StackPanel Margin="20,5,0,10" Visibility="{Binding IsChecked, ElementName=ChkWeatherScreenLayout, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <TextBlock Text="City / Location" FontSize="10" Opacity="0.6" Margin="0,0,0,3"/>
                                             <Grid>
                                                 <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                                <TextBox x:Name="TxtWeatherCityLayout" FontSize="10" Padding="5,3" Background="#222222" Foreground="White" BorderBrush="#33FFFFFF" TextChanged="OnWeatherSettingChanged"/>
+                                                <ComboBox x:Name="TxtWeatherCityLayout" FontSize="10" Padding="5,3" IsEditable="True" Style="{StaticResource ModernComboBoxStyle}" />
                                                 <Button Grid.Column="1" Content="↻" Width="24" Height="22" Margin="4,0,0,0" Click="BtnUpdateWeather_Click" Style="{StaticResource ModernButtonStyle}" ToolTip="Update Weather"/>
                                             </Grid>
                                         </StackPanel>
+                                        -->
                                         
                                         <TextBlock Text="PLUGINS" Style="{StaticResource SectionHeaderStyle}" Margin="0,15,0,10" FontSize="10" Opacity="0.6"/>
                                         <ItemsControl x:Name="ItemsPlugins">
@@ -533,7 +534,7 @@
                                     </Border>
 
                                     <!-- Size & Position Config -->
-                                    <StackPanel x:Name="PnlGaugeConfig" Grid.Row="2" Visibility="Collapsed" Margin="0,0,0,15">
+                                    <StackPanel x:Name="PnlGaugeConfig" Grid.Row="2" Visibility="Visible" Margin="0,0,0,15">
                                         <TextBlock x:Name="LblConfigTitle" Text="SELECTED CONFIG" FontSize="10" Opacity="0.7" Margin="0,0,0,8" FontWeight="Bold" Foreground="{StaticResource BrandBlue}"/>
                                         
                                         <UniformGrid Columns="2" Margin="0,5,0,15">
@@ -648,7 +649,7 @@
                                 <TextBlock Text="City / Location" FontSize="11" Opacity="0.7" Margin="0,0,0,5"/>
                                 <Grid Margin="0,0,0,15">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <ComboBox x:Name="TxtWeatherCity" Margin="0,0,5,0" IsEditable="True" TextBoxBase.TextChanged="OnWeatherSettingChanged" KeyUp="TxtWeatherCity_KeyUp" Style="{StaticResource ModernComboBoxStyle}" />
+                                    <ComboBox x:Name="TxtWeatherCity" Margin="0,0,5,0" IsEditable="True" KeyUp="TxtWeatherCity_KeyUp" Style="{StaticResource ModernComboBoxStyle}" />
                                     <Button Grid.Column="1" Content="Update" Width="60" Click="BtnUpdateWeather_Click" Style="{StaticResource ModernButtonStyle}" FontSize="11"/>
                                 </Grid>
 
@@ -658,6 +659,15 @@
                                     <ComboBox x:Name="CmbWeatherUnits" Grid.Column="1" Width="100" SelectionChanged="OnWeatherSettingChanged" Style="{StaticResource ModernComboBoxStyle}">
                                         <ComboBoxItem Content="Metric (°C)"/>
                                         <ComboBoxItem Content="Imperial (°F)"/>
+                                    </ComboBox>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,15">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Time Format" VerticalAlignment="Center"/>
+                                    <ComboBox x:Name="CmbWeatherTimeFormat" Grid.Column="1" Width="100" SelectionChanged="OnWeatherSettingChanged" Style="{StaticResource ModernComboBoxStyle}">
+                                        <ComboBoxItem Content="12h"/>
+                                        <ComboBoxItem Content="24h"/>
                                     </ComboBox>
                                 </Grid>
 
