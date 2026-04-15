@@ -160,10 +160,27 @@ public static class KernelDriverService
                 {
                     int err = Marshal.GetLastWin32Error();
                     if (err == E_RUNNING)
+                    {
                         logger.LogDebug("[Driver] WinRing0 already running ✓");
+                    }
                     else
+                    {
                         logger.LogWarning("[Driver] StartService failed (err={e}). " +
                             "Check Windows Security → Protection History for blocked drivers.", err);
+                            
+                        // 1275 = ERROR_DRIVER_BLOCKED
+                        if (err == 1275)
+                        {
+                            System.Windows.Application.Current.Dispatcher.Invoke(() =>
+                            {
+                                System.Windows.MessageBox.Show(
+                                    "Windows Security (Memory Integrity / Core Isolation) is blocking the hardware sensor driver (WinRing0x64.sys).\n\n" +
+                                    "Because of this, CPU Temperature and CPU Clock speeds cannot be read from your processor and will show as 0.\n\n" +
+                                    "To fix this, you must temporarily disable 'Memory Integrity' in Windows Security -> Core Isolation settings.",
+                                    "Sensor Driver Blocked", System.Windows.MessageBoxButton.OK, System.Windows.MessageBoxImage.Warning);
+                            });
+                        }
+                    }
                 }
             }
             finally { CloseServiceHandle(hSvc); }

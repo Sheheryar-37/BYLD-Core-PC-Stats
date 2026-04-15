@@ -70,14 +70,14 @@
                 <!-- Font weight extra bold to match mock -->
                 <TextBlock x:Name="CenterText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="62" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=SemiBold}" HorizontalAlignment="Center"/>
                 <!-- Center Description, e.g., GPU TEMP -->
-                <TextBlock x:Name="CenterLabel" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="12" FontWeight="{Binding DataContext.Theme.FontWeight, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=Normal}" Opacity="0.5" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                <TextBlock x:Name="CenterLabel" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="14" FontWeight="Bold" Opacity="0.85" HorizontalAlignment="Center" Margin="0,5,0,0"/>
             </StackPanel>
 
             <!-- Right Side Metric (e.g. 5% CPU LOAD) -->
             <!-- Positioned on the right side East, moved down and right per request -->
             <StackPanel HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,55,5,0">
-                <TextBlock x:Name="RightValueText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="10" FontWeight="Bold" Opacity="0.9" HorizontalAlignment="Center"/>
-                <TextBlock x:Name="RightLabelText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="7" FontWeight="Normal" Opacity="0.5" HorizontalAlignment="Center" Margin="0,1,0,0"/>
+                <TextBlock x:Name="RightValueText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="RightLabelText" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue=#FFFFFF}" FontSize="9" FontWeight="Bold" Opacity="0.8" HorizontalAlignment="Center" Margin="0,1,0,0"/>
             </StackPanel>
         </Grid>
     </Viewbox>

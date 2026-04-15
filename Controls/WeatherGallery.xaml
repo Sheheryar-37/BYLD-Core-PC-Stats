@@ -1,0 +1,74 @@
+<UserControl x:Class="PcStatsMonitor.Controls.WeatherGallery"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
+             mc:Ignorable="d" 
+             d:DesignHeight="854" d:DesignWidth="480">
+    
+    <UserControl.Resources>
+        <!-- Import the same geometries from WeatherScreen or re-define them if needed. 
+             Since they are in WeatherScreen.xaml, we'll try to resolve them dynamically or 
+             use a shared resource dictionary for the real app later. 
+             For now, we will simply use the ones in the application scope. -->
+    </UserControl.Resources>
+
+    <Grid Background="#060606">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/> <!-- Header -->
+            <RowDefinition Height="*"/>    <!-- Icon Display -->
+            <RowDefinition Height="Auto"/> <!-- Controls -->
+        </Grid.RowDefinitions>
+
+        <!-- Header -->
+        <StackPanel Grid.Row="0" Margin="20,40,20,20">
+            <TextBlock Text="INTERNAL GALLERY" Foreground="#3b82f6" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
+            <TextBlock Text="Weather Icon Review" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+        </StackPanel>
+
+        <!-- Icon Display -->
+        <Border Grid.Row="1" Margin="30" Background="#111" CornerRadius="30" BorderBrush="#222" BorderThickness="1">
+            <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel>
+                    <!-- Icon Visualization (New Unified Display) -->
+                    <Border Width="200" Height="200" Margin="0,0,0,30">
+                        <Image x:Name="ImgGalleryIcon" Stretch="Uniform"/>
+                    </Border>
+ 
+                    <TextBlock x:Name="TxtIndex" Text="1 of 18" Foreground="#888888" FontSize="14" HorizontalAlignment="Center"/>
+                    <TextBlock x:Name="TxtName" Text="Sunny" Foreground="White" FontSize="32" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    <TextBlock x:Name="TxtId" Text="ID: 800" Foreground="#555" FontSize="12" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    <TextBlock x:Name="TxtDescription" Text="Clear sky" Foreground="#888888" FontSize="16" HorizontalAlignment="Center" Margin="10,15,10,0" TextWrapping="Wrap" TextAlignment="Center"/>
+                    
+                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" Margin="0,30,0,0">
+                        <!-- Controls removed for PNG gallery -->
+                    </StackPanel>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Controls -->
+        <Grid Grid.Row="2" Margin="30,0,30,60">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="*"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Grid.Column="0" Content="PREVIOUS" Margin="0,0,10,0" Padding="20" Background="#1A1A1A" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Click="BtnPrev_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="15"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+
+            <Button Grid.Column="1" Content="NEXT" Margin="10,0,0,0" Padding="20" Background="#3b82f6" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Click="BtnNext_Click">
+                <Button.Resources>
+                    <Style TargetType="Border">
+                        <Setter Property="CornerRadius" Value="15"/>
+                    </Style>
+                </Button.Resources>
+            </Button>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -20,7 +20,40 @@ public class MainViewModel : ViewModelBase
     public ThemeConfig Theme
     {
         get => _themeConfig;
-        set => SetProperty(ref _themeConfig, value);
+        set {
+            if (SetProperty(ref _themeConfig, value))
+            {
+                UpdateLogoBrush();
+            }
+        }
+    }
+
+    private System.Windows.Media.Brush _logoBrush = System.Windows.Media.Brushes.White;
+    public System.Windows.Media.Brush LogoBrush
+    {
+        get => _logoBrush;
+        set => SetProperty(ref _logoBrush, value);
+    }
+
+    private void UpdateLogoBrush()
+    {
+        bool isLight = false;
+        var mode = Theme?.Weather?.WeatherTheme ?? "Dark";
+        if (mode == "System" || mode == "Auto")
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+                var val = key?.GetValue("AppsUseLightTheme");
+                isLight = (val is int i && i == 1);
+            }
+            catch { }
+        }
+        else
+        {
+            isLight = mode == "Light";
+        }
+        LogoBrush = isLight ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.White;
     }
 
     public MainViewModel(IHardwareMonitorService monitorService, IThemeService themeService)
@@ -37,6 +70,7 @@ public class MainViewModel : ViewModelBase
             });
         };
         Theme = _themeService.CurrentTheme;
+        UpdateLogoBrush();
 
         _monitorService.MetricsUpdated += (s, metrics) => 
         {
