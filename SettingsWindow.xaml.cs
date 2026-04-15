@@ -54,6 +54,14 @@ public partial class SettingsWindow : Window
         LstScreenOrder.ItemsSource = ScreenRotationList;
         ItemsPlugins.ItemsSource = PluginSettings;
 
+        var cities = new string[] { 
+            "London, UK", "New York, US", "Tokyo, JP", "Paris, FR", "Berlin, DE", 
+            "Sydney, AU", "Dubai, AE", "Los Angeles, US", "Toronto, CA", "Singapore, SG", 
+            "Karachi, PK", "Mumbai, IN", "Beijing, CN", "Moscow, RU", "Seoul, KR"
+        };
+        TxtWeatherCity.ItemsSource = cities;
+        // if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.ItemsSource = cities;
+
         LoadCurrentSettings();
     }
 
@@ -132,6 +140,7 @@ public partial class SettingsWindow : Window
         // Gauges Ordering List
         ActiveMonitors.Clear();
         foreach (var m in theme.ActiveMonitorsOrder) ActiveMonitors.Add(m);
+        if (ActiveMonitors.Count > 0) LstOrder.SelectedIndex = 0;
 
         // Global Screen Rotation Sequence
         ScreenRotationList.Clear();
@@ -205,7 +214,7 @@ public partial class SettingsWindow : Window
         if (ChkWeatherGallery != null) ChkWeatherGallery.IsChecked = weather.ShowWeatherGallery;
         TxtWeatherApiKey.Password = weather.ApiKey ?? "";
         TxtWeatherCity.Text = weather.City ?? "";
-        if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = weather.City ?? "";
+        // if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = weather.City ?? "";
         
         SetColorButton(BtnWeatherGlowColor, weather.GlowColor ?? "#3b82f6");
         SetComboItem(CmbWeatherUnits, weather.Units == "imperial" ? "Imperial (°F)" : "Metric (°C)");
@@ -221,6 +230,7 @@ public partial class SettingsWindow : Window
             _ => "15 Minutes" // Default
         };
         SetComboItem(CmbWeatherInterval, intervalText);
+        SetComboItem(CmbWeatherTimeFormat, weather.TimeFormat ?? "12h");
     }
 
     private void UpdateThemeObject()
@@ -284,7 +294,7 @@ public partial class SettingsWindow : Window
         if (ChkWeatherGallery != null) w.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
         w.ApiKey = TxtWeatherApiKey.Password;
         w.City = TxtWeatherCity.Text;
-        if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = w.City;
+        // if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = w.City;
         
         w.Units = (CmbWeatherUnits.SelectedItem as ComboBoxItem)?.Content?.ToString()?.Contains("°F") == true ? "imperial" : "metric";
         w.WeatherTheme = (CmbWeatherTheme.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "Dark";
@@ -296,6 +306,7 @@ public partial class SettingsWindow : Window
         }
 
         w.GlowColor = BtnWeatherGlowColor.Tag?.ToString() ?? "#3b82f6";
+        w.TimeFormat = (CmbWeatherTimeFormat.SelectedItem as ComboBoxItem)?.Content?.ToString() ?? "12h";
     }
 
     private void BtnColorPick_Click(object sender, RoutedEventArgs e)
@@ -343,7 +354,14 @@ public partial class SettingsWindow : Window
 
     private void LstOrder_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
-        PnlGaugeConfig.Visibility = LstOrder.SelectedItem is string ? Visibility.Visible : Visibility.Collapsed;
+        if (LstOrder.SelectedItem is string selected)
+        {
+            LblConfigTitle.Text = $"{selected.ToUpper()} CONFIG";
+        }
+        else
+        {
+            LblConfigTitle.Text = "SELECT A GAUGE ABOVE";
+        }
     }
 
     private void BtnGaugeConfig_Click(object sender, RoutedEventArgs e)
@@ -834,8 +852,8 @@ public partial class SettingsWindow : Window
         if (!ValidateActiveScreenCount(sender)) return;
 
         // Sync City textboxes
-        if (sender == TxtWeatherCity && TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = TxtWeatherCity.Text;
-        else if (sender == TxtWeatherCityLayout && TxtWeatherCity != null) TxtWeatherCity.Text = TxtWeatherCityLayout.Text;
+        // if (sender == TxtWeatherCity && TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = TxtWeatherCity.Text;
+        // else if (sender == TxtWeatherCityLayout && TxtWeatherCity != null) TxtWeatherCity.Text = TxtWeatherCityLayout.Text;
 
         UpdateScreenRotationList();
         UpdateThemeObject();
@@ -859,14 +877,16 @@ public partial class SettingsWindow : Window
 
     // Weather City API Search Logic
     private System.Windows.Threading.DispatcherTimer _citySearchTimer;
+    private bool _isUpdatingCity;
 
     private void TxtWeatherCity_KeyUp(object sender, System.Windows.Input.KeyEventArgs e)
     {
+        if (_isUpdatingCity) return;
         if (e.Key == System.Windows.Input.Key.Enter || e.Key == System.Windows.Input.Key.Up || e.Key == System.Windows.Input.Key.Down || e.Key == System.Windows.Input.Key.Escape) return;
         
         if (_citySearchTimer == null)
         {
-            _citySearchTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(250) };
+            _citySearchTimer = new System.Windows.Threading.DispatcherTimer { Interval = TimeSpan.FromMilliseconds(400) };
             _citySearchTimer.Tick += CitySearchTimer_Tick;
         }
         _citySearchTimer.Stop();
@@ -876,7 +896,9 @@ public partial class SettingsWindow : Window
     private async void CitySearchTimer_Tick(object sender, EventArgs e)
     {
         _citySearchTimer.Stop();
-        string query = TxtWeatherCity.Text;
+        
+        var tb = TxtWeatherCity.Template.FindName("PART_EditableTextBox", TxtWeatherCity) as System.Windows.Controls.TextBox;
+        string query = tb?.Text ?? TxtWeatherCity.Text;
         if (string.IsNullOrWhiteSpace(query) || query.Length < 3) return;
         
         string apiKey = TxtWeatherApiKey.Password;
@@ -884,7 +906,7 @@ public partial class SettingsWindow : Window
 
         try
         {
-            float limit = 5;
+            int limit = 5;
             string url = $"https://api.openweathermap.org/geo/1.0/direct?q={Uri.EscapeDataString(query)}&limit={limit}&appid={apiKey}";
             using var client = new System.Net.Http.HttpClient();
             var response = await client.GetAsync(url);
@@ -894,19 +916,33 @@ public partial class SettingsWindow : Window
                 var items = System.Text.Json.JsonSerializer.Deserialize<List<GeoCity>>(json);
                 if (items != null && items.Count > 0)
                 {
-                    var tb = TxtWeatherCity.Template.FindName("PART_EditableTextBox", TxtWeatherCity) as System.Windows.Controls.TextBox;
-                    int caret = tb?.CaretIndex ?? query.Length;
+                    _isUpdatingCity = true;
+                    
+                    string savedText = tb?.Text ?? TxtWeatherCity.Text;
+                    int savedCaret = tb?.CaretIndex ?? savedText.Length;
                     
                     TxtWeatherCity.ItemsSource = items;
-                    TxtWeatherCity.Text = query;
-                    
-                    if (tb != null) tb.CaretIndex = caret;
-                    
+                    TxtWeatherCity.SelectedIndex = -1; // Don't auto-select anything
                     TxtWeatherCity.IsDropDownOpen = true;
+                    
+                    // Restore text on next dispatcher frame, after WPF finishes its auto-select
+                    Dispatcher.BeginInvoke(new System.Action(() =>
+                    {
+                        if (tb != null)
+                        {
+                            tb.Text = savedText;
+                            tb.CaretIndex = savedCaret;
+                        }
+                        else
+                        {
+                            TxtWeatherCity.Text = savedText;
+                        }
+                        _isUpdatingCity = false;
+                    }), System.Windows.Threading.DispatcherPriority.Input);
                 }
             }
         }
-        catch { }
+        catch { _isUpdatingCity = false; }
     }
 
     private void BtnApplyLicense_Click(object sender, RoutedEventArgs e)

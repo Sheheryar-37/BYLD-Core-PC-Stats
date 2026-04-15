@@ -34,6 +34,10 @@ public interface IHardwareMonitorService
 
         // ── AMD iGPU SoC temp: used as CPU temp proxy when WinRing0 is blocked by HVCI ──
         private float _cachedIgpuSocTemp = 0f;
+
+        // ── Discrete GPU fan/temp: used as motherboard fallback when Super I/O is blocked ──
+        private float _cachedDiscreteGpuFanRpm = 0f;
+        private float _cachedDiscreteGpuTemp = 0f;
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -143,6 +147,21 @@ public interface IHardwareMonitorService
         {
             metrics.CpuTemp = _cachedIgpuSocTemp;
             _logger.LogDebug("[CPU] Using AMD iGPU SoC temperature as CPU proxy: {t:F0}°C", _cachedIgpuSocTemp);
+        }
+
+        // ── Post-loop fallback: use discrete GPU fan/temp for motherboard gauge ─────────
+        _logger.LogDebug("[Board] Post-loop check: MBTemp={t:F0}°C | FanSpeed={f:F0} RPM | CachedGpuFan={gf:F0} RPM | CachedGpuTemp={gt:F0}°C",
+            metrics.MotherboardTemp, metrics.FanSpeed, _cachedDiscreteGpuFanRpm, _cachedDiscreteGpuTemp);
+
+        if (metrics.FanSpeed <= 0 && _cachedDiscreteGpuFanRpm >= 0)
+        {
+            metrics.FanSpeed = _cachedDiscreteGpuFanRpm;
+            _logger.LogDebug("[Board] → Using discrete GPU fan speed as fallback: {f:F0} RPM", _cachedDiscreteGpuFanRpm);
+        }
+        if (metrics.MotherboardTemp <= 0 && _cachedDiscreteGpuTemp > 0)
+        {
+            metrics.MotherboardTemp = _cachedDiscreteGpuTemp;
+            _logger.LogDebug("[Board] → Using discrete GPU temp as VRM proxy: {t:F0}°C", _cachedDiscreteGpuTemp);
         }
 
         // Try to map DriveInfo sizes (Logical partitions) to the Physical Drives listed by LHM
@@ -389,6 +408,21 @@ public interface IHardwareMonitorService
                     _logger.LogDebug("[GPU] LHM clock = {v}. No WMI fallback available for GPU clock.", lhmClock);
                 }
             }
+
+            // ── Cache discrete GPU fan/temp for motherboard fallback ──
+            if (!isLikelyIntegrated)
+            {
+                var gpuFan = GetFirstSensorValue(hardware, SensorType.Fan);
+                _logger.LogDebug("[GPU] Discrete GPU '{n}' fan sensor: {v} RPM", hardware.Name, gpuFan);
+
+                if (gpuFan.HasValue)
+                    _cachedDiscreteGpuFanRpm = gpuFan.Value;
+
+                if (metrics.GpuTemp > 0)
+                    _cachedDiscreteGpuTemp = (float)metrics.GpuTemp;
+
+                _logger.LogDebug("[GPU] Cached for board fallback → Fan={f:F0} RPM | Temp={t:F0}°C", _cachedDiscreteGpuFanRpm, _cachedDiscreteGpuTemp);
+            }
         }
         else if (hardware.HardwareType == HardwareType.Memory || hardware.Name.Contains("Memory", StringComparison.OrdinalIgnoreCase))
         {
@@ -429,15 +463,44 @@ public interface IHardwareMonitorService
                 SizeString = ""
             });
         }
+        else if (hardware.HardwareType == HardwareType.Motherboard)
+        {
+            // Log motherboard detection and what sub-hardware is available
+            var sensorCount = hardware.Sensors.Length;
+            var subHwCount = hardware.SubHardware.Length;
+            _logger.LogInformation("[Board] Motherboard detected: '{n}' | Sensors={s} | SubHardware={sub}",
+                hardware.Name, sensorCount, subHwCount);
+
+            // List all sub-hardware types (SuperIO chips are where VRM/Fan data comes from)
+            foreach (var sub in hardware.SubHardware)
+                _logger.LogInformation("[Board]   SubHW: '{n}' (Type={t}, Sensors={s})",
+                    sub.Name, sub.HardwareType, sub.Sensors.Length);
+
+            if (subHwCount == 0)
+                _logger.LogWarning("[Board] ⚠ No sub-hardware (Super I/O) detected — HVCI/VBS likely blocking port I/O access. VRM temp and fan speed will use GPU fallback.");
+        }
         else if (hardware.HardwareType == HardwareType.SuperIO)
         {
+            // Log ALL available sensor types on this Super I/O chip for diagnostics
+            var tempSensors = hardware.Sensors.Where(s => s.SensorType == SensorType.Temperature).ToList();
+            var fanSensors  = hardware.Sensors.Where(s => s.SensorType == SensorType.Fan).ToList();
+            var voltSensors = hardware.Sensors.Where(s => s.SensorType == SensorType.Voltage).ToList();
+
+            _logger.LogInformation("[SuperIO] '{n}' | TempSensors={tc} | FanSensors={fc} | VoltageSensors={vc}",
+                hardware.Name, tempSensors.Count, fanSensors.Count, voltSensors.Count);
+
+            foreach (var t in tempSensors)
+                _logger.LogDebug("[SuperIO]   Temp: '{n}' = {v}°C", t.Name, t.Value);
+            foreach (var f in fanSensors)
+                _logger.LogDebug("[SuperIO]   Fan:  '{n}' = {v} RPM", f.Name, f.Value);
+
             if (metrics.MotherboardTemp == 0)
                 metrics.MotherboardTemp = GetFirstSensorValue(hardware, SensorType.Temperature) ?? 0;
             
             if (metrics.FanSpeed == 0)
                 metrics.FanSpeed = GetFirstSensorValue(hardware, SensorType.Fan) ?? 0;
 
-            _logger.LogDebug("[SuperIO] '{n}' | MBTemp={t:F1}°C | Fan={f:F0} RPM", hardware.Name, metrics.MotherboardTemp, metrics.FanSpeed);
+            _logger.LogDebug("[SuperIO] Final => MBTemp={t:F1}°C | Fan={f:F0} RPM", metrics.MotherboardTemp, metrics.FanSpeed);
         }
         else if (hardware.HardwareType == HardwareType.Network)
         {

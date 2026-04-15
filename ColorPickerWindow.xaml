@@ -5,6 +5,55 @@
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
+
+    <Window.Resources>
+        <!-- Modern Slider Thumb -->
+        <Style x:Key="SliderThumbStyle" TargetType="Thumb">
+            <Setter Property="Width" Value="18"/>
+            <Setter Property="Height" Value="18"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Thumb">
+                        <Grid>
+                            <Ellipse Width="18" Height="18" Fill="#3b82f6" Effect="{x:Null}"/>
+                            <Ellipse Width="10" Height="10" Fill="White"/>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Modern Slider Style -->
+        <Style TargetType="Slider">
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Slider">
+                        <Grid VerticalAlignment="Center">
+                            <!-- Track background -->
+                            <Border Height="4" CornerRadius="2" Background="#333333" VerticalAlignment="Center"/>
+                            <!-- Track filled portion -->
+                            <Canvas x:Name="TrackCanvas" Height="4" VerticalAlignment="Center" ClipToBounds="False">
+                                <Border x:Name="FilledTrack" Height="4" CornerRadius="2" Background="#3b82f6" VerticalAlignment="Center"
+                                        Width="{Binding ActualWidth, RelativeSource={RelativeSource TemplatedParent}, Converter={x:Null}}"/>
+                            </Canvas>
+                            <Track x:Name="PART_Track">
+                                <Track.DecreaseRepeatButton>
+                                    <RepeatButton Command="Slider.DecreaseLarge" Opacity="0" Height="22"/>
+                                </Track.DecreaseRepeatButton>
+                                <Track.Thumb>
+                                    <Thumb Style="{StaticResource SliderThumbStyle}" Cursor="Hand"/>
+                                </Track.Thumb>
+                                <Track.IncreaseRepeatButton>
+                                    <RepeatButton Command="Slider.IncreaseLarge" Opacity="0" Height="22"/>
+                                </Track.IncreaseRepeatButton>
+                            </Track>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
     
     <Border Background="#D9111111" CornerRadius="15" BorderBrush="#33FFFFFF" BorderThickness="1">
         <Grid Margin="20">
