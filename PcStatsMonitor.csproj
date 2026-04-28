@@ -15,6 +15,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="OpenRGB.NET" Version="3.1.1" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
     <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.7-pre656" />
@@ -27,7 +28,7 @@
   <ItemGroup>
     <Resource Include="Assets\**" />
     <None Update="theme.json">
-      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory> 
     </None>
   
   </ItemGroup>

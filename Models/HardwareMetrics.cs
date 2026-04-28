@@ -21,6 +21,13 @@ public class HardwareMetrics
     public double NetworkDown { get; set; }
 
     public List<DriveMetrics> Drives { get; set; } = new();
+    public List<FanMetric> Fans { get; set; } = new();
+}
+
+public class FanMetric
+{
+    public string Name { get; set; } = string.Empty;
+    public double Speed { get; set; }
 }
 
 public class DriveMetrics

@@ -12,6 +12,9 @@ public class ThemeConfig
     public string AccentColor { get; set; } = Constants.DefaultThemeAccent;
     public string TrackColor { get; set; } = Constants.DefaultThemeTrack;
     public string AlertColor { get; set; } = Constants.DefaultThemeAlert;
+
+    [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush AccentColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(AccentColor)); } catch { return System.Windows.Media.Brushes.DodgerBlue; } } }
+    [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush ForegroundColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(ForegroundColor)); } catch { return System.Windows.Media.Brushes.White; } } }
     public bool LaunchOnStartup { get; set; } = false;
 
     // ── Branding ─────────────────────────────────────────────────────────────
@@ -37,6 +40,7 @@ public class ThemeConfig
     public bool ShowStorageScreen { get; set; } = true;
     public bool ShowClockScreen { get; set; } = true;
     public bool ShowWeatherScreen { get; set; } = false;
+    public bool ShowFansScreen { get; set; } = true;
     public List<string> EnabledPlugins { get; set; } = new() { "System Clock", "Fan & RGB Controller" };
 
     // ── Rotation Order (Identifiers: "Gauges", "Storage", "Clock", or Plugin Name) ────

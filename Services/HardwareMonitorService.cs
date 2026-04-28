@@ -38,6 +38,9 @@ public interface IHardwareMonitorService
         // ── Discrete GPU fan/temp: used as motherboard fallback when Super I/O is blocked ──
         private float _cachedDiscreteGpuFanRpm = 0f;
         private float _cachedDiscreteGpuTemp = 0f;
+    private Dictionary<string, int> _logicalToPhysicalDiskMap = new(StringComparer.OrdinalIgnoreCase);
+    private Dictionary<int, string> _physicalDiskModelMap = new();
+    private Dictionary<int, string> _physicalDiskTypeMap = new();
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
@@ -89,6 +92,47 @@ public interface IHardwareMonitorService
             {
                 _logger.LogDebug(ex, "[CPU] PerformanceCounter warmup failed — WMI fallback will be used.");
                 _cpuClockCounter = null;
+            }
+            
+            try
+            {
+                using var searcherDisk = new System.Management.ManagementObjectSearcher(@"root\CIMv2", "SELECT Index, Model FROM Win32_DiskDrive");
+                foreach (System.Management.ManagementObject queryObj in searcherDisk.Get())
+                {
+                    if (int.TryParse(queryObj["Index"]?.ToString(), out int idx))
+                        _physicalDiskModelMap[idx] = queryObj["Model"]?.ToString() ?? "Storage Drive";
+                }
+
+                using var searcherPart = new System.Management.ManagementObjectSearcher(@"root\CIMv2", "SELECT Antecedent, Dependent FROM Win32_LogicalDiskToPartition");
+                foreach (System.Management.ManagementObject queryObj in searcherPart.Get())
+                {
+                    string ant = queryObj["Antecedent"]?.ToString() ?? "";
+                    string dep = queryObj["Dependent"]?.ToString() ?? "";
+                    var letterMatch = System.Text.RegularExpressions.Regex.Match(dep, "DeviceID=\"(.*?)\"");
+                    var diskMatch = System.Text.RegularExpressions.Regex.Match(ant, "Disk #(\\d+)");
+                    if (letterMatch.Success && diskMatch.Success)
+                        _logicalToPhysicalDiskMap[letterMatch.Groups[1].Value] = int.Parse(diskMatch.Groups[1].Value);
+                }
+
+                // Add NVMe/SSD/HDD metadata querying via MSFT_PhysicalDisk
+                using var searcherMedia = new System.Management.ManagementObjectSearcher(@"Root\Microsoft\Windows\Storage", "SELECT DeviceId, MediaType, BusType FROM MSFT_PhysicalDisk");
+                foreach (System.Management.ManagementObject queryObj in searcherMedia.Get())
+                {
+                    if (int.TryParse(queryObj["DeviceId"]?.ToString(), out int idx))
+                    {
+                         int mediaType = Convert.ToInt32(queryObj["MediaType"] ?? 0);
+                         int busType = Convert.ToInt32(queryObj["BusType"] ?? 0);
+                         
+                         string mediaStr = mediaType == 4 ? "SSD" : mediaType == 3 ? "HDD" : "Drive";
+                         string busStr = busType == 17 ? "NVMe " : busType == 11 ? "SATA " : busType == 7 ? "USB " : "";
+                         
+                         _physicalDiskTypeMap[idx] = $"{busStr}{mediaStr}";
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogDebug(ex, "Failed to map physical storage disks via WMI.");
             }
         });
     }
@@ -164,15 +208,45 @@ public interface IHardwareMonitorService
             _logger.LogDebug("[Board] → Using discrete GPU temp as VRM proxy: {t:F0}°C", _cachedDiscreteGpuTemp);
         }
 
-        // Try to map DriveInfo sizes (Logical partitions) to the Physical Drives listed by LHM
         try
         {
             var driveInfos = System.IO.DriveInfo.GetDrives().Where(d => d.IsReady && d.DriveType == System.IO.DriveType.Fixed).ToList();
-            for (int i = 0; i < Math.Min(metrics.Drives.Count, driveInfos.Count); i++)
+            
+            metrics.Drives.Clear();
+            var physicalDriveStats = new Dictionary<int, DriveMetrics>();
+            
+            foreach (var dInfo in driveInfos)
             {
-                var dInfo = driveInfos[i];
+                string letter = dInfo.Name.Replace("\\", "");
+                int physicalIndex = _logicalToPhysicalDiskMap.TryGetValue(letter, out int idx) ? idx : 0;
+                
+                if (!physicalDriveStats.ContainsKey(physicalIndex))
+                {
+                    string model = _physicalDiskModelMap.TryGetValue(physicalIndex, out string mName) ? mName : "Local Disk";
+                    string devType = _physicalDiskTypeMap.TryGetValue(physicalIndex, out string tName) ? tName : "Physical Drive";
+                    
+                    physicalDriveStats[physicalIndex] = new DriveMetrics
+                    {
+                        Vendor = model,
+                        Model = $"Disk {physicalIndex} \u2022 {devType}",
+                        TotalSpaceGb = 0,
+                        UsedSpaceGb = 0
+                    };
+                }
+                
                 var totalGb = dInfo.TotalSize / (1024.0 * 1024.0 * 1024.0);
-                metrics.Drives[i].SizeString = $"{Math.Round(totalGb)} GB (Drive {dInfo.Name.Replace("\\", "")})";
+                var freeGb = dInfo.TotalFreeSpace / (1024.0 * 1024.0 * 1024.0);
+                var usedGb = totalGb - freeGb;
+                
+                physicalDriveStats[physicalIndex].TotalSpaceGb += totalGb;
+                physicalDriveStats[physicalIndex].UsedSpaceGb += usedGb;
+            }
+
+            foreach (var kvp in physicalDriveStats.OrderBy(k => k.Key))
+            {
+                var stat = kvp.Value;
+                stat.SizeString = $"{Math.Round(stat.TotalSpaceGb)} GB";
+                metrics.Drives.Add(stat);
             }
         }
         catch { }
@@ -190,6 +264,35 @@ public interface IHardwareMonitorService
         else if (metrics.Drives.Count > 2)
         {
             metrics.Drives = metrics.Drives.Take(2).ToList();
+        }
+
+        // DEMO OVERRIDES
+        if (PcStatsMonitor.Services.HardwareControlService.IsDemoMode)
+        {
+            metrics.Fans.Clear();
+            var random = new Random();
+            double variation = random.Next(-30, 30);
+            
+            metrics.Fans.Add(new FanMetric { Name = "AIO Pump Fan", Speed = 2100 + variation });
+            metrics.Fans.Add(new FanMetric { Name = "Intake System Fans", Speed = 1250 + variation });
+            metrics.Fans.Add(new FanMetric { Name = "Rear Exhaust Fan", Speed = 1050 + variation });
+
+            if (metrics.Drives.Count >= 2)
+            {
+                metrics.Drives[0].Vendor = "GALAXY";
+                metrics.Drives[0].Model = "M.2 NVMe Demo Drive";
+                metrics.Drives[0].TotalSpaceGb = 2000;
+                metrics.Drives[0].UsedSpaceGb = 1842;
+                metrics.Drives[0].SizeString = "2048 GB (C:)";
+
+                metrics.Drives[1].Vendor = "GIGABYTE";
+                metrics.Drives[1].Model = "Vision Gen4 SSD";
+                metrics.Drives[1].TotalSpaceGb = 4000;
+                metrics.Drives[1].UsedSpaceGb = 650;
+                metrics.Drives[1].SizeString = "4096 GB (D:)";
+            }
+            
+            metrics.MotherboardTemp = 42 + (variation * 0.1);
         }
 
         _currentMetrics = metrics;
@@ -471,6 +574,15 @@ public interface IHardwareMonitorService
             _logger.LogInformation("[Board] Motherboard detected: '{n}' | Sensors={s} | SubHardware={sub}",
                 hardware.Name, sensorCount, subHwCount);
 
+            // Fetch any fans on the direct board level
+            foreach (var s in hardware.Sensors)
+            {
+                if ((s.SensorType == SensorType.Fan || s.SensorType == SensorType.Control) && s.Value.HasValue)
+                {
+                    metrics.Fans.Add(new FanMetric { Name = s.Name, Speed = s.Value.Value });
+                }
+            }
+
             // List all sub-hardware types (SuperIO chips are where VRM/Fan data comes from)
             foreach (var sub in hardware.SubHardware)
                 _logger.LogInformation("[Board]   SubHW: '{n}' (Type={t}, Sensors={s})",
@@ -492,7 +604,10 @@ public interface IHardwareMonitorService
             foreach (var t in tempSensors)
                 _logger.LogDebug("[SuperIO]   Temp: '{n}' = {v}°C", t.Name, t.Value);
             foreach (var f in fanSensors)
+            {
                 _logger.LogDebug("[SuperIO]   Fan:  '{n}' = {v} RPM", f.Name, f.Value);
+                if (f.Value.HasValue) metrics.Fans.Add(new FanMetric { Name = f.Name, Speed = f.Value.Value });
+            }
 
             if (metrics.MotherboardTemp == 0)
                 metrics.MotherboardTemp = GetFirstSensorValue(hardware, SensorType.Temperature) ?? 0;

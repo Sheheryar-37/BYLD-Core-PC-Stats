@@ -42,6 +42,7 @@ public partial class MainWindow : Window
             ClockScreen.Visibility = Visibility.Collapsed;
             WeatherScreenArea.Visibility = Visibility.Collapsed;
             WeatherGalleryArea.Visibility = Visibility.Collapsed;
+            FansScreenArea.Visibility = Visibility.Collapsed;
             PluginScreen.Visibility = Visibility.Collapsed;
         }
 
@@ -312,6 +313,9 @@ public partial class MainWindow : Window
         if (config.Weather.ShowWeatherGallery && !config.ScreenRotationOrder.Contains("Gallery"))
             config.ScreenRotationOrder.Add("Gallery");
 
+        if (config.ShowFansScreen && !config.ScreenRotationOrder.Contains("Fans"))
+            config.ScreenRotationOrder.Add("Fans");
+
         // Synchronize missing enabled plugins into the rotation order
         if (config.EnabledPlugins != null)
         {
@@ -360,6 +364,11 @@ public partial class MainWindow : Window
             targetScreen = WeatherGalleryArea;
             currentScreenValid = true;
         }
+        else if (currentScreenName == "Fans" && config.ShowFansScreen)
+        {
+            targetScreen = FansScreenArea;
+            currentScreenValid = true;
+        }
         else
         {
             // Check plugins
@@ -401,6 +410,10 @@ public partial class MainWindow : Window
                 {
                     targetScreen = WeatherGalleryArea; _currentScreenIndex = i; currentScreenValid = true; break;
                 }
+                if (name == "Fans" && config.ShowFansScreen)
+                {
+                    targetScreen = FansScreenArea; _currentScreenIndex = i; currentScreenValid = true; break;
+                }
 
                 var p = _pluginManager?.LoadedPlugins?.FirstOrDefault(pl => pl.Name == name);
                 if (p != null && config.EnabledPlugins.Contains(p.Name))
@@ -413,7 +426,7 @@ public partial class MainWindow : Window
             if (!currentScreenValid) targetScreen = GaugesContainer;
         }
 
-        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea, WeatherGalleryArea };
+        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea, WeatherGalleryArea, FansScreenArea };
 
         if (animate)
         {
@@ -504,6 +517,7 @@ public partial class MainWindow : Window
             else if (name == "Clock" && config.ShowClockScreen) isValid = true;
             else if (name == "Weather" && config.ShowWeatherScreen) isValid = true;
             else if (name == "Gallery" && config.Weather?.ShowWeatherGallery == true) isValid = true;
+            else if (name == "Fans" && config.ShowFansScreen) isValid = true;
             else if (config.EnabledPlugins != null && config.EnabledPlugins.Contains(name)) isValid = true;
 
             if (isValid) break;
@@ -555,6 +569,7 @@ public partial class MainWindow : Window
             ClockScreen.Visibility = Visibility.Collapsed;
             WeatherScreenArea.Visibility = Visibility.Collapsed;
             WeatherGalleryArea.Visibility = Visibility.Collapsed;
+            FansScreenArea.Visibility = Visibility.Collapsed;
             PluginScreen.Visibility = Visibility.Collapsed;
         }
         

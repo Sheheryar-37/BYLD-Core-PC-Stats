@@ -37,6 +37,63 @@ public static class SensorStartupLogger
             sb.AppendLine("-----------------------------------------");
             sb.AppendLine();
 
+            // ── HVCI / Memory Integrity Status ──
+            try
+            {
+                var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity");
+                if (key != null)
+                {
+                    var enabled = key.GetValue("Enabled")?.ToString() ?? "not found";
+                    sb.AppendLine($"[HVCI] Memory Integrity (HVCI) Registry Enabled = {enabled} (1=Active/Blocking, 0=Disabled)");
+                }
+                else
+                {
+                    sb.AppendLine("[HVCI] Registry key not found — Memory Integrity likely not configured.");
+                }
+            }
+            catch (Exception ex) { sb.AppendLine($"[HVCI] Check failed: {ex.Message}"); }
+            sb.AppendLine();
+
+            // ── WMI Fan Query (Win32_Fan) ──
+            try
+            {
+                using var fanSearcher = new System.Management.ManagementObjectSearcher("SELECT * FROM Win32_Fan");
+                int fanCount = 0;
+                foreach (System.Management.ManagementObject obj in fanSearcher.Get())
+                {
+                    var name = obj["Name"]?.ToString() ?? "Unknown";
+                    var status = obj["Status"]?.ToString() ?? "Unknown";
+                    var deviceId = obj["DeviceID"]?.ToString() ?? "Unknown";
+                    sb.AppendLine($"[WMI Fan {fanCount}] Name: {name}, Status: {status}, DeviceID: {deviceId}");
+                    fanCount++;
+                }
+                if (fanCount == 0)
+                    sb.AppendLine("[WMI Fan] No fans detected via Win32_Fan WMI class.");
+            }
+            catch (Exception ex) { sb.AppendLine($"[WMI Fan] Query failed: {ex.Message}"); }
+            sb.AppendLine();
+
+            // ── Physical Disk Inventory ──
+            try
+            {
+                using var diskSearcher = new System.Management.ManagementObjectSearcher(@"Root\Microsoft\Windows\Storage", "SELECT DeviceId, FriendlyName, MediaType, BusType, Size FROM MSFT_PhysicalDisk");
+                foreach (System.Management.ManagementObject obj in diskSearcher.Get())
+                {
+                    var id = obj["DeviceId"]?.ToString() ?? "?";
+                    var name = obj["FriendlyName"]?.ToString() ?? "Unknown";
+                    var media = Convert.ToInt32(obj["MediaType"] ?? 0);
+                    var bus = Convert.ToInt32(obj["BusType"] ?? 0);
+                    var size = Convert.ToInt64(obj["Size"] ?? 0) / (1024L * 1024L * 1024L);
+                    string mediaStr = media == 4 ? "SSD" : media == 3 ? "HDD" : "Unknown";
+                    string busStr = bus == 17 ? "NVMe" : bus == 11 ? "SATA" : bus == 7 ? "USB" : $"Bus({bus})";
+                    sb.AppendLine($"[Disk {id}] {name} | {busStr} {mediaStr} | {size} GB");
+                }
+            }
+            catch (Exception ex) { sb.AppendLine($"[Disk] Query failed: {ex.Message}"); }
+            sb.AppendLine();
+            sb.AppendLine("-----------------------------------------");
+            sb.AppendLine();
+
             foreach (var hardware in computer.Hardware)
             {
                 LogHardwareItem(hardware, sb, "");

@@ -5,6 +5,7 @@
         WindowStyle="None" AllowsTransparency="True" Background="#D9161616" ResizeMode="CanResizeWithGrip"
         xmlns:models="clr-namespace:PcStatsMonitor.Models"
         xmlns:local="clr-namespace:PcStatsMonitor"
+        xmlns:ctrl="clr-namespace:PcStatsMonitor.Controls"
         MouseLeftButtonDown="Window_MouseLeftButtonDown"
         Icon="Assets/byld-icon.png">
     
@@ -408,6 +409,34 @@
                             </Grid.ColumnDefinitions>
                             
                             <StackPanel Grid.Column="0" Margin="0,0,15,0">
+                                <!-- PROFILES / SAVED LAYOUTS -->
+                                <Border Style="{StaticResource SectionBorderStyle}">
+                                    <StackPanel>
+                                        <TextBlock Text="SAVED LAYOUTS" Style="{StaticResource SectionHeaderStyle}"/>
+                                        <TextBlock Text="Save and restore your favorite widget and screen setups." FontSize="10" Opacity="0.6" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                                        
+                                        <Grid Margin="0,0,0,10">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            
+                                            <ComboBox x:Name="CmbProfiles" Style="{StaticResource ModernComboBoxStyle}" Margin="0,0,5,0" IsEditable="False"/>
+                                            <Button Grid.Column="1" Content="Load" Width="55" Height="28" Click="BtnLoadProfile_Click" Style="{StaticResource ModernButtonStyle}" Margin="0,0,5,0"/>
+                                            <Button Grid.Column="2" Content="✕" Width="30" Height="28" Click="BtnDeleteProfile_Click" Style="{StaticResource ModernButtonStyle}" Foreground="#E63946" ToolTip="Delete profile"/>
+                                        </Grid>
+                                        
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+                                            <TextBox x:Name="TxtNewProfileName" Margin="0,0,5,0" Height="28"/>
+                                            <Button Grid.Column="1" Content="Save As New" Width="85" Height="28" Click="BtnSaveProfile_Click" Style="{StaticResource PrimaryButtonStyle}"/>
+                                        </Grid>
+                                    </StackPanel>
+                                </Border>
                                 <Border Style="{StaticResource SectionBorderStyle}">
                                     <StackPanel>
                                         <TextBlock Text="SCREEN TOGGLES" Style="{StaticResource SectionHeaderStyle}"/>
@@ -415,6 +444,7 @@
                                         <CheckBox x:Name="ChkStorageScreen" Content="Storage Dashboard" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkClockScreen" Content="Built-in Clock" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkWeatherScreenLayout" Content="Weather Screen" Click="OnWeatherSettingChanged"/>
+                                        <CheckBox x:Name="ChkFansScreen" Content="Fans &amp; Cooling Screen" Click="OnScreenSettingChanged"/>
                                         
                                         <CheckBox x:Name="ChkWeatherGallery" Content="Weather Icon Gallery (Internal)" 
                                                   Visibility="{Binding Source={x:Static models:Constants.IsDebugMode}, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -461,11 +491,13 @@
                                         <CheckBox x:Name="ChkAutoRotate" Content="Enable Auto-Rotation" Click="OnSettingChanged" Margin="0,0,0,10"/>
                                         <Grid Margin="0,5,0,0">
                                             <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="40"/>
+                                                <ColumnDefinition Width="35"/>
+                                                <ColumnDefinition Width="15"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock x:Name="LblInterval" Text="{Binding Value, ElementName=SldInterval, StringFormat={}{0:0}s}" Foreground="{StaticResource BrandBlue}" FontWeight="Bold" VerticalAlignment="Center"/>
-                                            <Slider x:Name="SldInterval" Grid.Column="1" Minimum="3" Maximum="60" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SldInterval_ValueChanged" VerticalAlignment="Center"/>
+                                            <TextBox x:Name="TxtInterval" Text="{Binding Value, ElementName=SldInterval, UpdateSourceTrigger=PropertyChanged, FallbackValue=15}" Background="#222222" Foreground="{StaticResource BrandBlue}" BorderBrush="#444444" BorderThickness="1" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Center" Padding="2"/>
+                                            <TextBlock Grid.Column="1" Text="s" Foreground="{StaticResource BrandBlue}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                            <Slider x:Name="SldInterval" Grid.Column="2" Minimum="3" Maximum="1200" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SldInterval_ValueChanged" VerticalAlignment="Center" Margin="5,0,0,0"/>
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -490,60 +522,73 @@
                                 </Border>
                             </StackPanel>
 
-                            <Border Grid.Column="1" Style="{StaticResource SectionBorderStyle}" Margin="0">
+                            <Border Grid.Column="1" Style="{StaticResource SectionBorderStyle}" Margin="0" VerticalAlignment="Top">
                                 <Grid>
                                     <Grid.RowDefinitions>
                                         <RowDefinition Height="Auto"/>
-                                        <RowDefinition Height="*"/>
+                                        <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                         <RowDefinition Height="Auto"/>
                                     </Grid.RowDefinitions>
                                     <TextBlock Text="GAUGES SCREEN WIDGETS" Style="{StaticResource SectionHeaderStyle}"/>
-                                    <Border Grid.Row="1" CornerRadius="6" Background="#11FFFFFF" Margin="0,0,0,15">
-                                        <ListBox x:Name="LstOrder" Background="Transparent" Foreground="#FFF" BorderThickness="0" SelectionChanged="LstOrder_SelectionChanged">
-                                            <ListBox.ItemContainerStyle>
-                                                <Style TargetType="ListBoxItem">
-                                                    <Setter Property="Padding" Value="0"/>
-                                                    <Setter Property="Template">
-                                                        <Setter.Value>
-                                                            <ControlTemplate TargetType="ListBoxItem">
-                                                                <Border x:Name="ItemBorder" Padding="8,6" Background="Transparent" CornerRadius="6" Margin="2">
-                                                                    <ContentPresenter/>
-                                                                </Border>
-                                                                <ControlTemplate.Triggers>
-                                                                    <Trigger Property="IsSelected" Value="True">
-                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="#333b82f6"/>
-                                                                        <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#3b82f6"/>
-                                                                        <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1"/>
-                                                                    </Trigger>
-                                                                    <Trigger Property="IsMouseOver" Value="True">
-                                                                        <Setter TargetName="ItemBorder" Property="Background" Value="#11FFFFFF"/>
-                                                                    </Trigger>
-                                                                </ControlTemplate.Triggers>
-                                                            </ControlTemplate>
-                                                        </Setter.Value>
-                                                    </Setter>
-                                                </Style>
-                                            </ListBox.ItemContainerStyle>
-                                            <ListBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding}" Foreground="#EEE" FontSize="11" Margin="0" Cursor="Hand"/>
-                                                </DataTemplate>
-                                            </ListBox.ItemTemplate>
-                                        </ListBox>
-                                    </Border>
+                                    
+                                    <Grid Grid.Row="1" Margin="0,0,0,15">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Border CornerRadius="6" Background="#11FFFFFF" MaxHeight="100">
+                                            <ListBox x:Name="LstOrder" Background="Transparent" Foreground="#FFF" BorderThickness="0" SelectionChanged="LstOrder_SelectionChanged" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                                <ListBox.ItemContainerStyle>
+                                                    <Style TargetType="ListBoxItem">
+                                                        <Setter Property="Padding" Value="0"/>
+                                                        <Setter Property="Template">
+                                                            <Setter.Value>
+                                                                <ControlTemplate TargetType="ListBoxItem">
+                                                                    <Border x:Name="ItemBorder" Padding="8,4" Background="Transparent" CornerRadius="4" Margin="2,1">
+                                                                        <ContentPresenter/>
+                                                                    </Border>
+                                                                    <ControlTemplate.Triggers>
+                                                                        <Trigger Property="IsSelected" Value="True">
+                                                                            <Setter TargetName="ItemBorder" Property="Background" Value="#333b82f6"/>
+                                                                            <Setter TargetName="ItemBorder" Property="BorderBrush" Value="#3b82f6"/>
+                                                                            <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1"/>
+                                                                        </Trigger>
+                                                                        <Trigger Property="IsMouseOver" Value="True">
+                                                                            <Setter TargetName="ItemBorder" Property="Background" Value="#11FFFFFF"/>
+                                                                        </Trigger>
+                                                                    </ControlTemplate.Triggers>
+                                                                </ControlTemplate>
+                                                            </Setter.Value>
+                                                        </Setter>
+                                                    </Style>
+                                                </ListBox.ItemContainerStyle>
+                                                <ListBox.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <TextBlock Text="{Binding}" Foreground="#EEE" FontSize="11" Margin="0" Cursor="Hand"/>
+                                                    </DataTemplate>
+                                                </ListBox.ItemTemplate>
+                                            </ListBox>
+                                        </Border>
+                                        
+                                        <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="10,0,0,0">
+                                            <Button Content="▲" Width="26" Height="26" Click="BtnMoveUp_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10" Margin="0,0,0,5"/>
+                                            <Button Content="▼" Width="26" Height="26" Click="BtnMoveDown_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10"/>
+                                        </StackPanel>
+                                    </Grid>
 
                                     <!-- Size & Position Config -->
-                                    <StackPanel x:Name="PnlGaugeConfig" Grid.Row="2" Visibility="Visible" Margin="0,0,0,15">
+                                    <StackPanel x:Name="PnlGaugeConfig" Grid.Row="2" Visibility="Visible" Margin="0,0,0,5">
                                         <TextBlock x:Name="LblConfigTitle" Text="SELECTED CONFIG" FontSize="10" Opacity="0.7" Margin="0,0,0,8" FontWeight="Bold" Foreground="{StaticResource BrandBlue}"/>
                                         
-                                        <UniformGrid Columns="2" Margin="0,5,0,15">
+                                        <UniformGrid Columns="2" Margin="0,5,0,5">
                                             <!-- Sizing Controls -->
                                             <StackPanel Margin="0,0,10,0" VerticalAlignment="Center">
                                                 <TextBlock Text="SIZE" FontSize="9" Opacity="0.6" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                     <Button x:Name="BtnGaugeScaleDown" Content="-" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0"/>
-                                                    <Button x:Name="BtnGaugeScaleUp" Content="+" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0" Margin="8,0,0,0"/>
+                                                    <TextBlock x:Name="LblGaugeScale" Text="1.00x" Foreground="White" Width="40" TextAlignment="Center" VerticalAlignment="Center" Margin="5,0"/>
+                                                    <Button x:Name="BtnGaugeScaleUp" Content="+" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0"/>
                                                 </StackPanel>
                                             </StackPanel>
 
@@ -575,15 +620,8 @@
                                         
                                         <TextBlock Text="Tip: Select a gauge from the list above to adjust." FontSize="8" Opacity="0.4" HorizontalAlignment="Center" FontStyle="Italic"/>
                                     </StackPanel>
-
-                                    <Grid Grid.Row="3">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="*"/>
-                                        </Grid.ColumnDefinitions>
-                                        <Button Content="UP" Margin="0,0,4,0" Click="BtnMoveUp_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10"/>
-                                        <Button Grid.Column="1" Content="DOWN" Margin="4,0,0,0" Click="BtnMoveDown_Click" Style="{StaticResource ModernButtonStyle}" FontSize="10"/>
-                                    </Grid>
+                                    
+                                    <Button x:Name="BtnResetAllGauges" Grid.Row="3" Content="Reset All Sizing &amp; Positions" HorizontalAlignment="Stretch" Margin="0,15,0,0" Padding="0,6" Style="{StaticResource ModernButtonStyle}" Click="BtnResetAllGauges_Click" FontSize="11" Background="#222222" Foreground="#AAFFFFFF" BorderThickness="0"/>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -694,6 +732,37 @@
                             </StackPanel>
                         </Border>
                     </StackPanel>
+                </TabItem>
+
+                <!-- ─── COOLING & RGB ───────────────────────────────────── -->
+                <TabItem Header="Cooling">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                        <StackPanel Margin="5,10">
+                            <!-- FANS -->
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="SYSTEM FANS" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <TextBlock Text="Adjust fan speeds. Controls will appear below if motherboard sensors are detected." FontSize="11" Opacity="0.7" Margin="0,0,0,15" TextWrapping="Wrap"/>
+                                    
+                                    <WrapPanel x:Name="PnlFanSliders" Orientation="Horizontal" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- RGB DEVICES -->
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="RGB LIGHTING" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <TextBlock Text="Sync supported RGB devices across your PC. Setup requires OpenRGB server." FontSize="11" Opacity="0.7" Margin="0,0,0,15" TextWrapping="Wrap"/>
+                                    
+                                    <StackPanel x:Name="PnlRgbDevices"/>
+
+                                    <Button x:Name="BtnRefreshHardware" Content="REFRESH HARDWARE" Margin="0,15,0,0" Height="30" Click="BtnRefreshHardware_Click" Style="{StaticResource ModernButtonStyle}"/>
+                                    
+                                    <CheckBox x:Name="ChkDemoHardware" Content="Enable Demo Hardware (Fake Fans &amp; RGB)" Foreground="#E63946" Margin="0,15,0,0" Click="ChkDemoHardware_Click" ToolTip="Instantly triggers fake spinning fans and RGB nodes for presentation mode."/>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <!-- ─── CLOCK ───────────────────────────────────────────── -->

@@ -20,6 +20,8 @@ public partial class SettingsWindow : Window
     public ObservableCollection<string> ActiveMonitors { get; set; } = new();
     public ObservableCollection<string> ScreenRotationList { get; set; } = new();
     public ObservableCollection<PluginToggle> PluginSettings { get; set; } = new();
+    
+    private PcStatsMonitor.Services.HardwareControlService? _hwControl;
 
     public class PluginToggle : System.ComponentModel.INotifyPropertyChanged
     {
@@ -113,6 +115,7 @@ public partial class SettingsWindow : Window
         ChkGaugesScreen.IsChecked = theme.ShowGaugesScreen;
         ChkStorageScreen.IsChecked = theme.ShowStorageScreen;
         ChkClockScreen.IsChecked = theme.ShowClockScreen;
+        ChkFansScreen.IsChecked = theme.ShowFansScreen;
         
         // SYNC BOTH WEATHER CHECKBOXES (Layout tab and Weather tab)
         ChkWeatherScreenLayout.IsChecked = theme.ShowWeatherScreen;
@@ -167,6 +170,11 @@ public partial class SettingsWindow : Window
 
         // Weather Settings
         LoadWeatherSettings();
+        
+        // Demo Hardware Settings
+        ChkDemoHardware.IsChecked = HardwareControlService.IsDemoMode;
+
+        LoadProfilesList();
 
         // License Settings
         try
@@ -209,28 +217,45 @@ public partial class SettingsWindow : Window
 
     private void LoadWeatherSettings()
     {
-        var weather = _themeService.CurrentTheme.Weather ?? new WeatherConfig();
-        ChkShowWeather.IsChecked = _themeService.CurrentTheme.ShowWeatherScreen;
-        if (ChkWeatherGallery != null) ChkWeatherGallery.IsChecked = weather.ShowWeatherGallery;
-        TxtWeatherApiKey.Password = weather.ApiKey ?? "";
-        TxtWeatherCity.Text = weather.City ?? "";
-        // if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.Text = weather.City ?? "";
+        var theme = _themeService.CurrentTheme;
+        if (theme.Weather == null) return;
+        var w = theme.Weather;
+
+        ChkShowWeather.IsChecked = theme.ShowWeatherScreen;
+        if (ChkWeatherScreenLayout != null) ChkWeatherScreenLayout.IsChecked = theme.ShowWeatherScreen;
+        if (ChkWeatherGallery != null) ChkWeatherGallery.IsChecked = w.ShowWeatherGallery;
+
+        TxtWeatherApiKey.Password = w.ApiKey;
+        TxtWeatherCity.Text = w.City;
+
+        SetComboItem(CmbWeatherUnits, w.Units == "imperial" ? "Imperial (°F)" : "Metric (°C)");
+        SetComboItem(CmbWeatherTheme, w.WeatherTheme);
         
-        SetColorButton(BtnWeatherGlowColor, weather.GlowColor ?? "#3b82f6");
-        SetComboItem(CmbWeatherUnits, weather.Units == "imperial" ? "Imperial (°F)" : "Metric (°C)");
-        SetComboItem(CmbWeatherTheme, weather.WeatherTheme ?? "Dark");
-        
-        string intervalText = weather.UpdateIntervalMinutes switch
+        string intervalText = w.UpdateIntervalMinutes switch
         {
             1 => "1 Minute",
             5 => "5 Minutes",
             15 => "15 Minutes",
             30 => "30 Minutes",
             60 => "1 Hour",
-            _ => "15 Minutes" // Default
+            _ => "15 Minutes"
         };
         SetComboItem(CmbWeatherInterval, intervalText);
-        SetComboItem(CmbWeatherTimeFormat, weather.TimeFormat ?? "12h");
+
+        BtnWeatherGlowColor.Tag = w.GlowColor;
+        try { BtnWeatherGlowColor.Background = new SolidColorBrush((Color)ColorConverter.ConvertFromString(w.GlowColor ?? "#3b82f6")); } catch {}
+
+        SetComboItem(CmbWeatherTimeFormat, w.TimeFormat);
+    }
+
+    private void ChkDemoHardware_Click(object sender, RoutedEventArgs e)
+    {
+        PcStatsMonitor.Services.HardwareControlService.IsDemoMode = ChkDemoHardware.IsChecked == true;
+        
+        if (PcStatsMonitor.Services.HardwareControlService.IsDemoMode)
+        {
+            BtnRefreshHardware_Click(null, null);
+        }
     }
 
     private void UpdateThemeObject()
@@ -255,6 +280,7 @@ public partial class SettingsWindow : Window
         theme.ShowStorageScreen = ChkStorageScreen.IsChecked ?? true;
         theme.ShowClockScreen = ChkClockScreen.IsChecked ?? true;
         theme.ShowWeatherScreen = ChkWeatherScreenLayout.IsChecked ?? false;
+        theme.ShowFansScreen = ChkFansScreen.IsChecked ?? true;
         if (theme.Weather == null) theme.Weather = new WeatherConfig();
         theme.Weather.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
 
@@ -357,10 +383,14 @@ public partial class SettingsWindow : Window
         if (LstOrder.SelectedItem is string selected)
         {
             LblConfigTitle.Text = $"{selected.ToUpper()} CONFIG";
+            var theme = _themeService.CurrentTheme;
+            double scale = theme.GaugeScales != null && theme.GaugeScales.TryGetValue(selected, out double s) ? s : 1.0;
+            if (LblGaugeScale != null) LblGaugeScale.Text = $"{scale:F2}x";
         }
         else
         {
             LblConfigTitle.Text = "SELECT A GAUGE ABOVE";
+            if (LblGaugeScale != null) LblGaugeScale.Text = "1.00x";
         }
     }
 
@@ -396,9 +426,24 @@ public partial class SettingsWindow : Window
                 break;
         }
 
+        if (LblGaugeScale != null) LblGaugeScale.Text = $"{theme.GaugeScales[selectedMonitor]:F2}x";
+
         UpdateThemeObject();
     }
-
+    private void BtnResetAllGauges_Click(object sender, RoutedEventArgs e)
+    {
+        var theme = _themeService.CurrentTheme;
+        if (theme.GaugeScales != null) theme.GaugeScales.Clear();
+        if (theme.GaugeOffsetsX != null) theme.GaugeOffsetsX.Clear();
+        if (theme.GaugeOffsetsY != null) theme.GaugeOffsetsY.Clear();
+        
+        if (LstOrder.SelectedItem is string selectedMonitor)
+        {
+            if (LblGaugeScale != null) LblGaugeScale.Text = "1.00x";
+        }
+        
+        UpdateThemeObject();
+    }
 
     private void OnSettingChanged(object sender, RoutedEventArgs e)
     {
@@ -424,7 +469,18 @@ public partial class SettingsWindow : Window
                         _isInitializing = false;
                         return;
                     }
-                    if (!ActiveMonitors.Contains(monitorName)) ActiveMonitors.Add(monitorName);
+                    if (!ActiveMonitors.Contains(monitorName)) 
+                    {
+                        ActiveMonitors.Add(monitorName);
+                        
+                        // Sort active monitors by master default order to preserve placement
+                        var masterOrder = new System.Collections.Generic.List<string> { 
+                            Constants.GaugeGpu, Constants.GaugeCpu, Constants.GaugeRam, Constants.GaugeMotherboard, Constants.GaugeNetwork 
+                        };
+                        var sorted = ActiveMonitors.OrderBy(m => masterOrder.IndexOf(m)).ToList();
+                        ActiveMonitors.Clear();
+                        foreach (var m in sorted) ActiveMonitors.Add(m);
+                    }
                 }
                 else
                 {
@@ -685,6 +741,11 @@ public partial class SettingsWindow : Window
 
         // Motion
         ChkClockMotion.IsChecked = clk.ContinuousMotion;
+
+        // Date & Digital Toggles
+        ChkShowDigital.IsChecked = clk.ShowDigitalClock;
+        ChkShowDate.IsChecked = clk.ShowDate;
+        ChkClockCustomBg.IsChecked = clk.UseCustomBackground;
     }
 
     private void SaveClockSettings()
@@ -1019,6 +1080,139 @@ public partial class SettingsWindow : Window
             {
                 ts.RootFolder.DeleteTask(taskName, false);
             }
+        }
+    }
+
+    private void BtnRefreshHardware_Click(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (HardwareControlService.IsDemoMode)
+            {
+                PnlFanSliders.Children.Clear();
+                PnlFanSliders.Children.Add(new PcStatsMonitor.Controls.CircularSlider { Title = "Demo AIO", Value = 100, Margin = new Thickness(15) });
+                PnlFanSliders.Children.Add(new PcStatsMonitor.Controls.CircularSlider { Title = "Demo Intake", Value = 65, Margin = new Thickness(15) });
+                PnlFanSliders.Children.Add(new PcStatsMonitor.Controls.CircularSlider { Title = "Demo Exhaust", Value = 45, Margin = new Thickness(15) });
+
+                PnlRgbDevices.Children.Clear();
+                PnlRgbDevices.Children.Add(new TextBlock { Text = "• Demo Motherboard RGB (4 Zones)", Margin = new Thickness(0, 4, 0, 4), Foreground = Brushes.LightGreen });
+                PnlRgbDevices.Children.Add(new TextBlock { Text = "• Demo Corsair RAM (8 Zones)",   Margin = new Thickness(0, 4, 0, 4), Foreground = Brushes.LightGreen });
+                PnlRgbDevices.Children.Add(new TextBlock { Text = "• Demo GPU Bracket (1 Zone)",    Margin = new Thickness(0, 4, 0, 4), Foreground = Brushes.LightGreen });
+                return;
+            }
+
+            if (_hwControl == null) _hwControl = new PcStatsMonitor.Services.HardwareControlService();
+
+            // Setup Fans
+            PnlFanSliders.Children.Clear();
+            var fanSensors = _hwControl.GetFanSensors();
+            if (fanSensors.Count == 0)
+            {
+                PnlFanSliders.Children.Add(new TextBlock { Text = "No compatible motherboard fans detected.", Opacity = 0.5, Margin = new Thickness(0,20,0,20) });
+            }
+            else
+            {
+                foreach (var fan in fanSensors)
+                {
+                    var slider = new PcStatsMonitor.Controls.CircularSlider
+                    {
+                        Title = fan.Name ?? "Fan",
+                        Value = fan.Value.GetValueOrDefault(),
+                        Margin = new Thickness(15)
+                    };
+                    PnlFanSliders.Children.Add(slider);
+                }
+            }
+
+            // Setup RGB
+            PnlRgbDevices.Children.Clear();
+            if (_hwControl.ConnectRgbServer())
+            {
+                var devices = _hwControl.GetRgbDevices();
+                if (devices.Count == 0)
+                {
+                    PnlRgbDevices.Children.Add(new TextBlock { Text = "OpenRGB connected, but no RGB devices found.", Opacity = 0.5, Margin = new Thickness(0,10,0,10) });
+                }
+                else
+                {
+                    foreach (var dev in devices)
+                    {
+                        var devText = new TextBlock 
+                        { 
+                            Text = $"• {dev.Name} ({dev.Zones.Length} Zones)", 
+                            Margin = new Thickness(0, 4, 0, 4) 
+                        };
+                        PnlRgbDevices.Children.Add(devText);
+                    }
+                }
+            }
+            else
+            {
+                PnlRgbDevices.Children.Add(new TextBlock { Text = "Could not connect to OpenRGB server. Ensure it is running.", Foreground = new SolidColorBrush(Color.FromRgb(230, 57, 70)), Margin = new Thickness(0,10,0,10) });
+            }
+        }
+        catch (Exception ex)
+        {
+            MessageBox.Show($"Hardware refresh error: {ex.Message}");
+        }
+    }
+
+    private void LoadProfilesList()
+    {
+        if (CmbProfiles == null) return;
+        var profiles = _themeService.GetProfiles();
+        CmbProfiles.ItemsSource = profiles;
+        if (profiles.Length > 0) CmbProfiles.SelectedIndex = 0;
+    }
+
+    private void BtnLoadProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (CmbProfiles.SelectedItem is string profileName)
+        {
+            if (_themeService.LoadProfile(profileName))
+            {
+                // Refresh UI
+                LoadCurrentSettings();
+                PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, $"Layout profile '{profileName}' loaded.", "Success");
+            }
+            else
+            {
+                PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, $"Failed to load profile.", "Error");
+            }
+        }
+    }
+
+    private void BtnSaveProfile_Click(object sender, RoutedEventArgs e)
+    {
+        string newName = TxtNewProfileName.Text?.Trim() ?? "";
+        if (string.IsNullOrEmpty(newName) || newName == "Profile Name...")
+        {
+            PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, "Please enter a valid name for the layout profile.", "Invalid Name");
+            return;
+        }
+
+        _themeService.SaveProfile(newName);
+        LoadProfilesList();
+        
+        // Select the newly saved one
+        for (int i = 0; i < CmbProfiles.Items.Count; i++)
+        {
+            if (CmbProfiles.Items[i].ToString() == newName)
+            {
+                CmbProfiles.SelectedIndex = i;
+                break;
+            }
+        }
+        TxtNewProfileName.Text = "";
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, $"Layout profile '{newName}' saved.", "Success");
+    }
+
+    private void BtnDeleteProfile_Click(object sender, RoutedEventArgs e)
+    {
+        if (CmbProfiles.SelectedItem is string profileName)
+        {
+            _themeService.DeleteProfile(profileName);
+            LoadProfilesList();
         }
     }
 }

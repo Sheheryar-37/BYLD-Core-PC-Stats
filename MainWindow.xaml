@@ -149,15 +149,37 @@
                                                     <Setter Property="ContentTemplate">
                                                         <Setter.Value>
                                                             <DataTemplate>
-                                                                <controls:DualCircularGauge 
-                                                                    Visibility="{Binding DataContext.Theme.IsMotherboardEnabled, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVis}}"
-                                                                    Width="192" Height="192" Margin="0,0,0,20"
-                                                                    CenterLabelString="VRM TEMP" 
-                                                                    CenterTextString="{Binding DataContext.Metrics.MotherboardTemp, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat={}{0:0}°C}" 
-                                                                    LeftValue="{Binding DataContext.Metrics.MotherboardTemp, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                                                    RightLabelTextString="FAN SPEED"
-                                                                    RightValueTextString="{Binding DataContext.Metrics.FanSpeed, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat={}{0:0}RPM}" 
-                                                                    RightValue="0" />
+                                                                <Grid Visibility="{Binding DataContext.Theme.IsMotherboardEnabled, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVis}}" Margin="0,0,0,20" Width="192" Height="192">
+                                                                    <controls:DualCircularGauge 
+                                                                        CenterLabelString="VRM TEMP" 
+                                                                        CenterTextString="{Binding DataContext.Metrics.MotherboardTemp, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat={}{0:0}°C}" 
+                                                                        LeftValue="{Binding DataContext.Metrics.MotherboardTemp, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                                        RightLabelTextString="FAN SPEED"
+                                                                        RightValueTextString="{Binding DataContext.Metrics.FanSpeed, RelativeSource={RelativeSource AncestorType=ItemsControl}, StringFormat={}{0:0} RPM}" 
+                                                                        RightValue="0" />
+                                                                    
+                                                                    <!-- Spinning Fan Animation -->
+                                                                    <!-- Material Fan SVG -->
+                                                                    <Path Data="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12c0 1.4-.5 2.6-1.4 3.6L12 12zm0 0c3 0 5.5 2.5 5.5 5.5S15 23 12 23c-1.4 0-2.6-.5-3.6-1.4L12 12zm0 0c0 3-2.5 5.5-5.5 5.5S1 15 1 12c0-1.4.5-2.6 1.4-3.6L12 12zm0 0c-3 0-5.5-2.5-5.5-5.5S9 1 12 1c1.4 0 2.6.5 3.6 1.4L12 12z" 
+                                                                          Fill="{Binding DataContext.Theme.AccentColor, RelativeSource={RelativeSource AncestorType=ItemsControl}, FallbackValue='#DCDCDC'}" 
+                                                                          Width="30" Height="30" Stretch="Uniform" 
+                                                                          HorizontalAlignment="Right" VerticalAlignment="Top" 
+                                                                          Margin="0,50,20,0" RenderTransformOrigin="0.5,0.5">
+                                                                        <Path.RenderTransform>
+                                                                            <RotateTransform x:Name="FanRotation" Angle="0"/>
+                                                                        </Path.RenderTransform>
+                                                                        <Path.Triggers>
+                                                                            <EventTrigger RoutedEvent="Loaded">
+                                                                                <BeginStoryboard>
+                                                                                    <Storyboard>
+                                                                                        <!-- 1 second per rotation = ~60 RPM, this is mostly aesthetic -->
+                                                                                        <DoubleAnimation Storyboard.TargetName="FanRotation" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:0.8" RepeatBehavior="Forever"/>
+                                                                                    </Storyboard>
+                                                                                </BeginStoryboard>
+                                                                            </EventTrigger>
+                                                                        </Path.Triggers>
+                                                                    </Path>
+                                                                </Grid>
                                                             </DataTemplate>
                                                         </Setter.Value>
                                                     </Setter>
@@ -270,11 +292,27 @@
 
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,10,0,0">
                                         <!-- VENDOR -->
-                                        <TextBlock Text="{Binding Vendor}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="32" FontWeight="Heavy" HorizontalAlignment="Center" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                        <TextBlock Text="{Binding Vendor}" Foreground="{Binding DataContext.Theme.ForegroundColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="24" FontWeight="Heavy" HorizontalAlignment="Center" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
 
-                                        <!-- MODEL & SIZE -->
-                                        <TextBlock Text="{Binding Model}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="15" FontWeight="Normal" HorizontalAlignment="Center" Margin="0,2,0,0" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                        <TextBlock Text="{Binding SizeString}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="12" FontWeight="Normal" Opacity="0.75" HorizontalAlignment="Center" Margin="0,4,0,5" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                        <!-- MODEL -->
+                                        <TextBlock Text="{Binding Model}" Foreground="{Binding DataContext.Theme.ForegroundColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="15" FontWeight="Normal" HorizontalAlignment="Center" Margin="0,2,0,12" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}" Opacity="0.8"/>
+                                        
+                                        <!-- PROGRESS BAR -->
+                                        <ProgressBar Value="{Binding UsedSpaceGb}" Maximum="{Binding TotalSpaceGb}" Width="160" Height="8" Foreground="{Binding DataContext.Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" Background="#33FFFFFF" BorderThickness="0" Margin="0,0,0,4">
+                                            <ProgressBar.Template>
+                                                <ControlTemplate TargetType="ProgressBar">
+                                                    <Border Background="{TemplateBinding Background}" CornerRadius="4">
+                                                        <Border x:Name="PART_Indicator" Background="{TemplateBinding Foreground}" CornerRadius="4" HorizontalAlignment="Left" />
+                                                    </Border>
+                                                </ControlTemplate>
+                                            </ProgressBar.Template>
+                                        </ProgressBar>
+
+                                        <!-- TEXT USAGE STATS -->
+                                        <Grid Width="160" Margin="0,0,0,5">
+                                            <TextBlock Text="{Binding UsedSpaceGb, StringFormat={}{0:0} GB Used}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="11" FontWeight="Bold" Opacity="0.9" HorizontalAlignment="Left" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <TextBlock Text="{Binding TotalSpaceGb, StringFormat={}{0:0} GB Total}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="11" FontWeight="Bold" Opacity="0.6" HorizontalAlignment="Right" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                        </Grid>
                                     </StackPanel>
                                     
                                     <!-- Red square accent at bottom center -->
@@ -324,6 +362,15 @@
                 </Grid.RenderTransform>
                 <!-- No logo for gallery to maximize icon viewing area -->
                 <controls:WeatherGallery x:Name="WeatherGalleryCtrl"/>
+            </Grid>
+
+            <!-- Screen 7: Fans Screen -->
+            <Grid x:Name="FansScreenArea" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <controls:FansScreen x:Name="FansScreenCtrl" />
             </Grid>
 
         <!-- License Missing / Invalid Overlay (Always on Top) -->

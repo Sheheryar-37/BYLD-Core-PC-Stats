@@ -32,13 +32,25 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
-; IMPORTANT: Run 'dotnet publish -c Release -r win-x64 --self-contained' before compiling this script
-; Or adjust the source path to your actual build output.
+; Main application files
+; Run 'dotnet publish -c Release -r win-x64 --self-contained' before compiling this script
 Source: "e:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+
+; OpenRGB bundled server — portable binaries in Tools folder
+; Download from https://openrgb.org/releases.html (Windows portable ZIP)
+Source: "e:\Github Repos\PC-Stats-Monitor\Tools\OpenRGB Windows 64-bit\*"; DestDir: "{app}\OpenRGB"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
 
 [Run]
+; Start OpenRGB in server mode (background, hidden) before launching the main app
+Filename: "{app}\OpenRGB\OpenRGB.exe"; Parameters: "--server --server-port 6742"; Description: "Start OpenRGB Server"; Flags: nowait runhidden skipifdoesntexist; WorkingDir: "{app}\OpenRGB"
+; Launch main application
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec; WorkingDir: "{app}"
+
+[UninstallRun]
+; Kill OpenRGB on uninstall
+Filename: "taskkill.exe"; Parameters: "/F /IM OpenRGB.exe"; Flags: runhidden
+
