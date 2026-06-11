@@ -24,10 +24,27 @@ public class HardwareMetrics
     public List<FanMetric> Fans { get; set; } = new();
 }
 
-public class FanMetric
+public class FanMetric : System.ComponentModel.INotifyPropertyChanged
 {
-    public string Name { get; set; } = string.Empty;
-    public double Speed { get; set; }
+    private string _name = string.Empty;
+    public string Name
+    {
+        get => _name;
+        set { _name = value; OnPropertyChanged(); }
+    }
+
+    private double _speed;
+    public double Speed
+    {
+        get => _speed;
+        set { _speed = value; OnPropertyChanged(); }
+    }
+
+    public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
+    protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)
+    {
+        PropertyChanged?.Invoke(this, new System.ComponentModel.PropertyChangedEventArgs(propertyName));
+    }
 }
 
 public class DriveMetrics

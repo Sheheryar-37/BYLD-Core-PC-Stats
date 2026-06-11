@@ -19,7 +19,7 @@
         <TextBlock Text="SYSTEM COOLING" Foreground="{Binding Theme.ForegroundColor, FallbackValue='#FFFFFF'}" FontSize="28" FontWeight="Heavy" HorizontalAlignment="Center" Margin="0,0,0,20"/>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{Binding Metrics.Fans}">
+            <ItemsControl ItemsSource="{Binding ObservableFans}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <Border BorderBrush="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#1A1A1A'}" BorderThickness="0,0,0,1" Margin="0,5,0,5" Padding="0,15,0,15">

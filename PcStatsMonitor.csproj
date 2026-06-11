@@ -12,18 +12,20 @@
     <!-- Suppress NU1605: LHM pre-release has a lower transitive System.Management ref; our explicit pin wins -->
     <NoWarn>$(NoWarn);NU1605</NoWarn>
     <RollForward>Major</RollForward>
+    <CopyLocalLockFileAssemblies>true</CopyLocalLockFileAssemblies>
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="OpenRGB.NET" Version="3.1.1" />
     <Using Remove="System.Windows.Forms" />
     <Using Remove="System.Drawing" />
-    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.7-pre656" />
+    <PackageReference Include="LibreHardwareMonitorLib" Version="0.9.7-pre686" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.3" />
     <PackageReference Include="TaskScheduler" Version="2.11.0" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="10.0.0" />
     <PackageReference Include="Serilog.Sinks.File" Version="7.0.0" />
-    <PackageReference Include="System.Management" Version="10.0.5" />
+    <PackageReference Include="System.Management" Version="10.0.7" />
   </ItemGroup>
   <ItemGroup>
     <Resource Include="Assets\**" />

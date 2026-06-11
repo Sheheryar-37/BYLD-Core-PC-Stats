@@ -373,6 +373,15 @@
                 <controls:FansScreen x:Name="FansScreenCtrl" />
             </Grid>
 
+            <!-- Screen 8: RGB Dashboard Screen -->
+            <Grid x:Name="RgbScreenArea" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <controls:RgbDisplayScreen x:Name="RgbScreenCtrl" />
+            </Grid>
+
         <!-- License Missing / Invalid Overlay (Always on Top) -->
             <Grid x:Name="UnlicensedGrid" Grid.ColumnSpan="2" Panel.ZIndex="100" Visibility="Collapsed" Background="#F00A0A0A">
                 <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">

@@ -173,11 +173,15 @@ public interface IHardwareMonitorService
         
         foreach (var hardware in _computer.Hardware)
         {
-            hardware.Update();
+            try { hardware.Update(); }
+            catch (Exception ex) { _logger.LogWarning(ex, "Failed to update hardware {hw}", hardware.Name); }
 
             // Also update any sub-hardware (common on modern CPUs with chiplets)
             foreach (var sub in hardware.SubHardware)
-                sub.Update();
+            {
+                try { sub.Update(); }
+                catch (Exception ex) { _logger.LogWarning(ex, "Failed to update sub-hardware {hw}", sub.Name); }
+            }
 
             ReadHardware(hardware, metrics);
 
@@ -266,33 +270,21 @@ public interface IHardwareMonitorService
             metrics.Drives = metrics.Drives.Take(2).ToList();
         }
 
-        // DEMO OVERRIDES
+        // DEMO OVERRIDES — Only inject fake fan + motherboard data for demo mode.
+        // CPU/GPU/RAM/Network gauges and drives always show real hardware data.
         if (PcStatsMonitor.Services.HardwareControlService.IsDemoMode)
         {
             metrics.Fans.Clear();
             var random = new Random();
             double variation = random.Next(-30, 30);
             
-            metrics.Fans.Add(new FanMetric { Name = "AIO Pump Fan", Speed = 2100 + variation });
-            metrics.Fans.Add(new FanMetric { Name = "Intake System Fans", Speed = 1250 + variation });
-            metrics.Fans.Add(new FanMetric { Name = "Rear Exhaust Fan", Speed = 1050 + variation });
+            metrics.Fans.Add(new FanMetric { Name = "GPU Fan", Speed = 0 }); // matches AMD Radeon RX 7600 (0 RPM)
+            metrics.Fans.Add(new FanMetric { Name = "CPU Push", Speed = 855 + variation });
+            metrics.Fans.Add(new FanMetric { Name = "CPU Pull", Speed = 902 + variation });
+            metrics.Fans.Add(new FanMetric { Name = "System Exhaust", Speed = 587 + variation });
 
-            if (metrics.Drives.Count >= 2)
-            {
-                metrics.Drives[0].Vendor = "GALAXY";
-                metrics.Drives[0].Model = "M.2 NVMe Demo Drive";
-                metrics.Drives[0].TotalSpaceGb = 2000;
-                metrics.Drives[0].UsedSpaceGb = 1842;
-                metrics.Drives[0].SizeString = "2048 GB (C:)";
-
-                metrics.Drives[1].Vendor = "GIGABYTE";
-                metrics.Drives[1].Model = "Vision Gen4 SSD";
-                metrics.Drives[1].TotalSpaceGb = 4000;
-                metrics.Drives[1].UsedSpaceGb = 650;
-                metrics.Drives[1].SizeString = "4096 GB (D:)";
-            }
-            
             metrics.MotherboardTemp = 42 + (variation * 0.1);
+            metrics.FanSpeed = 1100 + variation;
         }
 
         _currentMetrics = metrics;

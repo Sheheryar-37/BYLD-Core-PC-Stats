@@ -1,6 +1,7 @@
 using System.Windows;
 using PcStatsMonitor.Models;
 using PcStatsMonitor.Services;
+using System.Collections.ObjectModel;
 
 namespace PcStatsMonitor.ViewModels;
 
@@ -15,6 +16,8 @@ public class MainViewModel : ViewModelBase
         get => _metrics;
         set => SetProperty(ref _metrics, value);
     }
+
+    public ObservableCollection<FanMetric> ObservableFans { get; } = new();
 
     private ThemeConfig _themeConfig = new();
     public ThemeConfig Theme
@@ -34,6 +37,13 @@ public class MainViewModel : ViewModelBase
         get => _logoBrush;
         set => SetProperty(ref _logoBrush, value);
     }
+
+    /// <summary>
+    /// RGB ViewModel exposed for the RGB Display Screen to bind against.
+    /// Populated with demo data automatically when demo mode is active.
+    /// </summary>
+    public RgbControlViewModel Rgb { get; } = new(new HardwareControlService());
+    private bool _rgbDemoLoaded = false;
 
     private void UpdateLogoBrush()
     {
@@ -74,7 +84,41 @@ public class MainViewModel : ViewModelBase
 
         _monitorService.MetricsUpdated += (s, metrics) => 
         {
-            Application.Current.Dispatcher.Invoke(() => Metrics = metrics);
+            Application.Current.Dispatcher.Invoke(() =>
+            {
+                Metrics = metrics;
+
+                // Update ObservableFans in-place to prevent UI element recreation and flickering
+                for (int i = 0; i < metrics.Fans.Count; i++)
+                {
+                    if (i < ObservableFans.Count)
+                    {
+                        ObservableFans[i].Name = metrics.Fans[i].Name;
+                        ObservableFans[i].Speed = metrics.Fans[i].Speed;
+                    }
+                    else
+                    {
+                        ObservableFans.Add(new FanMetric { Name = metrics.Fans[i].Name, Speed = metrics.Fans[i].Speed });
+                    }
+                }
+                while (ObservableFans.Count > metrics.Fans.Count)
+                {
+                    ObservableFans.RemoveAt(ObservableFans.Count - 1);
+                }
+
+                // Sync demo RGB devices for the RGB display screen
+                if (HardwareControlService.IsDemoMode && !_rgbDemoLoaded)
+                {
+                    _rgbDemoLoaded = true;
+                    Rgb.Connect();
+                }
+                else if (!HardwareControlService.IsDemoMode && _rgbDemoLoaded)
+                {
+                    _rgbDemoLoaded = false;
+                    Rgb.Devices.Clear();
+                    Rgb.IsConnected = false;
+                }
+            });
         };
     }
 }

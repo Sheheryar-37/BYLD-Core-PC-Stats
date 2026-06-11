@@ -147,6 +147,43 @@ public class HardwareControlService : IDisposable
         return fanSensors;
     }
 
+    public void SetFanSpeed(ISensor controlSensor, float percentage)
+    {
+        if (controlSensor == null || controlSensor.SensorType != SensorType.Control) return;
+        
+        try
+        {
+            if (controlSensor.Control != null)
+            {
+                // percentage is 0-100
+                controlSensor.Control.SetSoftware(percentage);
+                Log($"[FAN] Set control '{controlSensor.Name}' to {percentage}%");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"[FAN] ERROR setting fan control '{controlSensor.Name}' to {percentage}%: {ex.Message}\n{ex.StackTrace}");
+        }
+    }
+
+    public void SetFanAuto(ISensor controlSensor)
+    {
+        if (controlSensor == null || controlSensor.SensorType != SensorType.Control) return;
+        
+        try
+        {
+            if (controlSensor.Control != null)
+            {
+                controlSensor.Control.SetDefault();
+                Log($"[FAN] Set control '{controlSensor.Name}' to Auto");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"[FAN] ERROR setting fan control '{controlSensor.Name}' to Auto: {ex.Message}\n{ex.StackTrace}");
+        }
+    }
+
     /// <summary>
     /// Connects to the local OpenRGB server.
     /// </summary>

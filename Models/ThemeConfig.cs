@@ -41,6 +41,7 @@ public class ThemeConfig
     public bool ShowClockScreen { get; set; } = true;
     public bool ShowWeatherScreen { get; set; } = false;
     public bool ShowFansScreen { get; set; } = true;
+    public bool ShowRgbScreen { get; set; } = true;
     public List<string> EnabledPlugins { get; set; } = new() { "System Clock", "Fan & RGB Controller" };
 
     // ── Rotation Order (Identifiers: "Gauges", "Storage", "Clock", or Plugin Name) ────

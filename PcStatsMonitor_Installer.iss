@@ -34,11 +34,11 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 [Files]
 ; Main application files
 ; Run 'dotnet publish -c Release -r win-x64 --self-contained' before compiling this script
-Source: "e:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "d:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
 ; OpenRGB bundled server — portable binaries in Tools folder
 ; Download from https://openrgb.org/releases.html (Windows portable ZIP)
-Source: "e:\Github Repos\PC-Stats-Monitor\Tools\OpenRGB Windows 64-bit\*"; DestDir: "{app}\OpenRGB"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+Source: "d:\Github Repos\PC-Stats-Monitor\Tools\OpenRGB Windows 64-bit\*"; DestDir: "{app}\OpenRGB"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"

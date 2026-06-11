@@ -444,7 +444,8 @@
                                         <CheckBox x:Name="ChkStorageScreen" Content="Storage Dashboard" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkClockScreen" Content="Built-in Clock" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkWeatherScreenLayout" Content="Weather Screen" Click="OnWeatherSettingChanged"/>
-                                        <CheckBox x:Name="ChkFansScreen" Content="Fans &amp; Cooling Screen" Click="OnScreenSettingChanged"/>
+                                        <CheckBox x:Name="ChkFansScreen" Content="Fan Monitor Screen" Click="OnScreenSettingChanged"/>
+                                        <CheckBox x:Name="ChkRgbScreen" Content="RGB Dashboard Screen" Click="OnScreenSettingChanged"/>
                                         
                                         <CheckBox x:Name="ChkWeatherGallery" Content="Weather Icon Gallery (Internal)" 
                                                   Visibility="{Binding Source={x:Static models:Constants.IsDebugMode}, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -738,13 +739,25 @@
                 <TabItem Header="Cooling">
                     <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
                         <StackPanel Margin="5,10">
+                            
+                            <!-- HARDWARE REQUIREMENTS NOTICE -->
+                            <Border Background="#1A3b82f6" BorderBrush="{StaticResource BrandBlue}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                                <StackPanel>
+                                    <TextBlock Text="⚠ HARDWARE ACCESS REQUIREMENTS" Foreground="#FFD700" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="To fully enable live Fan Control and RGB synchronization, please ensure:" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                    <TextBlock Text="1. Run this application as Administrator." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="8,0,0,2"/>
+                                    <TextBlock Text="2. Disable Windows Memory Integrity (HVCI) in Windows Security settings if sensors are missing." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="8,0,0,2"/>
+                                    <TextBlock Text="3. Install and run OpenRGB in SDK Server mode for lighting control." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="8,0,0,0"/>
+                                </StackPanel>
+                            </Border>
+
                             <!-- FANS -->
                             <Border Style="{StaticResource SectionBorderStyle}">
                                 <StackPanel>
                                     <TextBlock Text="SYSTEM FANS" Style="{StaticResource SectionHeaderStyle}"/>
                                     <TextBlock Text="Adjust fan speeds. Controls will appear below if motherboard sensors are detected." FontSize="11" Opacity="0.7" Margin="0,0,0,15" TextWrapping="Wrap"/>
                                     
-                                    <WrapPanel x:Name="PnlFanSliders" Orientation="Horizontal" HorizontalAlignment="Center"/>
+                                    <ctrl:FanControlView DataContext="{Binding FanViewModel, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 </StackPanel>
                             </Border>
 
@@ -754,7 +767,7 @@
                                     <TextBlock Text="RGB LIGHTING" Style="{StaticResource SectionHeaderStyle}"/>
                                     <TextBlock Text="Sync supported RGB devices across your PC. Setup requires OpenRGB server." FontSize="11" Opacity="0.7" Margin="0,0,0,15" TextWrapping="Wrap"/>
                                     
-                                    <StackPanel x:Name="PnlRgbDevices"/>
+                                    <ctrl:RgbControlView DataContext="{Binding RgbViewModel, RelativeSource={RelativeSource AncestorType=Window}}"/>
 
                                     <Button x:Name="BtnRefreshHardware" Content="REFRESH HARDWARE" Margin="0,15,0,0" Height="30" Click="BtnRefreshHardware_Click" Style="{StaticResource ModernButtonStyle}"/>
                                     

@@ -22,6 +22,9 @@ public partial class SettingsWindow : Window
     public ObservableCollection<PluginToggle> PluginSettings { get; set; } = new();
     
     private PcStatsMonitor.Services.HardwareControlService? _hwControl;
+    
+    public PcStatsMonitor.ViewModels.FanControlViewModel FanViewModel { get; }
+    public PcStatsMonitor.ViewModels.RgbControlViewModel RgbViewModel { get; }
 
     public class PluginToggle : System.ComponentModel.INotifyPropertyChanged
     {
@@ -52,6 +55,11 @@ public partial class SettingsWindow : Window
         _themeService = themeService;
         _pluginManager = pluginManager;
         
+        _hwControl = new PcStatsMonitor.Services.HardwareControlService();
+        FanViewModel = new PcStatsMonitor.ViewModels.FanControlViewModel(_hwControl);
+        RgbViewModel = new PcStatsMonitor.ViewModels.RgbControlViewModel(_hwControl);
+        
+
         LstOrder.ItemsSource = ActiveMonitors;
         LstScreenOrder.ItemsSource = ScreenRotationList;
         ItemsPlugins.ItemsSource = PluginSettings;
@@ -116,6 +124,7 @@ public partial class SettingsWindow : Window
         ChkStorageScreen.IsChecked = theme.ShowStorageScreen;
         ChkClockScreen.IsChecked = theme.ShowClockScreen;
         ChkFansScreen.IsChecked = theme.ShowFansScreen;
+        ChkRgbScreen.IsChecked = theme.ShowRgbScreen;
         
         // SYNC BOTH WEATHER CHECKBOXES (Layout tab and Weather tab)
         ChkWeatherScreenLayout.IsChecked = theme.ShowWeatherScreen;
@@ -173,6 +182,10 @@ public partial class SettingsWindow : Window
         
         // Demo Hardware Settings
         ChkDemoHardware.IsChecked = HardwareControlService.IsDemoMode;
+        if (HardwareControlService.IsDemoMode)
+        {
+            FanViewModel.LoadFans();
+        }
 
         LoadProfilesList();
 
@@ -250,12 +263,28 @@ public partial class SettingsWindow : Window
 
     private void ChkDemoHardware_Click(object sender, RoutedEventArgs e)
     {
-        PcStatsMonitor.Services.HardwareControlService.IsDemoMode = ChkDemoHardware.IsChecked == true;
+        if (_isInitializing) return;
+
+        bool isDemo = ChkDemoHardware.IsChecked == true;
+        PcStatsMonitor.Services.HardwareControlService.IsDemoMode = isDemo;
         
-        if (PcStatsMonitor.Services.HardwareControlService.IsDemoMode)
+        // Offload the heavy synchronous hardware polling to a background priority dispatcher 
+        // to ensure the CheckBox visually updates instantly before freezing the thread.
+        Application.Current.Dispatcher.InvokeAsync(() =>
         {
-            BtnRefreshHardware_Click(null, null);
-        }
+            // Reload fans/RGB for the new mode (demo or live)
+            FanViewModel.LoadFans();
+            
+            if (isDemo)
+            {
+                RgbViewModel.Connect();
+            }
+            else
+            {
+                RgbViewModel.Devices.Clear();
+                RgbViewModel.IsConnected = false;
+            }
+        }, System.Windows.Threading.DispatcherPriority.Background);
     }
 
     private void UpdateThemeObject()
@@ -281,6 +310,7 @@ public partial class SettingsWindow : Window
         theme.ShowClockScreen = ChkClockScreen.IsChecked ?? true;
         theme.ShowWeatherScreen = ChkWeatherScreenLayout.IsChecked ?? false;
         theme.ShowFansScreen = ChkFansScreen.IsChecked ?? true;
+        theme.ShowRgbScreen = ChkRgbScreen.IsChecked ?? true;
         if (theme.Weather == null) theme.Weather = new WeatherConfig();
         theme.Weather.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
 
@@ -507,6 +537,8 @@ public partial class SettingsWindow : Window
                           (ChkClockScreen.IsChecked == true ? 1 : 0) + 
                           (ChkWeatherScreenLayout?.IsChecked == true || ChkShowWeather?.IsChecked == true ? 1 : 0) +
                           (ChkWeatherGallery?.IsChecked == true ? 1 : 0) +
+                          (ChkFansScreen.IsChecked == true ? 1 : 0) +
+                          (ChkRgbScreen.IsChecked == true ? 1 : 0) +
                           PluginSettings.Count(ps => ps.IsEnabled);
 
         if (activeCount == 0)
@@ -556,6 +588,8 @@ public partial class SettingsWindow : Window
             activeItems.Add("Weather");
             
         if (ChkWeatherGallery != null && ChkWeatherGallery.IsChecked == true) activeItems.Add("Gallery");
+        if (ChkFansScreen.IsChecked == true) activeItems.Add("Fans");
+        if (ChkRgbScreen.IsChecked == true) activeItems.Add("RGB");
         foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
 
         // 1. Remove items no longer active
@@ -1083,78 +1117,10 @@ public partial class SettingsWindow : Window
         }
     }
 
-    private void BtnRefreshHardware_Click(object sender, RoutedEventArgs e)
+    private void BtnRefreshHardware_Click(object? sender, RoutedEventArgs? e)
     {
-        try
-        {
-            if (HardwareControlService.IsDemoMode)
-            {
-                PnlFanSliders.Children.Clear();
-                PnlFanSliders.Children.Add(new PcStatsMonitor.Controls.CircularSlider { Title = "Demo AIO", Value = 100, Margin = new Thickness(15) });
-                PnlFanSliders.Children.Add(new PcStatsMonitor.Controls.CircularSlider { Title = "Demo Intake", Value = 65, Margin = new Thickness(15) });
-                PnlFanSliders.Children.Add(new PcStatsMonitor.Controls.CircularSlider { Title = "Demo Exhaust", Value = 45, Margin = new Thickness(15) });
-
-                PnlRgbDevices.Children.Clear();
-                PnlRgbDevices.Children.Add(new TextBlock { Text = "• Demo Motherboard RGB (4 Zones)", Margin = new Thickness(0, 4, 0, 4), Foreground = Brushes.LightGreen });
-                PnlRgbDevices.Children.Add(new TextBlock { Text = "• Demo Corsair RAM (8 Zones)",   Margin = new Thickness(0, 4, 0, 4), Foreground = Brushes.LightGreen });
-                PnlRgbDevices.Children.Add(new TextBlock { Text = "• Demo GPU Bracket (1 Zone)",    Margin = new Thickness(0, 4, 0, 4), Foreground = Brushes.LightGreen });
-                return;
-            }
-
-            if (_hwControl == null) _hwControl = new PcStatsMonitor.Services.HardwareControlService();
-
-            // Setup Fans
-            PnlFanSliders.Children.Clear();
-            var fanSensors = _hwControl.GetFanSensors();
-            if (fanSensors.Count == 0)
-            {
-                PnlFanSliders.Children.Add(new TextBlock { Text = "No compatible motherboard fans detected.", Opacity = 0.5, Margin = new Thickness(0,20,0,20) });
-            }
-            else
-            {
-                foreach (var fan in fanSensors)
-                {
-                    var slider = new PcStatsMonitor.Controls.CircularSlider
-                    {
-                        Title = fan.Name ?? "Fan",
-                        Value = fan.Value.GetValueOrDefault(),
-                        Margin = new Thickness(15)
-                    };
-                    PnlFanSliders.Children.Add(slider);
-                }
-            }
-
-            // Setup RGB
-            PnlRgbDevices.Children.Clear();
-            if (_hwControl.ConnectRgbServer())
-            {
-                var devices = _hwControl.GetRgbDevices();
-                if (devices.Count == 0)
-                {
-                    PnlRgbDevices.Children.Add(new TextBlock { Text = "OpenRGB connected, but no RGB devices found.", Opacity = 0.5, Margin = new Thickness(0,10,0,10) });
-                }
-                else
-                {
-                    foreach (var dev in devices)
-                    {
-                        var devText = new TextBlock 
-                        { 
-                            Text = $"• {dev.Name} ({dev.Zones.Length} Zones)", 
-                            Margin = new Thickness(0, 4, 0, 4) 
-                        };
-                        PnlRgbDevices.Children.Add(devText);
-                    }
-                }
-            }
-            else
-            {
-                PnlRgbDevices.Children.Add(new TextBlock { Text = "Could not connect to OpenRGB server. Ensure it is running.", Foreground = new SolidColorBrush(Color.FromRgb(230, 57, 70)), Margin = new Thickness(0,10,0,10) });
-            }
-        }
-        catch (Exception ex)
-        {
-            MessageBox.Show($"Hardware refresh error: {ex.Message}");
-        }
+        FanViewModel.LoadFans();
+        RgbViewModel.Connect();
     }
 
     private void LoadProfilesList()

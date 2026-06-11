@@ -1,7 +1,7 @@
 <Window x:Class="PcStatsMonitor.ColorPickerWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="Select Color" Height="600" Width="380"
+        Title="Select Color" Height="640" Width="400"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
         WindowStartupLocation="CenterOwner" ShowInTaskbar="False"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
@@ -62,27 +62,58 @@
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Text="SET THEME COLOR" Foreground="#88FFFFFF" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,15"/>
+            <TextBlock Text="SET COLOR" Foreground="#88FFFFFF" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,12"/>
 
-            <TextBlock Grid.Row="1" Text="Basic Colors" Foreground="#AAAAAA" Margin="0,0,0,5"/>
-            <ItemsControl x:Name="ColorGrid" Grid.Row="2" Margin="0,0,0,15">
+            <!-- ═══ HSB Colour Wheel ═══ -->
+            <Grid Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,12">
+                <Canvas x:Name="ColorWheelCanvas" Width="180" Height="180" 
+                        MouseLeftButtonDown="ColorWheel_MouseDown" 
+                        MouseMove="ColorWheel_MouseMove"
+                        MouseLeftButtonUp="ColorWheel_MouseUp"
+                        Cursor="Cross" ClipToBounds="True"/>
+                <!-- Selector indicator on the wheel -->
+                <Ellipse x:Name="WheelSelector" Width="12" Height="12" 
+                         Stroke="White" StrokeThickness="2" Fill="Transparent"
+                         IsHitTestVisible="False" HorizontalAlignment="Left" VerticalAlignment="Top">
+                    <Ellipse.Effect>
+                        <DropShadowEffect BlurRadius="4" ShadowDepth="0" Color="Black" Opacity="0.6"/>
+                    </Ellipse.Effect>
+                </Ellipse>
+            </Grid>
+
+            <!-- Brightness slider -->
+            <DockPanel Grid.Row="2" Margin="0,0,0,12">
+                <TextBlock Text="Brightness:" Foreground="#AAA" Width="70" VerticalAlignment="Center" FontSize="11"/>
+                <Slider x:Name="SldBrightness" Minimum="0" Maximum="100" Value="100" 
+                        TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SldBrightness_ValueChanged"/>
+            </DockPanel>
+
+            <TextBlock Grid.Row="3" Text="Basic Colors" Foreground="#AAAAAA" Margin="0,0,0,5"/>
+            <ItemsControl x:Name="ColorGrid" Grid.Row="4" Margin="0,0,0,12">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <UniformGrid Columns="5"/>
+                        <UniformGrid Columns="10"/>
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Button Width="45" Height="45" Margin="5" Click="Color_Click" Tag="{Binding}" Background="{Binding}">
+                        <Button Width="28" Height="28" Margin="2" Click="Color_Click" Tag="{Binding}" Background="{Binding}" Cursor="Hand">
                             <Button.Template>
                                 <ControlTemplate TargetType="Button">
-                                    <Border Background="{TemplateBinding Background}" CornerRadius="8" BorderBrush="#22FFFFFF" BorderThickness="1">
+                                    <Border x:Name="SwBorder" Background="{TemplateBinding Background}" CornerRadius="5" 
+                                            BorderBrush="#22FFFFFF" BorderThickness="1">
                                         <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                     </Border>
+                                    <ControlTemplate.Triggers>
+                                        <Trigger Property="IsMouseOver" Value="True">
+                                            <Setter TargetName="SwBorder" Property="BorderBrush" Value="#3B82F6"/>
+                                        </Trigger>
+                                    </ControlTemplate.Triggers>
                                 </ControlTemplate>
                             </Button.Template>
                         </Button>
@@ -90,41 +121,40 @@
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
 
-            <TextBlock Grid.Row="3" Text="Custom Color" Foreground="#AAAAAA" Margin="0,10,0,5"/>
-            <Grid Grid.Row="4" Margin="0,0,0,15">
+            <Grid Grid.Row="5" Margin="0,0,0,10">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="100"/>
+                    <ColumnDefinition Width="80"/>
                 </Grid.ColumnDefinitions>
                 
-                <StackPanel Grid.Column="0" Margin="0,0,15,0">
-                    <DockPanel Margin="0,0,0,8">
+                <StackPanel Grid.Column="0" Margin="0,0,12,0">
+                    <DockPanel Margin="0,0,0,6">
                         <TextBlock Text="R:" Foreground="#AAA" Width="20" VerticalAlignment="Center"/>
                         <TextBox x:Name="TxtR" Width="35" DockPanel.Dock="Right" Background="#222" Foreground="#FFF" BorderThickness="0" TextAlignment="Center" TextChanged="Rgb_TextChanged"/>
                         <Slider x:Name="SldR" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0" ValueChanged="Slider_ValueChanged" VerticalAlignment="Center"/>
                     </DockPanel>
-                    <DockPanel Margin="0,0,0,8">
+                    <DockPanel Margin="0,0,0,6">
                         <TextBlock Text="G:" Foreground="#AAA" Width="20" VerticalAlignment="Center"/>
                         <TextBox x:Name="TxtG" Width="35" DockPanel.Dock="Right" Background="#222" Foreground="#FFF" BorderThickness="0" TextAlignment="Center" TextChanged="Rgb_TextChanged"/>
                         <Slider x:Name="SldG" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0" ValueChanged="Slider_ValueChanged" VerticalAlignment="Center"/>
                     </DockPanel>
-                    <DockPanel Margin="0,0,0,8">
+                    <DockPanel Margin="0,0,0,6">
                         <TextBlock Text="B:" Foreground="#AAA" Width="20" VerticalAlignment="Center"/>
                         <TextBox x:Name="TxtB" Width="35" DockPanel.Dock="Right" Background="#222" Foreground="#FFF" BorderThickness="0" TextAlignment="Center" TextChanged="Rgb_TextChanged"/>
                         <Slider x:Name="SldB" Minimum="0" Maximum="255" TickFrequency="1" IsSnapToTickEnabled="True" Margin="5,0" ValueChanged="Slider_ValueChanged" VerticalAlignment="Center"/>
                     </DockPanel>
-                    <DockPanel Margin="0,5,0,0">
+                    <DockPanel Margin="0,4,0,0">
                         <TextBlock Text="Hex:" Foreground="#AAA" Width="30" VerticalAlignment="Center"/>
                         <TextBox x:Name="TxtHex" Height="22" Background="#222" Foreground="#FFF" BorderThickness="0" Padding="5,2" TextChanged="TxtHex_TextChanged"/>
                     </DockPanel>
                 </StackPanel>
 
                 <Border Grid.Column="1" x:Name="PreviewBorder" CornerRadius="10" BorderBrush="#22FFFFFF" BorderThickness="1" Background="#FFFFFF">
-                    <TextBlock x:Name="LblPreview" Text="Preview" Foreground="#88000000" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <TextBlock x:Name="LblPreview" Text="Preview" Foreground="#88000000" HorizontalAlignment="Center" VerticalAlignment="Center" FontSize="10"/>
                 </Border>
             </Grid>
 
-            <StackPanel Grid.Row="5" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,15,0,0">
+            <StackPanel Grid.Row="6" Orientation="Horizontal" HorizontalAlignment="Right" Margin="0,10,0,0">
                 <Button Content="CANCEL" Click="Cancel_Click" Background="Transparent" Foreground="#88FFFFFF" BorderThickness="0" Margin="0,0,15,0" Cursor="Hand"/>
                 <Button Content="SELECT" Click="Select_Click" Width="80" Height="30" Background="#3b82f6" Foreground="White" FontWeight="Bold" Cursor="Hand">
                     <Button.Template>
