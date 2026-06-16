@@ -63,7 +63,7 @@ public partial class ColorPickerWindow : Window
     private void RenderColorWheel()
     {
         int size = (int)ColorWheelCanvas.Width;
-        if (size <= 0) size = 180;
+        if (size <= 0) size = 260;
 
         var bitmap = new WriteableBitmap(size, size, 96, 96, PixelFormats.Bgra32, null);
         var pixels = new byte[size * size * 4];
@@ -134,20 +134,23 @@ public partial class ColorPickerWindow : Window
     private void ColorWheel_MouseDown(object sender, MouseButtonEventArgs e)
     {
         _isDraggingWheel = true;
-        ColorWheelCanvas.CaptureMouse();
+        ((UIElement)sender).CaptureMouse();
         PickColorFromWheel(e.GetPosition(ColorWheelCanvas));
+        e.Handled = true; // Prevent bubbling to Window's DragMove handler
     }
 
     private void ColorWheel_MouseMove(object sender, MouseEventArgs e)
     {
         if (!_isDraggingWheel) return;
         PickColorFromWheel(e.GetPosition(ColorWheelCanvas));
+        e.Handled = true;
     }
 
     private void ColorWheel_MouseUp(object sender, MouseButtonEventArgs e)
     {
         _isDraggingWheel = false;
-        ColorWheelCanvas.ReleaseMouseCapture();
+        ((UIElement)sender).ReleaseMouseCapture();
+        e.Handled = true;
     }
 
     /// <summary>
@@ -310,7 +313,7 @@ public partial class ColorPickerWindow : Window
         }
 
         // Position selector on wheel
-        double size = ColorWheelCanvas?.Width ?? 180;
+        double size = ColorWheelCanvas?.Width ?? 260;
         double cx = size / 2.0;
         double cy = size / 2.0;
         double radius = size / 2.0;

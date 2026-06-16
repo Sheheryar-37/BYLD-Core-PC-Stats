@@ -44,6 +44,9 @@ public class ThemeConfig
     public bool ShowRgbScreen { get; set; } = true;
     public List<string> EnabledPlugins { get; set; } = new() { "System Clock", "Fan & RGB Controller" };
 
+    // ── Utility / Restrictions ───────────────────────────────────────────────
+    public bool DisableSecondaryScreenDragging { get; set; } = false;
+
     // ── Rotation Order (Identifiers: "Gauges", "Storage", "Clock", or Plugin Name) ────
     public List<string> ScreenRotationOrder { get; set; } = new() { "Gauges", "Storage", "Clock" };
 

@@ -21,6 +21,7 @@ public partial class MainWindow : Window
     private int _previousScreenIndex = -1;
     public PluginManager PluginManager => _pluginManager;
     private PluginManager _pluginManager;
+    private MouseHookService _mouseHook;
 
     public MainWindow(MainViewModel viewModel, IThemeService themeService, Microsoft.Extensions.Logging.ILogger<MainWindow> logger)
     {
@@ -28,6 +29,8 @@ public partial class MainWindow : Window
         DataContext = viewModel;
         _themeService = themeService;
         _logger = logger;
+        
+        _mouseHook = new MouseHookService();
 
         LicenseService licenseSvc = new LicenseService();
         if (!licenseSvc.CheckLicense(out string errorMessage))
@@ -73,6 +76,7 @@ public partial class MainWindow : Window
             if (e.PropertyName == nameof(viewModel.Theme))
             {
                 _transitionTimer.Interval = TimeSpan.FromSeconds(viewModel.Theme.TransitionDelaySeconds);
+                _mouseHook.IsEnabled = viewModel.Theme.DisableSecondaryScreenDragging;
                 
                 if (viewModel.Theme.DisplayMode == DisplayMode.Auto)
                 {
@@ -89,6 +93,7 @@ public partial class MainWindow : Window
 
         // Start initial timer if Auto mode is enabled
         _transitionTimer.Interval = TimeSpan.FromSeconds(viewModel.Theme.TransitionDelaySeconds);
+        _mouseHook.IsEnabled = viewModel.Theme.DisableSecondaryScreenDragging;
         if (viewModel.Theme.DisplayMode == DisplayMode.Auto) _transitionTimer.Start();
         
         _currentScreenIndex = 0;
@@ -127,6 +132,12 @@ public partial class MainWindow : Window
         };
 
         Loaded += (s, e) => SnapToInternalMonitor();
+    }
+
+    protected override void OnClosed(EventArgs e)
+    {
+        _mouseHook?.Dispose();
+        base.OnClosed(e);
     }
 
     private void CycleMonitor()
@@ -229,6 +240,12 @@ public partial class MainWindow : Window
 
         if (targetScreen != null)
         {
+            // Configure MouseHookService blocked screen bounds
+            if (_mouseHook != null)
+            {
+                _mouseHook.BlockedScreenBounds = targetScreen.Bounds;
+            }
+
             // ── DPI-aware coordinate conversion ──────────────────────────────────
             // System.Windows.Forms.Screen always returns physical pixel coordinates.
             // WPF uses logical (device-independent) pixels. On a 4K screen at 200%

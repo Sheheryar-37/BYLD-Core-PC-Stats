@@ -96,7 +96,20 @@ public class FanItemViewModel : ViewModelBase
     }
 
     private int _currentRpm;
-    public int CurrentRpm { get => _currentRpm; set => SetProperty(ref _currentRpm, value); }
+    public int CurrentRpm
+    {
+        get => _currentRpm;
+        set
+        {
+            if (SetProperty(ref _currentRpm, value))
+                OnPropertyChanged(nameof(IsZeroRpm));
+        }
+    }
+
+    /// <summary>
+    /// Returns true when the fan is reporting 0 RPM (e.g. GPU zero-fan mode at idle).
+    /// </summary>
+    public bool IsZeroRpm => CurrentRpm == 0;
 
     private string _selectedCurve = "";
     public string SelectedCurve { get => _selectedCurve; set => SetProperty(ref _selectedCurve, value); }
@@ -168,6 +181,13 @@ public class FanControlViewModel : ViewModelBase
         set => SetProperty(ref _isLoading, value);
     }
 
+    private bool _showHvciWarning;
+    public bool ShowHvciWarning
+    {
+        get => _showHvciWarning;
+        set => SetProperty(ref _showHvciWarning, value);
+    }
+
     public ICommand RefreshFansCommand { get; }
 
     public FanControlViewModel(HardwareControlService hardwareService)
@@ -179,6 +199,7 @@ public class FanControlViewModel : ViewModelBase
     public void LoadFans()
     {
         IsLoading = true;
+        ShowHvciWarning = false;
         Fans.Clear();
         Curves.Clear();
 
@@ -224,6 +245,7 @@ public class FanControlViewModel : ViewModelBase
             Curves.Add(liveCurve1);
 
             var sensors = _hardwareService.GetFanSensors();
+            ShowHvciWarning = _hardwareService.IsHvciBlockingFans;
             
             // Add ALL fans (both read-only SensorType.Fan and adjustable SensorType.Control) 
             // so the Settings screen perfectly matches the Rotating Screen.

@@ -99,6 +99,7 @@ public partial class SettingsWindow : Window
 
         // General
         ChkLaunchOnStartup.IsChecked = theme.LaunchOnStartup;
+        ChkDisableSecondaryScreenDragging.IsChecked = theme.DisableSecondaryScreenDragging;
 
         // Theme Colors
         BtnBgColor.Background = new BrushConverter().ConvertFromString(theme.BackgroundColor) as SolidColorBrush;
@@ -324,6 +325,8 @@ public partial class SettingsWindow : Window
         theme.BackgroundOpacity = SldOpacity.Value;
         theme.TransitionDelaySeconds = (int)SldInterval.Value;
         theme.DisplayMode = ChkAutoRotate.IsChecked == true ? DisplayMode.Auto : DisplayMode.Manual;
+        
+        theme.DisableSecondaryScreenDragging = ChkDisableSecondaryScreenDragging.IsChecked == true;
         
         if (theme.LaunchOnStartup != (ChkLaunchOnStartup.IsChecked == true))
         {

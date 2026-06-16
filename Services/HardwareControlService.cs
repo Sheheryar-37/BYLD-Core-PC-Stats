@@ -12,6 +12,8 @@ public class HardwareControlService : IDisposable
     private OpenRGB.NET.OpenRgbClient? _rgbClient;
     private bool _isConnectedToRgb;
     
+    public bool IsHvciBlockingFans { get; private set; } = false;
+    
     public static bool IsDemoMode { get; set; } = false;
 
     private void Log(string message)
@@ -55,6 +57,7 @@ public class HardwareControlService : IDisposable
     public List<ISensor> GetFanSensors()
     {
         var fanSensors = new List<ISensor>();
+        IsHvciBlockingFans = false;
         Log("═══════════════════════════════════════════════════════════");
         Log("DEEP FAN SCAN — Starting comprehensive fan detection...");
         Log($"Total hardware items in Computer: {_computer.Hardware.Count}");
@@ -114,6 +117,7 @@ public class HardwareControlService : IDisposable
             
             if (hardware.HardwareType == HardwareType.Motherboard && hardware.SubHardware.Length == 0)
             {
+                IsHvciBlockingFans = true;
                 Log($"  ⚠ MOTHERBOARD HAS NO SUB-HARDWARE — Super I/O chip is NOT accessible.");
                 Log($"  ⚠ This means case fans (CPU_FAN, SYS_FAN, etc.) cannot be read.");
                 Log($"  ⚠ Most likely cause: Windows Memory Integrity (HVCI) is blocking port I/O.");
@@ -197,8 +201,19 @@ public class HardwareControlService : IDisposable
         {
             var rgbProcesses = System.Diagnostics.Process.GetProcessesByName("OpenRGB");
             Log($"[RGB] OpenRGB processes currently running: {rgbProcesses.Length}");
-            foreach (var p in rgbProcesses)
-                Log($"  [RGB] PID={p.Id}, Path={p.MainModule?.FileName ?? "unknown"}");
+            
+            if (rgbProcesses.Length == 0)
+            {
+                Log("[RGB] OpenRGB not running. Attempting to start it as Administrator...");
+                EnsureOpenRgbRunningAsAdmin();
+                // Wait a moment for the server to start
+                System.Threading.Thread.Sleep(3000);
+            }
+            else
+            {
+                foreach (var p in rgbProcesses)
+                    Log($"  [RGB] PID={p.Id}");
+            }
         }
         catch (Exception ex) { Log($"[RGB] Could not check OpenRGB process: {ex.Message}"); }
         
@@ -238,6 +253,67 @@ public class HardwareControlService : IDisposable
             Log("═══════════════════════════════════════════════════════════");
             _isConnectedToRgb = false;
             return false;
+        }
+    }
+
+    public void EnsureOpenRgbRunningAsAdmin()
+    {
+        try
+        {
+            // First check if OpenRGB was bundled by the installer
+            string openRgbPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "OpenRGB", "OpenRGB.exe");
+            
+            if (!System.IO.File.Exists(openRgbPath))
+            {
+                // Fallback to Program Files
+                string programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+                openRgbPath = System.IO.Path.Combine(programFiles, "OpenRGB", "OpenRGB.exe");
+                
+                if (!System.IO.File.Exists(openRgbPath))
+                {
+                    openRgbPath = @"C:\Program Files\OpenRGB\OpenRGB.exe";
+                }
+            }
+
+            if (System.IO.File.Exists(openRgbPath))
+            {
+                var psi = new System.Diagnostics.ProcessStartInfo
+                {
+                    FileName = openRgbPath,
+                    Arguments = "--server",
+                    UseShellExecute = true,
+                    Verb = "runas", // Forces UAC prompt if not already admin; inherits if parent is admin
+                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                };
+                System.Diagnostics.Process.Start(psi);
+                Log($"[RGB] Launched OpenRGB.exe from {openRgbPath} in server mode.");
+            }
+            else
+            {
+                Log("[RGB] ⚠ OpenRGB.exe not found in Program Files. Cannot start automatically.");
+            }
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB] ERROR starting OpenRGB.exe: {ex.Message}");
+        }
+    }
+
+    public void RestartOpenRgbAsAdmin()
+    {
+        try
+        {
+            var processes = System.Diagnostics.Process.GetProcessesByName("OpenRGB");
+            foreach (var p in processes)
+            {
+                p.Kill();
+            }
+            System.Threading.Thread.Sleep(1000);
+            EnsureOpenRgbRunningAsAdmin();
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB] ERROR restarting OpenRGB as admin: {ex.Message}");
         }
     }
 

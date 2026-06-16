@@ -172,6 +172,13 @@ public class RgbControlViewModel : ViewModelBase
         set => SetProperty(ref _isLoading, value);
     }
 
+    private bool _showAdminWarning;
+    public bool ShowAdminWarning
+    {
+        get => _showAdminWarning;
+        set => SetProperty(ref _showAdminWarning, value);
+    }
+
     public ICommand ConnectCommand { get; }
     public ICommand RefreshCommand { get; }
 
@@ -234,6 +241,30 @@ public class RgbControlViewModel : ViewModelBase
             for (int i = 0; i < devices.Count; i++)
             {
                 Devices.Add(new RgbDeviceViewModel(devices[i], i, _hardwareService));
+            }
+
+            // If we connected but found 0 devices, or couldn't get devices, 
+            // it's highly likely OpenRGB needs to be run as Admin to see SMBus/USB RGB controllers.
+            if (devices.Count == 0 && !HardwareControlService.IsDemoMode)
+            {
+                ShowAdminWarning = true;
+                _hardwareService.RestartOpenRgbAsAdmin();
+                
+                // Sleep to allow it to restart, then try once more.
+                System.Threading.Thread.Sleep(3000);
+                if (_hardwareService.ConnectRgbServer())
+                {
+                    devices = _hardwareService.GetRgbDevices();
+                    for (int i = 0; i < devices.Count; i++)
+                    {
+                        Devices.Add(new RgbDeviceViewModel(devices[i], i, _hardwareService));
+                    }
+                    ShowAdminWarning = devices.Count == 0;
+                }
+            }
+            else
+            {
+                ShowAdminWarning = false;
             }
         }
 

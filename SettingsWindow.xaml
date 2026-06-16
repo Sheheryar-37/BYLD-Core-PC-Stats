@@ -323,6 +323,7 @@
                                 <TextBlock Text="SYSTEM SETTINGS" Style="{StaticResource SectionHeaderStyle}"/>
                                 <CheckBox x:Name="ChkLaunchOnStartup" Content="Launch BYLD Core on Startup" Click="OnSettingChanged" Margin="0,0,0,10" ToolTip="Opens the app automatically when you log into Windows (runs as Admin via Task Scheduler)."/>
                                 <TextBlock Text="Note: This will create a Windows Scheduled Task with highest privileges to bypass the UAC popup." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="25,0,0,10" FontStyle="Italic"/>
+                                <CheckBox x:Name="ChkDisableSecondaryScreenDragging" Content="Lock Cursor to Main Display" Click="OnSettingChanged" Margin="0,5,0,10" ToolTip="Prevents dragging windows and the mouse onto the 7 inch case display."/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

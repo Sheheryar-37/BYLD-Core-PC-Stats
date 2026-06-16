@@ -10,19 +10,19 @@
         
         <Color x:Key="BrandBlueColor">#3b82f6</Color>
         <SolidColorBrush x:Key="BrandBlue" Color="{StaticResource BrandBlueColor}"/>
-        <SolidColorBrush x:Key="CardBg" Color="#FF0D2137"/>
-        <SolidColorBrush x:Key="CardBorder" Color="#FF1B3A5C"/>
-        <SolidColorBrush x:Key="YellowAccent" Color="#FFD700"/>
+        <SolidColorBrush x:Key="CardBg" Color="#0AFFFFFF"/>
+        <SolidColorBrush x:Key="CardBorder" Color="#1AFFFFFF"/>
+        <SolidColorBrush x:Key="YellowAccent" Color="{StaticResource BrandBlueColor}"/>
         <SolidColorBrush x:Key="DimText" Color="#88FFFFFF"/>
 
         <!-- Tiny +/- Button -->
         <Style x:Key="TinyBtnStyle" TargetType="Button">
-            <Setter Property="Width" Value="14"/>
-            <Setter Property="Height" Value="14"/>
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
             <Setter Property="FontSize" Value="10"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Background" Value="#05FFFFFF"/>
             <Setter Property="BorderThickness" Value="0"/>
             <Setter Property="Padding" Value="0"/>
             <Setter Property="Template">
@@ -57,7 +57,7 @@
                                 <Setter TargetName="Bg" Property="Background" Value="{StaticResource BrandBlue}"/>
                                 <Setter TargetName="Dot" Property="HorizontalAlignment" Value="Right"/>
                                 <Setter TargetName="Dot" Property="Margin" Value="0,0,2,0"/>
-                                <Setter TargetName="Dot" Property="Fill" Value="{StaticResource YellowAccent}"/>
+                                <Setter TargetName="Dot" Property="Fill" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -75,6 +75,16 @@
             <StackPanel Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" HorizontalAlignment="Center" Margin="0,20">
                 <TextBlock Text="Scanning Hardware..." Foreground="#64748B" FontStyle="Italic" FontSize="12"/>
             </StackPanel>
+
+            <!-- HVCI Warning -->
+            <Border Background="#22E63946" BorderBrush="#E63946" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,15"
+                    Visibility="{Binding ShowHvciWarning, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Visible}">
+                <StackPanel>
+                    <TextBlock Text="⚠ Case Fans Not Detected" Foreground="#E63946" FontWeight="Bold" FontSize="12"/>
+                    <TextBlock Foreground="#FFB0B0" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
+                               Text="The hardware driver (WinRing0x64.sys) needed to read your motherboard's fan headers could not load. This is usually caused by Windows Defender or Smart App Control blocking the driver. Please try:&#x0a;&#x0a;1. Open Windows Security → Protection History and allow any blocked driver entries.&#x0a;2. Restart BYLD Core after allowing the driver.&#x0a;&#x0a;If that doesn't help, check that Memory Integrity (Core Isolation) is also disabled."/>
+                </StackPanel>
+            </Border>
 
             <!-- CONTROLS HEADER -->
             <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
@@ -121,13 +131,17 @@
                                 </Grid>
 
                                 <!-- % and RPM -->
-                                <Grid Margin="0,0,0,8">
+                                <Grid Margin="0,0,0,4">
                                     <TextBlock Text="{Binding SpeedPercentage, StringFormat={}{0:F1} %}" Foreground="White" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left"/>
                                     <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
                                         <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="White" FontSize="13" FontWeight="Bold"/>
                                         <TextBlock Text=" ▼" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
                                     </StackPanel>
                                 </Grid>
+                                <!-- Zero-fan mode hint -->
+                                <TextBlock Text="GPU is in zero-fan mode (normal at low temps)" 
+                                           Foreground="#88FFFFFF" FontSize="8" FontStyle="Italic" Margin="0,0,0,4"
+                                           Visibility="{Binding IsZeroRpm, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
 
                                 <Rectangle Height="1" Fill="#1AFFFFFF" Margin="0,0,0,8"/>
 

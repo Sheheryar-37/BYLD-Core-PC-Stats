@@ -131,6 +131,16 @@
             <TextBlock Text="Connecting to OpenRGB..." Foreground="#64748B" FontStyle="Italic" FontSize="12"/>
         </StackPanel>
 
+        <!-- OpenRGB Admin Warning -->
+        <Border Background="#22E63946" BorderBrush="#E63946" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,15"
+                Visibility="{Binding ShowAdminWarning, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+            <StackPanel>
+                <TextBlock Text="⚠ OpenRGB Access Denied" Foreground="#E63946" FontWeight="Bold" FontSize="12"/>
+                <TextBlock Text="Some RGB devices (like your GPU or generic case fans) require OpenRGB to be running as an Administrator to be detected. BYLD Core will attempt to restart OpenRGB with Admin privileges automatically." 
+                           Foreground="#FFB0B0" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
         <!-- ═══ Connected: Device Cards ═══ -->
         <ItemsControl ItemsSource="{Binding Devices}">
             <ItemsControl.Style>
