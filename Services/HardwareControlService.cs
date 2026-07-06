@@ -69,18 +69,29 @@ public class HardwareControlService : IDisposable
         if (CanReadCpuTemperature()) return;
 
         Log("[Ring0] CPU temperature unreadable after open — reclaiming WinRing0 and reopening…");
+
+        // Release our own handle first: while LibreHardwareMonitor holds the
+        // WinRing0 device open, the foreign driver cannot be unloaded.
+        _computer.Close();
         bool reclaimed = KernelDriverService.ForceReclaim(
             Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
-        if (!reclaimed)
-        {
-            Log("[Ring0] Reclaim failed — MSR sensors will stay unavailable this session.");
-            return;
-        }
+        OpenComputer();
 
-        ReopenComputer();
         Log(CanReadCpuTemperature()
             ? "[Ring0] Reclaim successful — CPU temperature now readable ✓"
-            : "[Ring0] Reclaim did not restore sensor reads.");
+            : $"[Ring0] Reclaim did not restore sensor reads (reclaimed={reclaimed}).");
+    }
+
+    private void OpenComputer()
+    {
+        try
+        {
+            _computer.Open();
+        }
+        catch (Exception ex)
+        {
+            Log($"[Ring0] Reopen failed: {ex.Message}");
+        }
     }
 
     private bool CanReadCpuTemperature()
@@ -92,21 +103,6 @@ public class HardwareControlService : IDisposable
         return cpu.Sensors.Any(s => s.SensorType == SensorType.Temperature && s.Value > 0);
     }
 
-    private void ReopenComputer()
-    {
-        try
-        {
-            _computer.Close();
-            _computer.Open();
-        }
-        catch (Exception ex)
-        {
-            Log($"[Ring0] Reopen failed: {ex.Message}");
-        }
-    }
-
-
-    
     /// <summary>
     /// Gets fans that specifically expose fan speed/RPM sensors (ISensor of type Fan)
     /// </summary>

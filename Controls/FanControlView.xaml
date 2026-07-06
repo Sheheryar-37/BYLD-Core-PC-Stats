@@ -237,8 +237,12 @@
                             Cursor="Help" Background="Transparent"
                             ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="30000">
                         <Border.ToolTip>
-                            <TextBlock MaxWidth="300" TextWrapping="Wrap"
-                                       Text="Each card is one controllable fan. Toggle ON to follow a fan curve (choose it in the dropdown); toggle OFF to set a static speed — type an exact percentage or use the +/− buttons. Step up/down, Start/Stop %, Offset and Minimum % fine-tune how speed changes are applied."/>
+                            <ToolTip Padding="0" Background="Transparent" BorderThickness="0" HasDropShadow="False">
+                                <Border Background="#1E1E2E" BorderBrush="#3A3A55" BorderThickness="1" CornerRadius="6" Padding="10">
+                                    <TextBlock MaxWidth="300" TextWrapping="Wrap" FontSize="11" Foreground="#F0F0F5"
+                                               Text="Each card is one controllable fan. Toggle ON to follow a fan curve (choose it in the dropdown); toggle OFF to set a static speed — type an exact percentage or use the +/− buttons. Step up/down, Start/Stop %, Offset and Minimum % fine-tune how speed changes are applied."/>
+                                </Border>
+                            </ToolTip>
                         </Border.ToolTip>
                         <TextBlock Text="?" Foreground="{DynamicResource PageDimText}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
@@ -407,8 +411,12 @@
                             Cursor="Help" Background="Transparent"
                             ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="30000">
                         <Border.ToolTip>
-                            <TextBlock MaxWidth="300" TextWrapping="Wrap"
-                                       Text="A curve maps a temperature to a fan speed: the fan ramps from Min speed at Min temp up to Max speed at Max temp, following the selected temperature source. Create curves with the + button, then assign one to a fan from the fan card's Curve dropdown."/>
+                            <ToolTip Padding="0" Background="Transparent" BorderThickness="0" HasDropShadow="False">
+                                <Border Background="#1E1E2E" BorderBrush="#3A3A55" BorderThickness="1" CornerRadius="6" Padding="10">
+                                    <TextBlock MaxWidth="300" TextWrapping="Wrap" FontSize="11" Foreground="#F0F0F5"
+                                               Text="A curve maps a temperature to a fan speed: the fan ramps from Min speed at Min temp up to Max speed at Max temp, following the selected temperature source. Create curves with the + button, then assign one to a fan from the fan card's Curve dropdown."/>
+                                </Border>
+                            </ToolTip>
                         </Border.ToolTip>
                         <TextBlock Text="?" Foreground="{DynamicResource PageDimText}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>

@@ -189,15 +189,20 @@ public partial class SettingsWindow : Window
     }
 
     /// <summary>
-    /// Replaces (not mutates) the brush in the dictionary: WPF freezes brushes used
-    /// in Style setters, so in-place Color changes are silently ignored — replacement
-    /// plus DynamicResource references is the only reliable way to re-theme.
+    /// Re-tints a themed brush. Mutates the existing (unfrozen) brush object in
+    /// place so EVERY live reference updates — including ComboBox popups, whose
+    /// separate visual trees do not reliably pick up a replaced resource entry.
+    /// Falls back to inserting a fresh brush when the key is missing or frozen.
+    /// All theme brushes are referenced via DynamicResource, so they stay
+    /// unfrozen and mutable.
     /// </summary>
     private static void SetBrushIn(ResourceDictionary resources, string key, string hex)
     {
-        var brush = NewBrush(hex);
-        brush.Freeze();
-        resources[key] = brush;
+        var color = (Color)ColorConverter.ConvertFromString(hex);
+        if (resources[key] is SolidColorBrush brush && !brush.IsFrozen)
+            brush.Color = color;
+        else
+            resources[key] = new SolidColorBrush(color);
     }
 
     private static SolidColorBrush NewBrush(string hex)

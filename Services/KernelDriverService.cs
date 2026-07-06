@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -57,9 +58,6 @@ public static class KernelDriverService
     private static extern bool ControlService(nint hSvc, uint control, ref SERVICE_STATUS status);
 
     [DllImport("advapi32.dll", SetLastError = true)]
-    private static extern bool QueryServiceStatus(nint hSvc, ref SERVICE_STATUS status);
-
-    [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool DeleteService(nint hSvc);
 
     [DllImport("advapi32.dll", SetLastError = true)]
@@ -87,7 +85,6 @@ public static class KernelDriverService
     private const uint DEMAND_START  = 0x3;
     private const uint ERR_IGNORE    = 0x0;
     private const uint SVC_STOP      = 0x1;        // SERVICE_CONTROL_STOP
-    private const uint SVC_RUNNING   = 0x4;        // SERVICE_RUNNING
     private const uint GENERIC_RW    = 0xC0000000; // GENERIC_READ | GENERIC_WRITE
     private const uint OPEN_EXISTING = 0x3;
 
@@ -130,20 +127,26 @@ public static class KernelDriverService
 
         logger.LogDebug("[Driver] Driver found at {p}", driverPath);
 
-        if (TryOpenDevice() && IsOurServiceRunning(driverPath, logger))
+        // If a WinRing0 device is already present (loaded by us on a prior run,
+        // or by another tool under a different service name such as WinRing0x64),
+        // accept it. Whether it actually works is proven functionally after the
+        // hardware layer opens — HardwareControlService reclaims only if the CPU
+        // temperature reads zero. Fighting a working foreign driver here caused a
+        // false "driver unavailable" alarm on machines with a foreign WinRing0.
+        if (TryOpenDevice())
         {
-            logger.LogInformation("[Driver] WinRing0 running from our own driver ✓");
+            logger.LogInformation("[Driver] WinRing0 device already available — " +
+                "sensor reads will be verified after hardware init.");
             return;
         }
 
+        // No device yet: install and start our own driver.
         // Defender exclusion must be applied BEFORE the SCM install,
         // or Defender may quarantine the driver as HackTool:Win32/Winring0.
         AddDefenderExclusion(AppContext.BaseDirectory, logger);
         LogRegisteredImagePath(logger);
 
-        int err = TryOpenDevice()
-            ? ReclaimForeignInstance(driverPath, logger)
-            : InstallAndStartDriver(driverPath, logger);
+        int err = InstallAndStartDriver(driverPath, logger);
         if (err == E_ALREADY_EXISTS || err == E_MARKED_DELETE)
             err = RecoverFromConflict(driverPath, logger);
 
@@ -176,96 +179,16 @@ public static class KernelDriverService
         }
     }
 
-    /// <summary>
-    /// The WinRing0 device exists but the service is not ours (or not running) —
-    /// typically OpenRGB's bundled copy. That instance opens fine but returns
-    /// zeroed data to LibreHardwareMonitor's sensor reads, so it must be
-    /// unloaded and replaced with our driver.
-    /// </summary>
-    private static int ReclaimForeignInstance(string driverPath, ILogger logger)
-    {
-        logger.LogWarning("[Driver] WinRing0 device exists but was loaded by another program — " +
-            "LibreHardwareMonitor cannot read sensors through it. Reclaiming…");
-        return RecoverFromConflict(driverPath, logger);
-    }
-
     // ── Device probe ────────────────────────────────────────────────────────
 
     /// <summary>
     /// Attempts to open \\.\WinRing0_1_2_0 — the same handle LibreHardwareMonitor
-    /// needs. This is the only reliable proof the driver is loaded and usable.
+    /// needs. Proves a WinRing0 driver is loaded and the device is reachable.
     /// </summary>
     private static bool TryOpenDevice()
     {
         using var handle = CreateFile(DevicePath, GENERIC_RW, 0, 0, OPEN_EXISTING, 0, 0);
         return !handle.IsInvalid;
-    }
-
-    // ── Service ownership check ─────────────────────────────────────────────
-
-    /// <summary>
-    /// True only when the WinRing0 service points at our bundled driver file AND
-    /// is currently running — the one state where LibreHardwareMonitor's reads
-    /// are known to work. A merely-openable device is not proof (see err 183).
-    /// </summary>
-    private static bool IsOurServiceRunning(string driverPath, ILogger logger)
-    {
-        var imagePath = ReadServiceImagePath();
-        if (!ImagePathMatches(imagePath, driverPath))
-        {
-            logger.LogInformation("[Driver] WinRing0 service ImagePath is '{p}' — not our driver.",
-                imagePath ?? "(no service entry)");
-            return false;
-        }
-
-        return IsServiceRunning();
-    }
-
-    private static string? ReadServiceImagePath()
-    {
-        try
-        {
-            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(ServiceRegKey);
-            return key?.GetValue("ImagePath")?.ToString();
-        }
-        catch
-        {
-            return null;
-        }
-    }
-
-    private static bool ImagePathMatches(string? imagePath, string driverPath)
-    {
-        if (string.IsNullOrWhiteSpace(imagePath)) return false;
-
-        var normalized = imagePath.Trim('"').Replace(@"\??\", "");
-        return string.Equals(normalized, driverPath, StringComparison.OrdinalIgnoreCase);
-    }
-
-    private static bool IsServiceRunning()
-    {
-        var hScm = OpenSCManager(null, null, ALL_ACCESS);
-        if (hScm == 0) return false;
-
-        try
-        {
-            return QueryRunningState(hScm);
-        }
-        finally
-        {
-            CloseServiceHandle(hScm);
-        }
-    }
-
-    private static bool QueryRunningState(nint hScm)
-    {
-        var hSvc = OpenService(hScm, DriverName, SVC_ALL);
-        if (hSvc == 0) return false;
-
-        var status = new SERVICE_STATUS();
-        bool ok = QueryServiceStatus(hSvc, ref status);
-        CloseServiceHandle(hSvc);
-        return ok && status.dwCurrentState == SVC_RUNNING;
     }
 
     // ── Diagnostics ─────────────────────────────────────────────────────────
@@ -405,23 +328,111 @@ public static class KernelDriverService
     // ── Step 4: conflict recovery (err 183) ─────────────────────────────────
 
     /// <summary>
-    /// Handles ERROR_ALREADY_EXISTS: another service has already loaded a copy
-    /// of WinRing0 — typically a leftover OpenRGB instance we launched on a
-    /// previous run (it keeps running after BYLD Core exits). Stops OpenRGB,
-    /// removes the stale service entry, and retries the install once.
-    /// OpenRGB is relaunched later by HardwareControlService when the RGB
-    /// connection is established, so RGB control is unaffected.
+    /// Handles the case where another WinRing0 instance already owns the device:
+    /// a leftover OpenRGB process we launched previously (same service name), or
+    /// a foreign auto-start service under a different name (e.g. WinRing0x64 left
+    /// behind by another hardware tool). Kills OpenRGB, stops every foreign
+    /// WinRing0 service, drops our stale entry, then reinstalls and starts ours.
+    /// OpenRGB is relaunched later by HardwareControlService, so RGB is unaffected.
     /// </summary>
     private static int RecoverFromConflict(string driverPath, ILogger logger)
     {
-        logger.LogWarning("[Driver] Conflict detected — another WinRing0 instance is loaded " +
-            "(usually a leftover OpenRGB process). Attempting automatic recovery…");
+        logger.LogWarning("[Driver] Conflict detected — another WinRing0 instance owns the device. " +
+            "Attempting automatic recovery…");
 
         KillLeftoverOpenRgb(logger);
+        StopForeignWinRingServices(logger);
         RemoveServiceEntry(logger);
         System.Threading.Thread.Sleep(500);
 
         return InstallAndStartDriver(driverPath, logger);
+    }
+
+    /// <summary>
+    /// Stops every WinRing0 kernel service that isn't ours (matched by driver
+    /// file name in the registry) and demotes any auto-start ones to demand-start
+    /// so they stop winning the boot-time race for the device on the next launch.
+    /// </summary>
+    private static void StopForeignWinRingServices(ILogger logger)
+    {
+        foreach (var name in FindWinRingServiceNames())
+        {
+            if (string.Equals(name, DriverName, StringComparison.OrdinalIgnoreCase)) continue;
+            StopAndDemoteService(name, logger);
+        }
+    }
+
+    private static List<string> FindWinRingServiceNames()
+    {
+        var names = new List<string>();
+        using var services = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+            @"SYSTEM\CurrentControlSet\Services");
+        if (services == null) return names;
+
+        foreach (var name in services.GetSubKeyNames())
+            AddIfWinRingService(services, name, names);
+        return names;
+    }
+
+    private static void AddIfWinRingService(Microsoft.Win32.RegistryKey services, string name, List<string> names)
+    {
+        using var key = services.OpenSubKey(name);
+        var imagePath = key?.GetValue("ImagePath")?.ToString();
+        if (imagePath != null && imagePath.EndsWith(DriverSysFile, StringComparison.OrdinalIgnoreCase))
+            names.Add(name);
+    }
+
+    private static void StopAndDemoteService(string name, ILogger logger)
+    {
+        StopServiceByName(name, logger);
+        DemoteAutoStart(name, logger);
+    }
+
+    private static void StopServiceByName(string name, ILogger logger)
+    {
+        var hScm = OpenSCManager(null, null, ALL_ACCESS);
+        if (hScm == 0) return;
+
+        try
+        {
+            SendStop(hScm, name, logger);
+        }
+        finally
+        {
+            CloseServiceHandle(hScm);
+        }
+    }
+
+    private static void SendStop(nint hScm, string name, ILogger logger)
+    {
+        var hSvc = OpenService(hScm, name, SVC_ALL);
+        if (hSvc == 0) return;
+
+        var status = new SERVICE_STATUS();
+        bool stopped = ControlService(hSvc, SVC_STOP, ref status);
+        CloseServiceHandle(hSvc);
+        logger.LogInformation("[Driver] Stopped foreign WinRing0 service '{n}' (ok={s}).", name, stopped);
+    }
+
+    private static void DemoteAutoStart(string name, ILogger logger)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(
+                $@"SYSTEM\CurrentControlSet\Services\{name}", writable: true);
+            if (key?.GetValue("Start") is int start && start == 2)
+                DemoteKey(key, name, logger);
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "[Driver] Could not demote '{n}' to demand-start.", name);
+        }
+    }
+
+    private static void DemoteKey(Microsoft.Win32.RegistryKey key, string name, ILogger logger)
+    {
+        key.SetValue("Start", 3); // AUTO_START (2) → DEMAND_START (3)
+        logger.LogInformation("[Driver] Demoted '{n}' to demand-start to stop boot-time WinRing0 races.", name);
     }
 
     private static void KillLeftoverOpenRgb(ILogger logger)
