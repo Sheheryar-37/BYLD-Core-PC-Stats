@@ -17,17 +17,29 @@ namespace PcStatsMonitor;
 public partial class ColorPickerWindow : Window
 {
     public string SelectedHex { get; private set; } = "#FFFFFF";
+    public bool IsGradient { get; private set; } = false;
+    public string GradientEndHex { get; private set; } = "#FFFFFF";
+    
     private bool _isUpdating = false;
     private bool _isDraggingWheel = false;
+    private bool _editingEndColor = false;
+    private Color _startColor = Colors.White;
+    private Color _endColor = Colors.White;
 
     // Current HSB state tracked from wheel interaction
     private double _wheelHue = 0;
     private double _wheelSaturation = 0;
     private double _wheelBrightness = 100;
 
-    public ColorPickerWindow(string initialHex)
+    public ColorPickerWindow(string initialHex, bool isGradient = false, string endHex = "#FFFFFF")
     {
         InitializeComponent();
+        
+        IsGradient = isGradient;
+        SelectedHex = initialHex;
+        GradientEndHex = endHex;
+        
+        ChkGradient.IsChecked = IsGradient;
 
         var colors = new List<string>
         {
@@ -42,8 +54,36 @@ public partial class ColorPickerWindow : Window
         ColorWheelCanvas.Loaded += (s, e) =>
         {
             RenderColorWheel();
+            
+            try 
+            {
+                _startColor = (Color)ColorConverter.ConvertFromString(SelectedHex);
+                _endColor = (Color)ColorConverter.ConvertFromString(GradientEndHex);
+            }
+            catch {}
+            
             SetColorFromHex(initialHex);
+            UpdatePreviewInternal();
         };
+    }
+
+    private void ChkGradient_Changed(object sender, RoutedEventArgs e)
+    {
+        if (PnlGradientTargets == null) return;
+        IsGradient = ChkGradient.IsChecked == true;
+        PnlGradientTargets.Visibility = IsGradient ? Visibility.Visible : Visibility.Collapsed;
+        UpdatePreviewInternal();
+    }
+
+    private void ColorTarget_Changed(object sender, RoutedEventArgs e)
+    {
+        if (RbStartColor == null || RbEndColor == null) return;
+        _editingEndColor = RbEndColor.IsChecked == true;
+        
+        RbStartColor.Foreground = _editingEndColor ? new SolidColorBrush(Color.FromArgb(0x88, 0xFF, 0xFF, 0xFF)) : new SolidColorBrush(Color.FromRgb(0x3B, 0x82, 0xF6));
+        RbEndColor.Foreground = _editingEndColor ? new SolidColorBrush(Color.FromRgb(0x3B, 0x82, 0xF6)) : new SolidColorBrush(Color.FromArgb(0x88, 0xFF, 0xFF, 0xFF));
+        
+        SetColorFromHex(_editingEndColor ? GradientEndHex : SelectedHex);
     }
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
@@ -193,7 +233,20 @@ public partial class ColorPickerWindow : Window
         TxtB.Text = b.ToString();
         var hex = $"#{r:X2}{g:X2}{b:X2}";
         TxtHex.Text = hex;
-        UpdatePreview(Color.FromRgb(r, g, b), hex);
+        
+        var color = Color.FromRgb(r, g, b);
+        if (_editingEndColor)
+        {
+            _endColor = color;
+            GradientEndHex = hex;
+        }
+        else
+        {
+            _startColor = color;
+            SelectedHex = hex;
+        }
+        
+        UpdatePreviewInternal();
         _isUpdating = false;
     }
 
@@ -214,7 +267,20 @@ public partial class ColorPickerWindow : Window
         TxtB.Text = b.ToString();
         var hex = $"#{r:X2}{g:X2}{b:X2}";
         TxtHex.Text = hex;
-        UpdatePreview(Color.FromRgb(r, g, b), hex);
+        
+        var color = Color.FromRgb(r, g, b);
+        if (_editingEndColor)
+        {
+            _endColor = color;
+            GradientEndHex = hex;
+        }
+        else
+        {
+            _startColor = color;
+            SelectedHex = hex;
+        }
+        
+        UpdatePreviewInternal();
         _isUpdating = false;
     }
 
@@ -270,7 +336,19 @@ public partial class ColorPickerWindow : Window
             TxtB.Text = color.B.ToString();
             
             TxtHex.Text = hex.ToUpper();
-            UpdatePreview(color, hex.ToUpper());
+            
+            if (_editingEndColor)
+            {
+                _endColor = color;
+                GradientEndHex = hex.ToUpper();
+            }
+            else
+            {
+                _startColor = color;
+                SelectedHex = hex.ToUpper();
+            }
+            
+            UpdatePreviewInternal();
 
             // Position the wheel selector to match this colour
             UpdateWheelSelectorFromRgb(color.R, color.G, color.B);
@@ -344,7 +422,19 @@ public partial class ColorPickerWindow : Window
         var hex = $"#{r:X2}{g:X2}{b:X2}";
         
         TxtHex.Text = hex;
-        UpdatePreview(color, hex);
+        
+        if (_editingEndColor)
+        {
+            _endColor = color;
+            GradientEndHex = hex;
+        }
+        else
+        {
+            _startColor = color;
+            SelectedHex = hex;
+        }
+        
+        UpdatePreviewInternal();
         UpdateWheelSelectorFromRgb(r, g, b);
 
         _isUpdating = false;
@@ -366,20 +456,37 @@ public partial class ColorPickerWindow : Window
             var color = Color.FromRgb(r, g, b);
             var hex = $"#{r:X2}{g:X2}{b:X2}";
             TxtHex.Text = hex;
-            UpdatePreview(color, hex);
+            
+            if (_editingEndColor)
+            {
+                _endColor = color;
+                GradientEndHex = hex;
+            }
+            else
+            {
+                _startColor = color;
+                SelectedHex = hex;
+            }
+            
+            UpdatePreviewInternal();
             UpdateWheelSelectorFromRgb(r, g, b);
             _isUpdating = false;
         }
     }
 
-    private void UpdatePreview(Color color, string hex)
+    private void UpdatePreviewInternal()
     {
-        PreviewBorder.Background = new SolidColorBrush(color);
-        SelectedHex = hex;
-        
-        // Dynamic contrasting text for Preview panel
-        double luminance = (0.299 * color.R + 0.587 * color.G + 0.114 * color.B) / 255;
-        LblPreview.Foreground = luminance > 0.5 ? new SolidColorBrush(Colors.Black) : new SolidColorBrush(Colors.White);
+        if (IsGradient)
+        {
+            PreviewBorder.Background = new LinearGradientBrush(_startColor, _endColor, 0.0);
+            LblPreview.Foreground = new SolidColorBrush(Colors.White); // Assuming dark for gradient text generally
+        }
+        else
+        {
+            PreviewBorder.Background = new SolidColorBrush(_startColor);
+            double luminance = (0.299 * _startColor.R + 0.587 * _startColor.G + 0.114 * _startColor.B) / 255;
+            LblPreview.Foreground = luminance > 0.5 ? new SolidColorBrush(Colors.Black) : new SolidColorBrush(Colors.White);
+        }
     }
 
     private void Slider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e) => SyncFromSliders();

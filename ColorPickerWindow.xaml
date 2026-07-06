@@ -67,8 +67,14 @@
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
-            <TextBlock Text="SET COLOR" Foreground="#88FFFFFF" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,0,0,12"/>
-
+            <StackPanel Grid.Row="0" Margin="0,0,0,12" HorizontalAlignment="Center">
+                <CheckBox x:Name="ChkGradient" Content="Enable Linear Gradient" Foreground="#88FFFFFF" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center" 
+                          Checked="ChkGradient_Changed" Unchecked="ChkGradient_Changed" Margin="0,0,0,8" Cursor="Hand"/>
+                <StackPanel x:Name="PnlGradientTargets" Orientation="Horizontal" HorizontalAlignment="Center" Visibility="Collapsed">
+                    <RadioButton x:Name="RbStartColor" Content="START COLOR" IsChecked="True" Foreground="#3B82F6" FontSize="10" FontWeight="Bold" Margin="0,0,15,0" Checked="ColorTarget_Changed" Cursor="Hand"/>
+                    <RadioButton x:Name="RbEndColor" Content="END COLOR" Foreground="#88FFFFFF" FontSize="10" FontWeight="Bold" Checked="ColorTarget_Changed" Cursor="Hand"/>
+                </StackPanel>
+            </StackPanel>
             <!-- ═══ HSB Colour Wheel ═══ -->
             <Grid Grid.Row="1" HorizontalAlignment="Center" Margin="0,0,0,12"
                   MouseLeftButtonDown="ColorWheel_MouseDown" 

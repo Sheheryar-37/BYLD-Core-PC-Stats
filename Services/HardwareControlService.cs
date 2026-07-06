@@ -6,13 +6,22 @@ using System.Threading.Tasks;
 
 namespace PcStatsMonitor.Services;
 
+public enum FanDetectionStatus
+{
+    Unknown,
+    Success,
+    NoFansDetected,
+    SuperIoUnsupported,
+    DriverBlocked
+}
+
 public class HardwareControlService : IDisposable
 {
     private readonly Computer _computer;
     private OpenRGB.NET.OpenRgbClient? _rgbClient;
     private bool _isConnectedToRgb;
     
-    public bool IsHvciBlockingFans { get; private set; } = false;
+    public FanDetectionStatus FanStatus { get; private set; } = FanDetectionStatus.Unknown;
     
     public static bool IsDemoMode { get; set; } = false;
 
@@ -57,7 +66,7 @@ public class HardwareControlService : IDisposable
     public List<ISensor> GetFanSensors()
     {
         var fanSensors = new List<ISensor>();
-        IsHvciBlockingFans = false;
+        FanStatus = FanDetectionStatus.Unknown;
         Log("═══════════════════════════════════════════════════════════");
         Log("DEEP FAN SCAN — Starting comprehensive fan detection...");
         Log($"Total hardware items in Computer: {_computer.Hardware.Count}");
@@ -117,10 +126,17 @@ public class HardwareControlService : IDisposable
             
             if (hardware.HardwareType == HardwareType.Motherboard && hardware.SubHardware.Length == 0)
             {
-                IsHvciBlockingFans = true;
+                // No Super I/O access has two very different causes: the WinRing0
+                // driver failed to load (fixable), or the I/O chip is genuinely
+                // unsupported by LibreHardwareMonitor. Report the right one.
+                FanStatus = KernelDriverService.DriverLoadFailed
+                    ? FanDetectionStatus.DriverBlocked
+                    : FanDetectionStatus.SuperIoUnsupported;
                 Log($"  ⚠ MOTHERBOARD HAS NO SUB-HARDWARE — Super I/O chip is NOT accessible.");
                 Log($"  ⚠ This means case fans (CPU_FAN, SYS_FAN, etc.) cannot be read.");
-                Log($"  ⚠ Most likely cause: Windows Memory Integrity (HVCI) is blocking port I/O.");
+                Log(KernelDriverService.DriverLoadFailed
+                    ? "  ⚠ Cause: the WinRing0 kernel driver failed to load this session."
+                    : "  ⚠ Most likely cause: The I/O chip is not supported by LibreHardwareMonitor yet.");
             }
             
             foreach (var subHardware in hardware.SubHardware)
@@ -145,8 +161,20 @@ public class HardwareControlService : IDisposable
         
         Log($"────────────────────────────────────────");
         Log($"DEEP FAN SCAN COMPLETE — Total fan/control sensors found: {fanSensors.Count}");
+        
+        if (FanStatus == FanDetectionStatus.Unknown)
+        {
+            if (KernelDriverService.DriverLoadFailed)
+                FanStatus = FanDetectionStatus.DriverBlocked;
+            else if (fanSensors.Count > 0)
+                FanStatus = FanDetectionStatus.Success;
+            else
+                FanStatus = FanDetectionStatus.NoFansDetected;
+        }
+
         if (fanSensors.Count == 0)
-            Log("⚠ NO FAN SENSORS DETECTED. User should disable Memory Integrity in Windows Security settings and restart.");
+            Log("⚠ NO FAN SENSORS DETECTED.");
+            
         Log("═══════════════════════════════════════════════════════════");
         return fanSensors;
     }
@@ -353,6 +381,17 @@ public class HardwareControlService : IDisposable
         catch { /* Handle connection or index errors */ }
     }
 
+    public void UpdateRgbZoneColors(int deviceId, int zoneId, OpenRGB.NET.Color[] colors)
+    {
+        if (!_isConnectedToRgb || _rgbClient == null) return;
+        
+        try
+        {
+            _rgbClient.UpdateZoneLeds(deviceId, zoneId, colors);
+        }
+        catch { /* Handle connection or index errors */ }
+    }
+
     public void RequestRgbEffect(int deviceId, string effectName)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
@@ -363,7 +402,13 @@ public class HardwareControlService : IDisposable
             var modeIndex = Array.FindIndex(device.Modes, m => m.Name.Equals(effectName, StringComparison.OrdinalIgnoreCase));
             if (modeIndex >= 0)
             {
-                _rgbClient.SetCustomMode(deviceId); // Some devices require activating custom mode
+                var mode = device.Modes[modeIndex];
+                // Only force Custom Mode if we are switching to direct LED control
+                if (mode.Name.Contains("Direct", StringComparison.OrdinalIgnoreCase) || 
+                    mode.Name.Contains("Custom", StringComparison.OrdinalIgnoreCase))
+                {
+                    _rgbClient.SetCustomMode(deviceId); 
+                }
                 _rgbClient.UpdateMode(deviceId, modeIndex);
             }
         }

@@ -1,7 +1,7 @@
 <Window x:Class="PcStatsMonitor.SettingsWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-        Title="BYLD Core - Settings" Height="680" Width="620" WindowStartupLocation="CenterScreen" 
+        Title="BYLD Core - Settings" Height="680" Width="620" WindowStartupLocation="Manual"
         WindowStyle="None" AllowsTransparency="True" Background="#D9161616" ResizeMode="CanResizeWithGrip"
         xmlns:models="clr-namespace:PcStatsMonitor.Models"
         xmlns:local="clr-namespace:PcStatsMonitor"
@@ -11,38 +11,85 @@
     
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <!-- Theme brushes — their Color values are swapped at runtime by ApplyUiTheme()
+             (mutating the brush propagates through every StaticResource reference). -->
         <SolidColorBrush x:Key="TextBrush" Color="#E0E0E0"/>
+        <SolidColorBrush x:Key="HeaderTextBrush" Color="#88FFFFFF"/>
+        <SolidColorBrush x:Key="CardBgBrush" Color="#0AFFFFFF"/>
+        <SolidColorBrush x:Key="CardBorderBrush" Color="#1AFFFFFF"/>
+        <SolidColorBrush x:Key="TabSelectedBgBrush" Color="#22FFFFFF"/>
+        <SolidColorBrush x:Key="TabTextBrush" Color="#AAAAAA"/>
+        <SolidColorBrush x:Key="InputBgBrush" Color="#222222"/>
+        <SolidColorBrush x:Key="InputFgBrush" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="InputBorderBrush" Color="#444444"/>
+        <SolidColorBrush x:Key="ButtonBgBrush" Color="#2A2A2A"/>
+        <SolidColorBrush x:Key="ButtonFgBrush" Color="#EEEEEE"/>
+        <SolidColorBrush x:Key="ButtonBorderBrush" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="CheckBorderBrush" Color="#55FFFFFF"/>
+        <SolidColorBrush x:Key="SubtleTextBrush" Color="#CCCCCC"/>
+        <SolidColorBrush x:Key="PanelFillBrush" Color="#11FFFFFF"/>
+        <SolidColorBrush x:Key="WindowBorderBrush" Color="#33FFFFFF"/>
+        <SolidColorBrush x:Key="SliderTrackBrush" Color="#33FFFFFF"/>
         <Color x:Key="BrandBlueColor">#3b82f6</Color>
         <SolidColorBrush x:Key="BrandBlue" Color="{StaticResource BrandBlueColor}"/>
         <SolidColorBrush x:Key="BrandBlueHover" Color="#2563eb"/>
+
+        <!-- Toggle Switch (Appearance settings) -->
+        <Style x:Key="AppearanceToggleStyle" TargetType="ToggleButton">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bg" CornerRadius="10" Background="#333333">
+                            <Ellipse x:Name="Dot" Fill="White" Width="14" Height="14" Margin="3,0,0,0" HorizontalAlignment="Left"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="Dot" Property="HorizontalAlignment" Value="Right"/>
+                                <Setter TargetName="Dot" Property="Margin" Value="0,0,3,0"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
         
         <Style TargetType="TextBlock">
             <Setter Property="FontWeight" Value="SemiBold"/>
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
             <Setter Property="FontFamily" Value="Segoe UI"/>
         </Style>
 
         <Style x:Key="SectionHeaderStyle" TargetType="TextBlock">
             <Setter Property="FontSize" Value="12"/>
-            <Setter Property="Foreground" Value="#88FFFFFF"/>
+            <Setter Property="Foreground" Value="{DynamicResource HeaderTextBrush}"/>
             <Setter Property="Margin" Value="0,0,0,10"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
 
         <Style TargetType="TextBox">
             <Setter Property="Padding" Value="8,6"/>
-            <Setter Property="Background" Value="#222222"/>
-            <Setter Property="Foreground" Value="#FFFFFF"/>
-            <Setter Property="BorderBrush" Value="#444444"/>
+            <Setter Property="Background" Value="{DynamicResource InputBgBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource InputFgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
         </Style>
 
+        <!-- Re-points the global CheckBox skin at the window's themed brushes -->
+        <Style TargetType="CheckBox" BasedOn="{StaticResource {x:Type CheckBox}}">
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CheckBorderBrush}"/>
+        </Style>
+
         <Style x:Key="ModernButtonStyle" TargetType="Button">
-            <Setter Property="Background" Value="#2A2A2A"/>
-            <Setter Property="Foreground" Value="#EEEEEE"/>
+            <Setter Property="Background" Value="{DynamicResource ButtonBgBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource ButtonFgBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="BorderBrush" Value="#33FFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource ButtonBorderBrush}"/>
             <Setter Property="Padding" Value="12,6"/>
             <Setter Property="Cursor" Value="Hand"/>
             <Setter Property="Template">
@@ -113,21 +160,21 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#22FFFFFF"/>
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource TabSelectedBgBrush}"/>
                                 <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="{StaticResource BrandBlue}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="#11FFFFFF"/>
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource TabSelectedBgBrush}"/>
                             </Trigger>
                             <MultiTrigger>
                                 <MultiTrigger.Conditions>
                                     <Condition Property="IsSelected" Value="False"/>
                                     <Condition Property="IsMouseOver" Value="True"/>
                                 </MultiTrigger.Conditions>
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="White"/>
+                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="{DynamicResource TextBrush}"/>
                             </MultiTrigger>
                             <Trigger Property="IsSelected" Value="False">
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="#AAAAAA"/>
+                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="{DynamicResource TabTextBrush}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -136,19 +183,19 @@
         </Style>
 
         <Style x:Key="SectionBorderStyle" TargetType="Border">
-            <Setter Property="Background" Value="#0AFFFFFF"/>
+            <Setter Property="Background" Value="{DynamicResource CardBgBrush}"/>
             <Setter Property="CornerRadius" Value="10"/>
             <Setter Property="Padding" Value="15"/>
-            <Setter Property="BorderBrush" Value="#1AFFFFFF"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource CardBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Margin" Value="0,0,0,20"/>
         </Style>
 
         <!-- Modern ComboBox Style -->
         <Style x:Key="ModernComboBoxStyle" TargetType="ComboBox">
-            <Setter Property="Background" Value="#222222"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="BorderBrush" Value="#444444"/>
+            <Setter Property="Background" Value="{DynamicResource InputBgBrush}"/>
+            <Setter Property="Foreground" Value="{DynamicResource InputFgBrush}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource InputBorderBrush}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="Padding" Value="8,4"/>
             <Setter Property="Template">
@@ -181,10 +228,10 @@
                                 </ToggleButton.Template>
                             </ToggleButton>
                             <ContentPresenter Name="ContentSite" Margin="10,3,30,3" VerticalAlignment="Center" HorizontalAlignment="Left" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}" ContentTemplateSelector="{TemplateBinding ItemTemplateSelector}" IsHitTestVisible="False"/>
-                            <TextBox x:Name="PART_EditableTextBox" Margin="10,3,30,3" VerticalAlignment="Center" HorizontalAlignment="Stretch" Background="Transparent" Foreground="White" BorderThickness="0" Visibility="Hidden" ScrollViewer.HorizontalScrollBarVisibility="Hidden"/>
+                            <TextBox x:Name="PART_EditableTextBox" Margin="10,3,30,3" VerticalAlignment="Center" HorizontalAlignment="Stretch" Background="Transparent" Foreground="{DynamicResource InputFgBrush}" BorderThickness="0" Visibility="Hidden" ScrollViewer.HorizontalScrollBarVisibility="Hidden"/>
                             <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Slide">
                                 <Grid Name="DropDown" SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                    <Border x:Name="DropDownBorder" Background="#222222" BorderThickness="1" BorderBrush="#444444" CornerRadius="6"/>
+                                    <Border x:Name="DropDownBorder" Background="{DynamicResource InputBgBrush}" BorderThickness="1" BorderBrush="{DynamicResource InputBorderBrush}" CornerRadius="6"/>
                                     <ScrollViewer Margin="4,6,4,6" SnapsToDevicePixels="True">
                                         <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
                                     </ScrollViewer>
@@ -230,7 +277,7 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Slider">
                         <Grid>
-                            <Border Background="#33FFFFFF" CornerRadius="3" Height="6" VerticalAlignment="Center"/>
+                            <Border Background="{DynamicResource SliderTrackBrush}" CornerRadius="3" Height="6" VerticalAlignment="Center"/>
                             <Track x:Name="PART_Track">
                                 <Track.DecreaseRepeatButton>
                                     <RepeatButton Background="{StaticResource BrandBlue}" BorderThickness="0" Height="6">
@@ -297,7 +344,7 @@
         </Style>
     </Window.Resources>
 
-    <Border BorderBrush="#33FFFFFF" BorderThickness="1" CornerRadius="12">
+    <Border BorderBrush="{DynamicResource WindowBorderBrush}" BorderThickness="1" CornerRadius="12">
         <Grid Margin="20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
@@ -311,27 +358,70 @@
                     <Image Source="Assets/byld-icon.png" Width="20" Height="20" Margin="0,0,10,0"/>
                     <TextBlock Text="BYLD CORE SETTINGS" FontWeight="Bold" FontSize="14" Opacity="0.9"/>
                 </StackPanel>
-                <Button Content="&#x2715;" Width="30" Height="25" HorizontalAlignment="Right" Background="Transparent" BorderThickness="0" Foreground="#888888" FontWeight="Bold" Click="BtnClose_Click" Style="{x:Null}"/>
+                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                    <!-- Minimize -->
+                    <Button Content="&#x2500;" Width="30" Height="25" Background="Transparent" BorderThickness="0" Foreground="#888888" FontWeight="Bold" Click="BtnMinimize_Click" Style="{x:Null}" ToolTip="Minimize" Margin="0,0,2,0"/>
+                    <!-- Maximize / Restore -->
+                    <Button x:Name="BtnMaxRestore" Content="&#x25A1;" Width="30" Height="25" Background="Transparent" BorderThickness="0" Foreground="#888888" FontWeight="Bold" Click="BtnMaxRestore_Click" Style="{x:Null}" ToolTip="Maximize" Margin="0,0,2,0"/>
+                    <!-- Close -->
+                    <Button Content="&#x2715;" Width="30" Height="25" Background="Transparent" BorderThickness="0" Foreground="#888888" FontWeight="Bold" Click="BtnClose_Click" Style="{x:Null}" ToolTip="Close"/>
+                </StackPanel>
             </Grid>
 
             <TabControl x:Name="MainTabControl" Grid.Row="1">
                 <!-- GENERAL SETTINGS -->
                 <TabItem Header="General">
-                    <StackPanel Margin="5,10">
-                        <Border Style="{StaticResource SectionBorderStyle}">
-                            <StackPanel>
-                                <TextBlock Text="SYSTEM SETTINGS" Style="{StaticResource SectionHeaderStyle}"/>
-                                <CheckBox x:Name="ChkLaunchOnStartup" Content="Launch BYLD Core on Startup" Click="OnSettingChanged" Margin="0,0,0,10" ToolTip="Opens the app automatically when you log into Windows (runs as Admin via Task Scheduler)."/>
-                                <TextBlock Text="Note: This will create a Windows Scheduled Task with highest privileges to bypass the UAC popup." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="25,0,0,10" FontStyle="Italic"/>
-                                <CheckBox x:Name="ChkDisableSecondaryScreenDragging" Content="Lock Cursor to Main Display" Click="OnSettingChanged" Margin="0,5,0,10" ToolTip="Prevents dragging windows and the mouse onto the 7 inch case display."/>
-                            </StackPanel>
-                        </Border>
-                    </StackPanel>
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="PageScroll_PreviewMouseWheel">
+                        <StackPanel Margin="5,10">
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="SYSTEM SETTINGS" Style="{StaticResource SectionHeaderStyle}"/>
+                                    <CheckBox x:Name="ChkLaunchOnStartup" Content="Launch BYLD Core on Startup" Click="OnSettingChanged" Margin="0,0,0,10" ToolTip="Opens the app automatically when you log into Windows (runs as Admin via Task Scheduler)."/>
+                                    <TextBlock Text="Note: This will create a Windows Scheduled Task with highest privileges to bypass the UAC popup." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="25,0,0,10" FontStyle="Italic"/>
+                                    <CheckBox x:Name="ChkDisableSecondaryScreenDragging" Content="Lock Cursor to Main Display" Click="OnSettingChanged" Margin="0,5,0,10" ToolTip="Prevents dragging windows and the mouse onto the 7 inch case display."/>
+                                </StackPanel>
+                            </Border>
+
+                            <!-- APPEARANCE -->
+                            <Border Style="{StaticResource SectionBorderStyle}">
+                                <StackPanel>
+                                    <TextBlock Text="APPEARANCE" Style="{StaticResource SectionHeaderStyle}"/>
+
+                                    <Grid Margin="0,0,0,12">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Light Theme" FontSize="12"/>
+                                            <TextBlock Text="Switch the settings interface between dark and light." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="TglLightTheme" Grid.Column="1" Style="{StaticResource AppearanceToggleStyle}"
+                                                      VerticalAlignment="Center" Click="AppearanceToggle_Click"/>
+                                    </Grid>
+
+                                    <Grid>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Liquid Glass Effect" FontSize="12"/>
+                                            <TextBlock Text="Translucent glassy panels. Turn off for solid surfaces." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="TglLiquidGlass" Grid.Column="1" Style="{StaticResource AppearanceToggleStyle}"
+                                                      VerticalAlignment="Center" IsChecked="True" Click="AppearanceToggle_Click"/>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <!-- THEME AND COLORS -->
                 <TabItem Header="Colors">
-                    <StackPanel Margin="5,10">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="PageScroll_PreviewMouseWheel">
+                        <StackPanel Margin="5,10">
                         <Border Style="{StaticResource SectionBorderStyle}">
                             <StackPanel>
                                 <TextBlock Text="INTERFACE COLORS" Style="{StaticResource SectionHeaderStyle}"/>
@@ -342,7 +432,7 @@
                                     <Button x:Name="BtnBgColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
@@ -354,7 +444,7 @@
                                     <Button x:Name="BtnFgColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
@@ -366,7 +456,7 @@
                                     <Button x:Name="BtnAccentColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
@@ -378,7 +468,7 @@
                                     <Button x:Name="BtnTrackColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
@@ -390,7 +480,7 @@
                                     <Button x:Name="BtnAlertColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}">
                                         <Button.Template>
                                             <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/>
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
                                             </ControlTemplate>
                                         </Button.Template>
                                     </Button>
@@ -398,11 +488,12 @@
                             </StackPanel>
                         </Border>
                     </StackPanel>
+                    </ScrollViewer>
                 </TabItem>
 
                 <!-- LAYOUT -->
                 <TabItem Header="Layout">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="PageScroll_PreviewMouseWheel">
                         <Grid Margin="5,10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="1.1*"/>
@@ -507,11 +598,11 @@
                                 <Border Style="{StaticResource SectionBorderStyle}" Margin="0">
                                     <StackPanel>
                                         <TextBlock Text="SCREEN ROTATION ORDER" Style="{StaticResource SectionHeaderStyle}"/>
-                                        <Border CornerRadius="6" Background="#11FFFFFF" Height="120" Margin="0,0,0,10">
-                                            <ListBox x:Name="LstScreenOrder" Background="Transparent" Foreground="#FFF" BorderThickness="0">
+                                        <Border CornerRadius="6" Background="{DynamicResource PanelFillBrush}" Height="120" Margin="0,0,0,10">
+                                            <ListBox x:Name="LstScreenOrder" Background="Transparent" Foreground="{DynamicResource TextBrush}" BorderThickness="0">
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding}" Foreground="#EEE" FontSize="11" Margin="2"/>
+                                                        <TextBlock Text="{Binding}" Foreground="{DynamicResource TextBrush}" FontSize="11" Margin="2"/>
                                                     </DataTemplate>
                                                 </ListBox.ItemTemplate>
                                             </ListBox>
@@ -539,8 +630,8 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Border CornerRadius="6" Background="#11FFFFFF" MaxHeight="100">
-                                            <ListBox x:Name="LstOrder" Background="Transparent" Foreground="#FFF" BorderThickness="0" SelectionChanged="LstOrder_SelectionChanged" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                                        <Border CornerRadius="6" Background="{DynamicResource PanelFillBrush}" MaxHeight="100">
+                                            <ListBox x:Name="LstOrder" Background="Transparent" Foreground="{DynamicResource TextBrush}" BorderThickness="0" SelectionChanged="LstOrder_SelectionChanged" ScrollViewer.VerticalScrollBarVisibility="Auto">
                                                 <ListBox.ItemContainerStyle>
                                                     <Style TargetType="ListBoxItem">
                                                         <Setter Property="Padding" Value="0"/>
@@ -557,7 +648,7 @@
                                                                             <Setter TargetName="ItemBorder" Property="BorderThickness" Value="1"/>
                                                                         </Trigger>
                                                                         <Trigger Property="IsMouseOver" Value="True">
-                                                                            <Setter TargetName="ItemBorder" Property="Background" Value="#11FFFFFF"/>
+                                                                            <Setter TargetName="ItemBorder" Property="Background" Value="{DynamicResource PanelFillBrush}"/>
                                                                         </Trigger>
                                                                     </ControlTemplate.Triggers>
                                                                 </ControlTemplate>
@@ -567,7 +658,7 @@
                                                 </ListBox.ItemContainerStyle>
                                                 <ListBox.ItemTemplate>
                                                     <DataTemplate>
-                                                        <TextBlock Text="{Binding}" Foreground="#EEE" FontSize="11" Margin="0" Cursor="Hand"/>
+                                                        <TextBlock Text="{Binding}" Foreground="{DynamicResource TextBrush}" FontSize="11" Margin="0" Cursor="Hand"/>
                                                     </DataTemplate>
                                                 </ListBox.ItemTemplate>
                                             </ListBox>
@@ -589,7 +680,7 @@
                                                 <TextBlock Text="SIZE" FontSize="9" Opacity="0.6" HorizontalAlignment="Center" Margin="0,0,0,6"/>
                                                 <StackPanel Orientation="Horizontal" HorizontalAlignment="Center">
                                                     <Button x:Name="BtnGaugeScaleDown" Content="-" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0"/>
-                                                    <TextBlock x:Name="LblGaugeScale" Text="1.00x" Foreground="White" Width="40" TextAlignment="Center" VerticalAlignment="Center" Margin="5,0"/>
+                                                    <TextBlock x:Name="LblGaugeScale" Text="1.00x" Width="40" TextAlignment="Center" VerticalAlignment="Center" Margin="5,0"/>
                                                     <Button x:Name="BtnGaugeScaleUp" Content="+" Width="36" Height="36" Click="BtnGaugeConfig_Click" Style="{StaticResource ModernButtonStyle}" FontSize="18" FontWeight="Bold" Padding="0"/>
                                                 </StackPanel>
                                             </StackPanel>
@@ -623,7 +714,7 @@
                                         <TextBlock Text="Tip: Select a gauge from the list above to adjust." FontSize="8" Opacity="0.4" HorizontalAlignment="Center" FontStyle="Italic"/>
                                     </StackPanel>
                                     
-                                    <Button x:Name="BtnResetAllGauges" Grid.Row="3" Content="Reset All Sizing &amp; Positions" HorizontalAlignment="Stretch" Margin="0,15,0,0" Padding="0,6" Style="{StaticResource ModernButtonStyle}" Click="BtnResetAllGauges_Click" FontSize="11" Background="#222222" Foreground="#AAFFFFFF" BorderThickness="0"/>
+                                    <Button x:Name="BtnResetAllGauges" Grid.Row="3" Content="Reset All Sizing &amp; Positions" HorizontalAlignment="Stretch" Margin="0,15,0,0" Padding="0,6" Style="{StaticResource ModernButtonStyle}" Click="BtnResetAllGauges_Click" FontSize="11" BorderThickness="0"/>
                                 </Grid>
                             </Border>
                         </Grid>
@@ -682,7 +773,7 @@
                                 <TextBlock Text="OpenWeatherMap API Key" FontSize="11" Opacity="0.7" Margin="0,10,0,5"/>
                                 <Grid Margin="0,0,0,15">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <PasswordBox x:Name="TxtWeatherApiKey" Margin="0,0,5,0" Padding="8,6" Background="#222222" Foreground="White" BorderBrush="#444444" PasswordChanged="WeatherApiKey_PasswordChanged"/>
+                                    <PasswordBox x:Name="TxtWeatherApiKey" Margin="0,0,5,0" Padding="8,6" Background="{DynamicResource InputBgBrush}" Foreground="{DynamicResource InputFgBrush}" BorderBrush="{DynamicResource InputBorderBrush}" PasswordChanged="WeatherApiKey_PasswordChanged"/>
                                     <Button Grid.Column="1" Content="Save" Width="60" Click="BtnSaveWeatherKey_Click" Style="{StaticResource ModernButtonStyle}" FontSize="11"/>
                                 </Grid>
 
@@ -728,7 +819,7 @@
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="Weather Glow Color" VerticalAlignment="Center"/>
                                     <Button x:Name="BtnWeatherGlowColor" Grid.Column="1" Width="100" Height="28" Click="BtnColorPick_Click" Style="{x:Null}">
-                                        <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                        <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                     </Button>
                                 </Grid>
                             </StackPanel>
@@ -737,18 +828,17 @@
                 </TabItem>
 
                 <!-- ─── COOLING & RGB ───────────────────────────────────── -->
-                <TabItem Header="Cooling">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                <TabItem Header="Fans">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="PageScroll_PreviewMouseWheel">
                         <StackPanel Margin="5,10">
-                            
+
                             <!-- HARDWARE REQUIREMENTS NOTICE -->
                             <Border Background="#1A3b82f6" BorderBrush="{StaticResource BrandBlue}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                                 <StackPanel>
-                                    <TextBlock Text="⚠ HARDWARE ACCESS REQUIREMENTS" Foreground="#FFD700" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
-                                    <TextBlock Text="To fully enable live Fan Control and RGB synchronization, please ensure:" FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="0,0,0,4"/>
-                                    <TextBlock Text="1. Run this application as Administrator." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="8,0,0,2"/>
-                                    <TextBlock Text="2. Disable Windows Memory Integrity (HVCI) in Windows Security settings if sensors are missing." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="8,0,0,2"/>
-                                    <TextBlock Text="3. Install and run OpenRGB in SDK Server mode for lighting control." FontSize="11" Foreground="#CCCCCC" TextWrapping="Wrap" Margin="8,0,0,0"/>
+                                    <TextBlock Text="⚠ HARDWARE ACCESS REQUIREMENTS" Foreground="{StaticResource BrandBlue}" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="To fully enable live Fan Control, please ensure:" FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" TextWrapping="Wrap" Margin="0,0,0,4"/>
+                                    <TextBlock Text="1. Run this application as Administrator." FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" TextWrapping="Wrap" Margin="8,0,0,2"/>
+                                    <TextBlock Text="2. Close other hardware tools (OpenRGB, monitoring utilities) before launching if sensors are missing." FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" TextWrapping="Wrap" Margin="8,0,0,0"/>
                                 </StackPanel>
                             </Border>
 
@@ -757,21 +847,29 @@
                                 <StackPanel>
                                     <TextBlock Text="SYSTEM FANS" Style="{StaticResource SectionHeaderStyle}"/>
                                     <TextBlock Text="Adjust fan speeds. Controls will appear below if motherboard sensors are detected." FontSize="11" Opacity="0.7" Margin="0,0,0,15" TextWrapping="Wrap"/>
-                                    
-                                    <ctrl:FanControlView DataContext="{Binding FanViewModel, RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+                                    <ctrl:FanControlView x:Name="FanView" DataContext="{Binding FanViewModel, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                 </StackPanel>
                             </Border>
+                        </StackPanel>
+                    </ScrollViewer>
+                </TabItem>
+
+                <!-- ─── RGB ───────────────────────────────────────────── -->
+                <TabItem Header="RGB">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="PageScroll_PreviewMouseWheel">
+                        <StackPanel Margin="5,10">
 
                             <!-- RGB DEVICES -->
                             <Border Style="{StaticResource SectionBorderStyle}">
                                 <StackPanel>
                                     <TextBlock Text="RGB LIGHTING" Style="{StaticResource SectionHeaderStyle}"/>
                                     <TextBlock Text="Sync supported RGB devices across your PC. Setup requires OpenRGB server." FontSize="11" Opacity="0.7" Margin="0,0,0,15" TextWrapping="Wrap"/>
-                                    
-                                    <ctrl:RgbControlView DataContext="{Binding RgbViewModel, RelativeSource={RelativeSource AncestorType=Window}}"/>
+
+                                    <ctrl:RgbControlView x:Name="RgbView" DataContext="{Binding RgbViewModel, RelativeSource={RelativeSource AncestorType=Window}}"/>
 
                                     <Button x:Name="BtnRefreshHardware" Content="REFRESH HARDWARE" Margin="0,15,0,0" Height="30" Click="BtnRefreshHardware_Click" Style="{StaticResource ModernButtonStyle}"/>
-                                    
+
                                     <CheckBox x:Name="ChkDemoHardware" Content="Enable Demo Hardware (Fake Fans &amp; RGB)" Foreground="#E63946" Margin="0,15,0,0" Click="ChkDemoHardware_Click" ToolTip="Instantly triggers fake spinning fans and RGB nodes for presentation mode."/>
                                 </StackPanel>
                             </Border>
@@ -781,7 +879,7 @@
 
                 <!-- ─── CLOCK ───────────────────────────────────────────── -->
                 <TabItem Header="Clock">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="PageScroll_PreviewMouseWheel">
                         <StackPanel Margin="5,10">
 
                             <!-- ANALOG FACE -->
@@ -803,28 +901,28 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Hour Hand" VerticalAlignment="Center"/>
                                         <Button x:Name="BtnClockHourColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
                                     <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Minute Hand" VerticalAlignment="Center"/>
                                         <Button x:Name="BtnClockMinColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
                                     <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Second Hand" VerticalAlignment="Center"/>
                                         <Button x:Name="BtnClockSecColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
                                     <Grid Margin="0,0,0,8">
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Clock Face Background" VerticalAlignment="Center"/>
                                         <Button x:Name="BtnClockFaceColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
 
@@ -832,7 +930,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Marker / Tick Color" VerticalAlignment="Center"/>
                                         <Button x:Name="BtnClockMarkerColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
 
@@ -845,7 +943,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Glow Color" VerticalAlignment="Center" Opacity="0.8"/>
                                         <Button x:Name="BtnClockGlowColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
                                     <Grid Margin="0,0,0,12" IsEnabled="{Binding IsChecked, ElementName=ChkClockShowGlow}">
@@ -899,7 +997,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Text Color" VerticalAlignment="Center"/>
                                         <Button x:Name="BtnDigitalColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
                                     <Grid Margin="0,0,0,8">
@@ -955,7 +1053,7 @@
                                         <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                         <TextBlock Text="Text Color" VerticalAlignment="Center"/>
                                         <Button x:Name="BtnDateColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                            <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                         </Button>
                                     </Grid>
                                     <Grid Margin="0,0,0,8">
@@ -1013,7 +1111,7 @@
                                             <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                             <TextBlock Text="Background Color" VerticalAlignment="Center"/>
                                             <Button x:Name="BtnClockBgColor" Grid.Column="1" Width="100" Height="28" Click="BtnClockColor_Click" Style="{x:Null}">
-                                                <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="#33FFFFFF" BorderThickness="1"/></ControlTemplate></Button.Template>
+                                                <Button.Template><ControlTemplate TargetType="Button"><Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/></ControlTemplate></Button.Template>
                                             </Button>
                                         </Grid>
                                         <TextBlock Text="Background Image" FontSize="11" Opacity="0.7" Margin="0,0,0,4"/>
@@ -1026,7 +1124,7 @@
                                         <TextBlock Text="Opacity" FontSize="11" Opacity="0.7" Margin="0,0,0,4"/>
                                         <Slider x:Name="SldClockBgOpacity" Minimum="0" Maximum="1" Value="1" ValueChanged="OnClockSettingChanged"/>
                                     </StackPanel>
-                                    <TextBlock x:Name="TxtClockBgInfo" Text="✓ Inherits app theme background automatically" FontSize="11" Foreground="#88FFFFFF" Margin="0,6,0,0"/>
+                                    <TextBlock x:Name="TxtClockBgInfo" Text="✓ Inherits app theme background automatically" FontSize="11" Foreground="{DynamicResource HeaderTextBrush}" Margin="0,6,0,0"/>
                                 </StackPanel>
                             </Border>
 
@@ -1036,7 +1134,7 @@
 
                 <!-- REGISTRATION -->
                 <TabItem Header="Registration">
-                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled" PreviewMouseWheel="PageScroll_PreviewMouseWheel">
                         <Grid Margin="5,10">
                             <StackPanel Margin="0,0,15,0">
                                 <Border Style="{StaticResource SectionBorderStyle}">
@@ -1049,7 +1147,7 @@
                                         <TextBox x:Name="TxtMachineId" Text="UNKNOWN" IsReadOnly="True" Background="Transparent" BorderThickness="0" Foreground="#3b82f6" FontSize="14" FontWeight="Bold" Margin="0,0,0,15"/>
 
                                         <TextBlock Text="License Signature Block" FontSize="11" Opacity="0.7" Margin="0,0,0,5"/>
-                                        <TextBox x:Name="TxtLicenseKey" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15" Background="#222222" Foreground="#FFFFFF" BorderBrush="#444444" Padding="6"/>
+                                        <TextBox x:Name="TxtLicenseKey" Height="80" TextWrapping="Wrap" AcceptsReturn="True" VerticalScrollBarVisibility="Auto" Margin="0,0,0,15" Padding="6"/>
                                         
                                         <TextBlock x:Name="TxtLicenseStatus" Text="Status: Unverified" FontSize="12" FontWeight="Bold" Margin="0,0,0,15"/>
 

@@ -12,8 +12,13 @@
         <SolidColorBrush x:Key="BrandBlue" Color="{StaticResource BrandBlueColor}"/>
         <SolidColorBrush x:Key="CardBg" Color="#0AFFFFFF"/>
         <SolidColorBrush x:Key="CardBorder" Color="#1AFFFFFF"/>
-        <SolidColorBrush x:Key="YellowAccent" Color="{StaticResource BrandBlueColor}"/>
+        <SolidColorBrush x:Key="AccentBrush" Color="{StaticResource BrandBlueColor}"/>
         <SolidColorBrush x:Key="DimText" Color="#88FFFFFF"/>
+        <!-- Page-level brushes — retinted by SettingsWindow.ApplyUiTheme() in light mode.
+             Card interiors keep white-on-navy in every theme (matches the Fan Control reference). -->
+        <SolidColorBrush x:Key="PageText" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="PageDimText" Color="#88FFFFFF"/>
+        <SolidColorBrush x:Key="WarnText" Color="#FFB0B0"/>
 
         <!-- Tiny +/- Button -->
         <Style x:Key="TinyBtnStyle" TargetType="Button">
@@ -41,6 +46,27 @@
             </Setter>
         </Style>
 
+        <!-- Inline editable TextBox for fan params -->
+        <Style x:Key="InlineEditBox" TargetType="TextBox">
+            <Setter Property="Background" Value="Transparent"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="BorderThickness" Value="0,0,0,1"/>
+            <Setter Property="BorderBrush" Value="#22FFFFFF"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="FontWeight" Value="SemiBold"/>
+            <Setter Property="Padding" Value="2,1"/>
+            <Setter Property="Width" Value="28"/>
+            <Setter Property="TextAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="CaretBrush" Value="{StaticResource BrandBlue}"/>
+            <Style.Triggers>
+                <Trigger Property="IsFocused" Value="True">
+                    <Setter Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
+                    <Setter Property="Background" Value="#0CFFFFFF"/>
+                </Trigger>
+            </Style.Triggers>
+        </Style>
+
         <!-- Toggle Switch -->
         <Style x:Key="ToggleSwitchStyle" TargetType="ToggleButton">
             <Setter Property="Width" Value="32"/>
@@ -54,7 +80,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource AccentBrush}"/>
                                 <Setter TargetName="Dot" Property="HorizontalAlignment" Value="Right"/>
                                 <Setter TargetName="Dot" Property="Margin" Value="0,0,2,0"/>
                                 <Setter TargetName="Dot" Property="Fill" Value="White"/>
@@ -65,263 +91,440 @@
             </Setter>
         </Style>
 
+        <!-- Curve Type Toggle (Linear/Custom) -->
+        <Style x:Key="CurveTypeToggle" TargetType="ToggleButton">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ToggleButton">
+                        <Border x:Name="Bg" CornerRadius="4" Background="#11FFFFFF" Padding="6,3" BorderThickness="1" BorderBrush="#22FFFFFF">
+                            <TextBlock x:Name="Lbl" Text="Linear" FontSize="9" Foreground="#88FFFFFF" HorizontalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#223b82f6"/>
+                                <Setter TargetName="Bg" Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="Lbl" Property="Text" Value="Custom"/>
+                                <Setter TargetName="Lbl" Property="Foreground" Value="{StaticResource BrandBlue}"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- FAB Add Button -->
+        <Style x:Key="FabBtnStyle" TargetType="Button">
+            <Setter Property="Width" Value="40"/>
+            <Setter Property="Height" Value="40"/>
+            <Setter Property="FontSize" Value="22"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0,0,0,3"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="20" Background="{StaticResource AccentBrush}">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="10" ShadowDepth="2" Opacity="0.4" Color="{StaticResource BrandBlueColor}"/>
+                            </Border.Effect>
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" Margin="{TemplateBinding Padding}"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#60A5FA"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <!-- Delete Button Style -->
+        <Style x:Key="DeleteBtnStyle" TargetType="Button">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="20"/>
+            <Setter Property="FontSize" Value="10"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bg" CornerRadius="3" Background="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bg" Property="Background" Value="#33E63946"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Fan icon path data -->
         <Geometry x:Key="FanIconGeom">M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12c0 1.4-.5 2.6-1.4 3.6L12 12zm0 0c3 0 5.5 2.5 5.5 5.5S15 23 12 23c-1.4 0-2.6-.5-3.6-1.4L12 12zm0 0c0 3-2.5 5.5-5.5 5.5S1 15 1 12c0-1.4.5-2.6 1.4-3.6L12 12zm0 0c-3 0-5.5-2.5-5.5-5.5S9 1 12 1c1.4 0 2.6.5 3.6 1.4L12 12z</Geometry>
-    </UserControl.Resources>
-
-    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-        <StackPanel>
-            <!-- Loading -->
-            <StackPanel Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" HorizontalAlignment="Center" Margin="0,20">
-                <TextBlock Text="Scanning Hardware..." Foreground="#64748B" FontStyle="Italic" FontSize="12"/>
-            </StackPanel>
-
-            <!-- HVCI Warning -->
-            <Border Background="#22E63946" BorderBrush="#E63946" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,15"
-                    Visibility="{Binding ShowHvciWarning, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Visible}">
-                <StackPanel>
-                    <TextBlock Text="⚠ Case Fans Not Detected" Foreground="#E63946" FontWeight="Bold" FontSize="12"/>
-                    <TextBlock Foreground="#FFB0B0" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
-                               Text="The hardware driver (WinRing0x64.sys) needed to read your motherboard's fan headers could not load. This is usually caused by Windows Defender or Smart App Control blocking the driver. Please try:&#x0a;&#x0a;1. Open Windows Security → Protection History and allow any blocked driver entries.&#x0a;2. Restart BYLD Core after allowing the driver.&#x0a;&#x0a;If that doesn't help, check that Memory Integrity (Core Isolation) is also disabled."/>
-                </StackPanel>
+        
+        <!-- Glass ComboBox Toggle -->
+        <ControlTemplate x:Key="GlassComboBoxToggle" TargetType="ToggleButton">
+            <Border x:Name="Border" CornerRadius="6" Background="#0CFFFFFF" BorderThickness="1" BorderBrush="#22FFFFFF">
+                <Path x:Name="Arrow" Fill="#AAFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Data="M 0 0 L 4 4 L 8 0 Z"/>
             </Border>
+            <ControlTemplate.Triggers>
+                <Trigger Property="IsMouseOver" Value="True">
+                    <Setter TargetName="Border" Property="Background" Value="#15FFFFFF"/>
+                    <Setter TargetName="Arrow" Property="Fill" Value="White"/>
+                </Trigger>
+                <Trigger Property="IsChecked" Value="True">
+                    <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
+                </Trigger>
+            </ControlTemplate.Triggers>
+        </ControlTemplate>
 
-            <!-- CONTROLS HEADER -->
-            <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
-                <TextBlock Text="Controls" Foreground="White" FontWeight="Bold" FontSize="14"/>
-                <Border CornerRadius="9" BorderBrush="#55FFFFFF" BorderThickness="1" Width="18" Height="18" Margin="8,0">
-                    <TextBlock Text="?" Foreground="#88FFFFFF" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                </Border>
-            </StackPanel>
-
-            <!-- FANS CARDS -->
-            <ItemsControl ItemsSource="{Binding Fans}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,12,12" Width="195">
-                            <StackPanel>
-                                <!-- Header: icon + name + menu -->
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Path Data="{StaticResource FanIconGeom}" Fill="{StaticResource BrandBlue}" Width="20" Height="20" Stretch="Uniform" Margin="0,0,8,0"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="2" Text="⋮" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand"/>
-                                </Grid>
-
-                                <!-- Curve label + toggle + dropdown -->
-                                <TextBlock Text="Curve" FontSize="9" Foreground="{StaticResource DimText}" Margin="40,0,0,2"/>
-                                <Grid Margin="0,0,0,10">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <ToggleButton IsChecked="{Binding IsAuto}" Style="{StaticResource ToggleSwitchStyle}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                    <Border Grid.Column="1" BorderBrush="#33FFFFFF" BorderThickness="0,0,0,1" Padding="2">
-                                        <TextBlock Text="{Binding SelectedCurve}" Foreground="White" FontSize="11" VerticalAlignment="Center"/>
+        <!-- Glass ComboBox Style -->
+        <Style x:Key="GlassComboStyle" TargetType="ComboBox">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ComboBox">
+                        <Grid>
+                            <ToggleButton Template="{StaticResource GlassComboBoxToggle}" Focusable="False" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
+                            <ContentPresenter Margin="8,4,24,4" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+                            <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
+                                <Grid SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
+                                    <Border Background="#1E1E2E" BorderThickness="1" BorderBrush="#33FFFFFF" CornerRadius="4" Margin="0,2,0,0">
+                                        <Border.Effect>
+                                            <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.5"/>
+                                        </Border.Effect>
+                                    </Border>
+                                    <Border Background="#1E1E2E" CornerRadius="4" Margin="0,2,0,0">
+                                        <ScrollViewer Margin="2" SnapsToDevicePixels="True">
+                                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
+                                        </ScrollViewer>
                                     </Border>
                                 </Grid>
+                            </Popup>
+                        </Grid>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
 
-                                <!-- % and RPM -->
-                                <Grid Margin="0,0,0,4">
-                                    <TextBlock Text="{Binding SpeedPercentage, StringFormat={}{0:F1} %}" Foreground="White" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left"/>
-                                    <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                        <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="White" FontSize="13" FontWeight="Bold"/>
-                                        <TextBlock Text=" ▼" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
-                                    </StackPanel>
-                                </Grid>
-                                <!-- Zero-fan mode hint -->
-                                <TextBlock Text="GPU is in zero-fan mode (normal at low temps)" 
-                                           Foreground="#88FFFFFF" FontSize="8" FontStyle="Italic" Margin="0,0,0,4"
-                                           Visibility="{Binding IsZeroRpm, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
+    <Grid>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel>
+                <!-- Loading -->
+                <StackPanel Visibility="{Binding IsLoading, Converter={StaticResource BooleanToVisibilityConverter}}" HorizontalAlignment="Center" Margin="0,20">
+                    <TextBlock Text="Scanning Hardware..." Foreground="#64748B" FontStyle="Italic" FontSize="12"/>
+                </StackPanel>
 
-                                <Rectangle Height="1" Fill="#1AFFFFFF" Margin="0,0,0,8"/>
-
-                                <!-- Params grid: 3 rows x 2 cols -->
-                                <Grid>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition/><RowDefinition/><RowDefinition/>
-                                    </Grid.RowDefinitions>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-
-                                    <!-- Row 0: Step up / Step down -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,6">
-                                        <TextBlock Text="Step up" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding StepUp, StringFormat={}{0} %/sec}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnParamPlus_Click" Tag="StepUp"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StepUp"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,6">
-                                        <TextBlock Text="Step down" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding StepDown, StringFormat={}{0} %/sec}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnParamPlus_Click" Tag="StepDown"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StepDown"/>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <!-- Row 1: Start % / Stop % -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,4,6">
-                                        <TextBlock Text="Start %" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding StartPercentage, StringFormat={}{0} %}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnParamPlus_Click" Tag="StartPercentage"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StartPercentage"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <StackPanel Grid.Row="1" Grid.Column="1" Margin="4,0,0,6">
-                                        <TextBlock Text="Stop %" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding StopPercentage, StringFormat={}{0} %}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnParamPlus_Click" Tag="StopPercentage"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StopPercentage"/>
-                                        </StackPanel>
-                                    </StackPanel>
-
-                                    <!-- Row 2: Offset / Minimum -->
-                                    <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,4,0">
-                                        <TextBlock Text="Offset" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding Offset, StringFormat={}{0} %}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnParamPlus_Click" Tag="Offset"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="Offset"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <StackPanel Grid.Row="2" Grid.Column="1" Margin="4,0,0,0">
-                                        <TextBlock Text="Minimum %" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding MinimumPercentage, StringFormat={}{0} %}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnParamPlus_Click" Tag="MinimumPercentage"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="MinimumPercentage"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Grid>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-
-            <!-- CURVES HEADER -->
-            <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
-                <TextBlock Text="Curves" Foreground="White" FontWeight="Bold" FontSize="14"/>
-                <Border CornerRadius="9" BorderBrush="#55FFFFFF" BorderThickness="1" Width="18" Height="18" Margin="8,0">
-                    <TextBlock Text="?" Foreground="#88FFFFFF" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                <!-- Detection Warning (context-sensitive) -->
+                <Border Background="#22E63946" BorderBrush="#E63946" BorderThickness="1" CornerRadius="6" Padding="10" Margin="0,0,0,15"
+                        Visibility="{Binding ShowHvciWarning, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
+                    <StackPanel>
+                        <TextBlock Text="⚠ Fan Detection Issue" Foreground="#E63946" FontWeight="Bold" FontSize="12"/>
+                        <TextBlock Foreground="{DynamicResource WarnText}" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Text="{Binding DetectionStatusMessage}"/>
+                    </StackPanel>
                 </Border>
+
+                <!-- CONTROLS HEADER -->
+                <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
+                    <TextBlock Text="Controls" Foreground="{DynamicResource PageText}" FontWeight="Bold" FontSize="14"/>
+                    <Border CornerRadius="9" BorderBrush="{DynamicResource PageDimText}" BorderThickness="1" Width="18" Height="18" Margin="8,0">
+                        <TextBlock Text="?" Foreground="{DynamicResource PageDimText}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- FANS CARDS -->
+                <ItemsControl ItemsSource="{Binding Fans}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,12,12" Width="220">
+                                <StackPanel>
+                                    <!-- Header: icon + name + menu -->
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Path Data="{StaticResource FanIconGeom}" Fill="{StaticResource BrandBlue}" Width="20" Height="20" Stretch="Uniform" Margin="0,0,8,0"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="2" Content="⋮" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">
+                                            <Button.ContextMenu>
+                                                <ContextMenu Background="#1E1E2E" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                    <MenuItem Header="Reset to Auto" Foreground="White" Click="FanContextReset_Click"/>
+                                                    <MenuItem Header="Set Manual (50%)" Foreground="White" Click="FanContextManual_Click"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Curve label + toggle + dropdown -->
+                                    <TextBlock Text="Curve" FontSize="9" Foreground="{StaticResource DimText}" Margin="40,0,0,2"/>
+                                    <Grid Margin="0,0,0,10">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <ToggleButton IsChecked="{Binding IsAuto}" Style="{StaticResource ToggleSwitchStyle}" Margin="0,0,6,0" VerticalAlignment="Center"/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCurves}" SelectedItem="{Binding SelectedCurve}" 
+                                                  Style="{StaticResource GlassComboStyle}" Height="22" Cursor="Hand" VerticalAlignment="Center">
+                                            <ComboBox.Resources>
+                                                <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#1E1E2E"/>
+                                                <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#3b82f6"/>
+                                            </ComboBox.Resources>
+                                        </ComboBox>
+                                    </Grid>
+
+                                    <!-- % and RPM -->
+                                    <Grid Margin="0,0,0,4">
+                                        <TextBlock Text="{Binding SpeedPercentage, StringFormat={}{0:F1} %}" Foreground="White" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                            <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="White" FontSize="13" FontWeight="Bold"/>
+                                            <TextBlock Text=" ▼" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                        </StackPanel>
+                                    </Grid>
+                                    <!-- Static manual speed (visible in Manual mode) -->
+                                    <StackPanel Visibility="{Binding IsManual, Converter={StaticResource BooleanToVisibilityConverter}}" Margin="0,0,0,4">
+                                        <TextBlock Text="Static speed" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                        <StackPanel Orientation="Horizontal">
+                                            <TextBox Text="{Binding SpeedPercentage, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                            <TextBlock Text=" %" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                            <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamPlus_Click" Tag="SpeedPercentage"/>
+                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="SpeedPercentage"/>
+                                        </StackPanel>
+                                    </StackPanel>
+
+                                    <!-- Zero-fan mode hint -->
+                                    <TextBlock Text="GPU is in zero-fan mode (normal at low temps)"
+                                               Foreground="#88FFFFFF" FontSize="8" FontStyle="Italic" Margin="0,0,0,4"
+                                               Visibility="{Binding IsZeroRpm, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
+
+                                    <Rectangle Height="1" Fill="#1AFFFFFF" Margin="0,0,0,8"/>
+
+                                    <!-- Params grid: 3 rows x 2 cols with editable TextBox + +/- -->
+                                    <Grid>
+                                        <Grid.RowDefinitions>
+                                            <RowDefinition/><RowDefinition/><RowDefinition/>
+                                        </Grid.RowDefinitions>
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+
+                                        <!-- Row 0: Step up / Step down -->
+                                        <StackPanel Grid.Row="0" Grid.Column="0" Margin="0,0,4,6">
+                                            <TextBlock Text="Step up" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding StepUp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %/s" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamPlus_Click" Tag="StepUp"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StepUp"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="0" Grid.Column="1" Margin="4,0,0,6">
+                                            <TextBlock Text="Step down" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding StepDown, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %/s" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamPlus_Click" Tag="StepDown"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StepDown"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Row 1: Start % / Stop % -->
+                                        <StackPanel Grid.Row="1" Grid.Column="0" Margin="0,0,4,6">
+                                            <TextBlock Text="Start %" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding StartPercentage, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamPlus_Click" Tag="StartPercentage"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StartPercentage"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="1" Grid.Column="1" Margin="4,0,0,6">
+                                            <TextBlock Text="Stop %" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding StopPercentage, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamPlus_Click" Tag="StopPercentage"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="StopPercentage"/>
+                                            </StackPanel>
+                                        </StackPanel>
+
+                                        <!-- Row 2: Offset / Minimum -->
+                                        <StackPanel Grid.Row="2" Grid.Column="0" Margin="0,0,4,0">
+                                            <TextBlock Text="Offset" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding Offset, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamPlus_Click" Tag="Offset"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="Offset"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="4,0,0,0">
+                                            <TextBlock Text="Minimum %" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding MinimumPercentage, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamPlus_Click" Tag="MinimumPercentage"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnParamMinus_Click" Tag="MinimumPercentage"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <!-- CURVES HEADER -->
+                <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
+                    <TextBlock Text="Curves" Foreground="{DynamicResource PageText}" FontWeight="Bold" FontSize="14"/>
+                    <Border CornerRadius="9" BorderBrush="{DynamicResource PageDimText}" BorderThickness="1" Width="18" Height="18" Margin="8,0">
+                        <TextBlock Text="?" Foreground="{DynamicResource PageDimText}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                    </Border>
+                </StackPanel>
+
+                <!-- CURVE CARDS -->
+                <ItemsControl ItemsSource="{Binding Curves}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate>
+                            <WrapPanel Orientation="Horizontal"/>
+                        </ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,12,12" Width="220">
+                                <StackPanel>
+                                    <!-- Header with delete button -->
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <Path Data="M 2 14 L 7 4 L 12 10 L 20 2" Stroke="White" StrokeThickness="2" Width="22" Height="16" Stretch="Uniform" Margin="0,0,8,0"/>
+                                        <TextBox Grid.Column="1" Text="{Binding Name, UpdateSourceTrigger=PropertyChanged}" 
+                                                 Style="{StaticResource InlineEditBox}" TextAlignment="Left" Width="NaN" HorizontalAlignment="Stretch" Margin="0,0,4,0"/>
+                                        <Button Grid.Column="2" Content="✕" Foreground="#E63946" Style="{StaticResource DeleteBtnStyle}" 
+                                                Command="{Binding DataContext.DeleteCurveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
+                                                CommandParameter="{Binding}" ToolTip="Delete this curve" Margin="0,0,4,0"/>
+                                        <Button Grid.Column="3" Content="⋮" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">
+                                            <Button.ContextMenu>
+                                                <ContextMenu Background="#1E1E2E" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                    <MenuItem Header="Duplicate" Foreground="White" Click="CurveContextDuplicate_Click"/>
+                                                    <MenuItem Header="Delete" Foreground="#E63946" Click="CurveContextDelete_Click"/>
+                                                </ContextMenu>
+                                            </Button.ContextMenu>
+                                        </Button>
+                                    </Grid>
+
+                                    <!-- Curve Type Toggle -->
+                                    <StackPanel Orientation="Horizontal" Margin="0,0,0,8">
+                                        <TextBlock Text="Type" FontSize="9" Foreground="{StaticResource DimText}" VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                        <ToggleButton Style="{StaticResource CurveTypeToggle}" 
+                                                      IsChecked="{Binding CurveType, Converter={StaticResource CurveTypeConverter}}"
+                                                      ToolTip="Toggle between Linear and Custom curve modes"/>
+                                    </StackPanel>
+
+                                    <!-- Temp Source -->
+                                    <TextBlock Text="Temperature source" FontSize="9" Foreground="{StaticResource DimText}" Margin="0,0,0,2"/>
+                                    <Border BorderBrush="#33FFFFFF" BorderThickness="0,0,0,1" Padding="2" Margin="0,0,0,10">
+                                        <TextBlock Text="{Binding TemperatureSource}" Foreground="White" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                    </Border>
+
+                                    <!-- RPM -->
+                                    <Grid Margin="0,0,0,8">
+                                        <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="White" FontSize="14" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                    </Grid>
+
+                                    <!-- Details: Min/Max temp and speed (%) with editable TextBoxes -->
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                            <TextBlock Text="Min. temp." FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding MinTemp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" °C" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MinTemp"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MinTemp"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                            <TextBlock Text="Max. temp." FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding MaxTemp, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" °C" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MaxTemp"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MaxTemp"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+                                    <Grid Margin="0,0,0,6">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel Grid.Column="0" Margin="0,0,4,0">
+                                            <TextBlock Text="Min speed" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding MinSpeed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MinSpeed"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MinSpeed"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="1" Margin="4,0,0,0">
+                                            <TextBlock Text="Max speed" FontSize="9" Foreground="{StaticResource DimText}"/>
+                                            <StackPanel Orientation="Horizontal">
+                                                <TextBox Text="{Binding MaxSpeed, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}" LostFocus="InlineEdit_LostFocus"/>
+                                                <TextBlock Text=" %" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
+                                                <Button Content="+" Foreground="{StaticResource AccentBrush}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MaxSpeed"/>
+                                                <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MaxSpeed"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Grid>
+
+                                    <!-- Hysteresis -->
+                                    <TextBlock Text="Hysteresis" FontSize="9" Foreground="{StaticResource DimText}" Margin="0,0,0,2"/>
+                                    <TextBlock Foreground="#AAFFFFFF" FontSize="10" Margin="0,0,0,8">
+                                        <Run Text="↑"/><Run Text="{Binding HysteresisUp, StringFormat={}{0} °C, Mode=OneWay}"/>
+                                        <Run Text="  ↓"/><Run Text="{Binding HysteresisDown, StringFormat={}{0} °C, Mode=OneWay}"/>
+                                    </TextBlock>
+
+                                    <!-- Fan curve graph — LIVE BINDING to GraphPoints -->
+                                    <Border Background="#08FFFFFF" CornerRadius="4" Height="55" Margin="0,4,0,0" ClipToBounds="True">
+                                        <Canvas>
+                                            <!-- Baseline -->
+                                            <Line X1="0" Y1="50" X2="190" Y2="50" Stroke="#15FFFFFF" StrokeThickness="1"/>
+                                            <!-- Curve line — dynamically bound -->
+                                            <Polyline Points="{Binding GraphPoints}" Stroke="{StaticResource BrandBlue}" StrokeThickness="2" StrokeLineJoin="Round"/>
+                                        </Canvas>
+                                    </Border>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
             </StackPanel>
+        </ScrollViewer>
 
-            <!-- CURVE CARDS -->
-            <ItemsControl ItemsSource="{Binding Curves}">
-                <ItemsControl.ItemsPanel>
-                    <ItemsPanelTemplate>
-                        <WrapPanel Orientation="Horizontal"/>
-                    </ItemsPanelTemplate>
-                </ItemsControl.ItemsPanel>
-                <ItemsControl.ItemTemplate>
-                    <DataTemplate>
-                        <Border Background="{StaticResource CardBg}" BorderBrush="{StaticResource CardBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,12,12" Width="210">
-                            <StackPanel>
-                                <!-- Header -->
-                                <Grid Margin="0,0,0,8">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="Auto"/>
-                                        <ColumnDefinition Width="*"/>
-                                        <ColumnDefinition Width="Auto"/>
-                                    </Grid.ColumnDefinitions>
-                                    <Path Data="M 2 14 L 7 4 L 12 10 L 20 2" Stroke="White" StrokeThickness="2" Width="22" Height="16" Stretch="Uniform" Margin="0,0,8,0"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                    <TextBlock Grid.Column="2" Text="⋮" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand"/>
-                                </Grid>
-
-                                <!-- Temp Source -->
-                                <TextBlock Text="Temperature source" FontSize="9" Foreground="{StaticResource DimText}" Margin="0,0,0,2"/>
-                                <Border BorderBrush="#33FFFFFF" BorderThickness="0,0,0,1" Padding="2" Margin="0,0,0,10">
-                                    <TextBlock Text="{Binding TemperatureSource}" Foreground="White" FontSize="10" TextTrimming="CharacterEllipsis"/>
-                                </Border>
-
-                                <!-- RPM + Edit -->
-                                <Grid Margin="0,0,0,8">
-                                    <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="White" FontSize="14" FontWeight="Bold" HorizontalAlignment="Left"/>
-                                    <TextBlock Text="Edit" Foreground="{StaticResource YellowAccent}" FontSize="11" FontWeight="SemiBold" Cursor="Hand" HorizontalAlignment="Right"/>
-                                </Grid>
-
-                                <!-- Details: Min/Max temp, speed, hysteresis -->
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                                        <TextBlock Text="Min. temp." FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding MinTemp, StringFormat={}{0} °C}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MinTemp"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MinTemp"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
-                                        <TextBlock Text="Max. temp." FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding MaxTemp, StringFormat={}{0} °C}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MaxTemp"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MaxTemp"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Grid>
-                                <Grid Margin="0,0,0,6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*"/><ColumnDefinition Width="*"/>
-                                    </Grid.ColumnDefinitions>
-                                    <StackPanel Grid.Column="0" Margin="0,0,4,0">
-                                        <TextBlock Text="Min speed" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding MinSpeed, StringFormat={}{0} RPM}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MinSpeed"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MinSpeed"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                    <StackPanel Grid.Column="1" Margin="4,0,0,0">
-                                        <TextBlock Text="Max speed" FontSize="9" Foreground="{StaticResource DimText}"/>
-                                        <StackPanel Orientation="Horizontal">
-                                            <TextBlock Text="{Binding MaxSpeed, StringFormat={}{0} RPM}" Foreground="White" FontSize="10" FontWeight="SemiBold"/>
-                                            <Button Content="+" Foreground="{StaticResource YellowAccent}" Style="{StaticResource TinyBtnStyle}" Margin="4,0,0,0" Click="BtnCurveParamPlus_Click" Tag="MaxSpeed"/>
-                                            <Button Content="-" Foreground="{StaticResource DimText}" Style="{StaticResource TinyBtnStyle}" Margin="2,0,0,0" Click="BtnCurveParamMinus_Click" Tag="MaxSpeed"/>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Grid>
-
-                                <!-- Hysteresis -->
-                                <TextBlock Text="Hysteresis" FontSize="9" Foreground="{StaticResource DimText}" Margin="0,0,0,2"/>
-                                <TextBlock Foreground="#AAFFFFFF" FontSize="10" Margin="0,0,0,8">
-                                    <Run Text="↑"/><Run Text="{Binding HysteresisUp, StringFormat={}{0} °C, Mode=OneWay}"/>
-                                    <Run Text="  ↓"/><Run Text="{Binding HysteresisDown, StringFormat={}{0} °C, Mode=OneWay}"/>
-                                </TextBlock>
-
-                                <!-- Fan curve graph -->
-                                <Border Background="#08FFFFFF" CornerRadius="4" Height="55" Margin="0,4,0,0" ClipToBounds="True">
-                                    <Canvas>
-                                        <!-- Baseline -->
-                                        <Line X1="0" Y1="50" X2="190" Y2="50" Stroke="#15FFFFFF" StrokeThickness="1"/>
-                                        <!-- Curve line -->
-                                        <Polyline Points="5,48 50,48 80,30 120,15 180,15" Stroke="{StaticResource BrandBlue}" StrokeThickness="2" StrokeLineJoin="Round"/>
-                                    </Canvas>
-                                </Border>
-                            </StackPanel>
-                        </Border>
-                    </DataTemplate>
-                </ItemsControl.ItemTemplate>
-            </ItemsControl>
-        </StackPanel>
-    </ScrollViewer>
+        <!-- FAB: Add Curve button (floating bottom-right) -->
+        <Button Content="+" Foreground="#1A1A2E" Style="{StaticResource FabBtnStyle}"
+                HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,16,16"
+                Command="{Binding AddCurveCommand}" ToolTip="Add new fan curve"/>
+    </Grid>
 </UserControl>

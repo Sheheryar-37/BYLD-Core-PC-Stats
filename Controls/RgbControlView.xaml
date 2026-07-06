@@ -7,6 +7,10 @@
              d:DesignHeight="400" d:DesignWidth="500">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <!-- Retinted by SettingsWindow.ApplyUiTheme() in light mode -->
+        <SolidColorBrush x:Key="WarnText" Color="#FFB0B0"/>
+        <SolidColorBrush x:Key="RgbCardBg" Color="#0C0C1A"/>
+        <SolidColorBrush x:Key="RgbCardBorder" Color="#1A1A35"/>
         
         <!-- ═══ Dark ComboBox Toggle ═══ -->
         <ControlTemplate x:Key="DarkComboToggle" TargetType="ToggleButton">
@@ -122,6 +126,33 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- ═══ Master Color Swatch Button (Apply to All) ═══ -->
+        <Style x:Key="MasterSwatchButton" TargetType="Button">
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="SwatchBorder" CornerRadius="5" BorderThickness="2" BorderBrush="#33FFFFFF"
+                                Width="48" Height="26" SnapsToDevicePixels="True">
+                            <Border.Background>
+                                <SolidColorBrush Color="{Binding MasterColor}"/>
+                            </Border.Background>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="SwatchBorder" Property="BorderBrush" Value="#3B82F6"/>
+                                <Setter TargetName="SwatchBorder" Property="Effect">
+                                    <Setter.Value>
+                                        <DropShadowEffect BlurRadius="8" ShadowDepth="0" Color="#3B82F6" Opacity="0.5"/>
+                                    </Setter.Value>
+                                </Setter>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </UserControl.Resources>
 
     <StackPanel>
@@ -136,8 +167,40 @@
                 Visibility="{Binding ShowAdminWarning, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}">
             <StackPanel>
                 <TextBlock Text="⚠ OpenRGB Access Denied" Foreground="#E63946" FontWeight="Bold" FontSize="12"/>
-                <TextBlock Text="Some RGB devices (like your GPU or generic case fans) require OpenRGB to be running as an Administrator to be detected. BYLD Core will attempt to restart OpenRGB with Admin privileges automatically." 
-                           Foreground="#FFB0B0" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                <TextBlock Text="Some RGB devices (like your GPU or generic case fans) require OpenRGB to be running as an Administrator to be detected. BYLD Core will attempt to restart OpenRGB with Admin privileges automatically."
+                           Foreground="{DynamicResource WarnText}" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,0"/>
+            </StackPanel>
+        </Border>
+
+        <!-- ═══ Apply to All Devices ═══ -->
+        <Border Background="{DynamicResource RgbCardBg}" BorderBrush="{DynamicResource RgbCardBorder}" BorderThickness="1" CornerRadius="10"
+                Padding="18" Margin="0,0,0,12">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding IsConnected}" Value="False">
+                            <Setter Property="Visibility" Value="Collapsed"/>
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <StackPanel>
+                <TextBlock Text="APPLY TO ALL DEVICES" Foreground="#64748B" FontSize="10" FontWeight="Bold" Margin="0,0,0,8"/>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="18"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <!-- Shared lighting effect (modes every device supports) -->
+                    <ComboBox Grid.Column="0" ItemsSource="{Binding CommonModes}" SelectedItem="{Binding SelectedCommonMode}"
+                              Style="{StaticResource RgbComboStyle}" ItemContainerStyle="{StaticResource RgbComboItemStyle}"
+                              ToolTip="Applies this lighting effect to every device that supports it"/>
+                    <!-- Shared colour swatch — opens ColorPickerWindow -->
+                    <Button Grid.Column="2" Style="{StaticResource MasterSwatchButton}" VerticalAlignment="Center"
+                            Command="{Binding ApplyAllColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                            ToolTip="Click to apply one color or gradient to all devices"/>
+                </Grid>
             </StackPanel>
         </Border>
 
@@ -154,7 +217,7 @@
             </ItemsControl.Style>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Background="#0C0C1A" BorderBrush="#1A1A35" BorderThickness="1" CornerRadius="10" 
+                    <Border Background="{DynamicResource RgbCardBg}" BorderBrush="{DynamicResource RgbCardBorder}" BorderThickness="1" CornerRadius="10" 
                             Padding="18" Margin="0,0,0,12">
                         <StackPanel>
                             <!-- Device Header -->
@@ -180,7 +243,7 @@
                             </StackPanel>
 
                             <!-- Separator -->
-                            <Border Height="1" Background="#1A1A35" Margin="0,0,0,14"/>
+                            <Border Height="1" Background="{DynamicResource RgbCardBorder}" Margin="0,0,0,14"/>
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
@@ -232,7 +295,7 @@
         </ItemsControl>
         
         <!-- ═══ Not Connected Fallback ═══ -->
-        <Border CornerRadius="10" Background="#0C0C1A" BorderBrush="#1A1A35" BorderThickness="1" Padding="20" Margin="0,5,0,0">
+        <Border CornerRadius="10" Background="{DynamicResource RgbCardBg}" BorderBrush="{DynamicResource RgbCardBorder}" BorderThickness="1" Padding="20" Margin="0,5,0,0">
             <Border.Style>
                 <Style TargetType="Border">
                     <Setter Property="Visibility" Value="Visible"/>
@@ -250,9 +313,12 @@
                 <TextBlock Text="⚡" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
                 <TextBlock Text="RGB Not Connected" Foreground="#94A3B8" FontSize="13" FontWeight="SemiBold" 
                            HorizontalAlignment="Center" Margin="0,0,0,4"/>
-                <TextBlock Text="Click 'Refresh Hardware' or enable Demo mode to preview." 
-                           Foreground="#475569" FontSize="11" TextWrapping="Wrap" TextAlignment="Center" 
-                           HorizontalAlignment="Center" Margin="0,0,0,12"/>
+                <TextBlock Text="To enable RGB control:" 
+                           Foreground="#475569" FontSize="11" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Left" 
+                           HorizontalAlignment="Left" Margin="0,0,0,4"/>
+                <TextBlock Text="1. Download and install OpenRGB from openrgb.org&#x0a;2. Open OpenRGB and go to the 'SDK Server' tab&#x0a;3. Click 'Start Server' (or check 'Autostart Server' in Settings)&#x0a;4. Click Connect below" 
+                           Foreground="#475569" FontSize="11" TextWrapping="Wrap" TextAlignment="Left" 
+                           HorizontalAlignment="Left" Margin="0,0,0,12"/>
                 <Button Content="Connect to OpenRGB" Command="{Binding ConnectCommand}" 
                         Width="140" Height="30" Cursor="Hand" FontSize="11" FontWeight="SemiBold">
                     <Button.Template>

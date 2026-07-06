@@ -5,6 +5,7 @@ using System.Drawing;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Windows.Forms;
+using System.Windows.Threading;
 
 namespace PcStatsMonitor.Services;
 
@@ -13,8 +14,10 @@ namespace PcStatsMonitor.Services;
 /// Win32 <c>ClipCursor</c> API. This prevents the user from accidentally
 /// dragging windows onto the 7-inch case display.
 ///
-/// Unlike a low-level mouse hook, <c>ClipCursor</c> is enforced at the OS
-/// level and works reliably regardless of DPI scaling or multi-monitor layout.
+/// A <see cref="DispatcherTimer"/> periodically re-applies the clip every 500ms
+/// to handle OS events that temporarily release it (window dragging, UAC prompts,
+/// Alt-Tab, fullscreen transitions). Additionally, a WinEvent hook listens for
+/// <c>EVENT_SYSTEM_MOVESIZEEND</c> to re-clip immediately after a window drag ends.
 /// </summary>
 public class MouseHookService : IDisposable
 {
@@ -23,6 +26,23 @@ public class MouseHookService : IDisposable
 
     [DllImport("user32.dll")]
     private static extern bool ClipCursor(IntPtr lpRect);
+
+    [DllImport("user32.dll")]
+    private static extern IntPtr SetWinEventHook(
+        uint eventMin, uint eventMax, IntPtr hmodWinEventProc,
+        WinEventDelegate lpfnWinEventProc, uint idProcess, uint idThread, uint dwFlags);
+
+    [DllImport("user32.dll")]
+    private static extern bool UnhookWinEvent(IntPtr hWinEventHook);
+
+    private delegate void WinEventDelegate(
+        IntPtr hWinEventHook, uint eventType, IntPtr hwnd, int idObject,
+        int idChild, uint dwEventThread, uint dwmsEventTime);
+
+    /// <summary>Fired when a window finishes being moved or sized.</summary>
+    private const uint EVENT_SYSTEM_MOVESIZEEND = 0x000B;
+    /// <summary>Out-of-context (no DLL needed for the hook).</summary>
+    private const uint WINEVENT_OUTOFCONTEXT = 0x0000;
 
     [StructLayout(LayoutKind.Sequential)]
     private struct RECT
@@ -35,10 +55,23 @@ public class MouseHookService : IDisposable
 
     private bool _isEnabled;
     private Rectangle _blockedScreenBounds;
+    private readonly DispatcherTimer _reClipTimer;
+    private IntPtr _winEventHook = IntPtr.Zero;
+    private WinEventDelegate? _winEventDelegate;
+
+    public MouseHookService()
+    {
+        _reClipTimer = new DispatcherTimer
+        {
+            Interval = TimeSpan.FromMilliseconds(500)
+        };
+        _reClipTimer.Tick += (s, e) => ApplyClip();
+    }
 
     /// <summary>
     /// Gets or sets whether cursor confinement is active.
-    /// When set to <c>true</c>, the cursor is clipped to the allowed region.
+    /// When set to <c>true</c>, the cursor is clipped to the allowed region
+    /// and a periodic re-clip timer + WinEvent hook are started.
     /// When set to <c>false</c>, the cursor is released.
     /// </summary>
     public bool IsEnabled
@@ -48,9 +81,17 @@ public class MouseHookService : IDisposable
         {
             _isEnabled = value;
             if (_isEnabled)
+            {
                 ApplyClip();
+                _reClipTimer.Start();
+                InstallWinEventHook();
+            }
             else
+            {
+                _reClipTimer.Stop();
+                UninstallWinEventHook();
                 ReleaseClip();
+            }
         }
     }
 
@@ -103,6 +144,48 @@ public class MouseHookService : IDisposable
     }
 
     /// <summary>
+    /// Installs a WinEvent hook to re-apply the clip immediately after
+    /// any window finishes being dragged/resized. This catches the case
+    /// where Windows temporarily releases ClipCursor during a window drag.
+    /// </summary>
+    private void InstallWinEventHook()
+    {
+        if (_winEventHook != IntPtr.Zero) return;
+
+        // Must keep a strong reference to the delegate to prevent GC collection
+        _winEventDelegate = OnWinEvent;
+        _winEventHook = SetWinEventHook(
+            EVENT_SYSTEM_MOVESIZEEND, EVENT_SYSTEM_MOVESIZEEND,
+            IntPtr.Zero, _winEventDelegate,
+            0, 0, WINEVENT_OUTOFCONTEXT);
+    }
+
+    /// <summary>
+    /// Removes the WinEvent hook.
+    /// </summary>
+    private void UninstallWinEventHook()
+    {
+        if (_winEventHook != IntPtr.Zero)
+        {
+            UnhookWinEvent(_winEventHook);
+            _winEventHook = IntPtr.Zero;
+        }
+        _winEventDelegate = null;
+    }
+
+    /// <summary>
+    /// WinEvent callback — re-applies the clip when a window drag/resize ends.
+    /// </summary>
+    private void OnWinEvent(IntPtr hWinEventHook, uint eventType, IntPtr hwnd,
+        int idObject, int idChild, uint dwEventThread, uint dwmsEventTime)
+    {
+        if (_isEnabled)
+        {
+            ApplyClip();
+        }
+    }
+
+    /// <summary>
     /// Releases the cursor confinement, allowing free movement across all screens.
     /// </summary>
     private void ReleaseClip()
@@ -112,6 +195,8 @@ public class MouseHookService : IDisposable
 
     public void Dispose()
     {
+        _reClipTimer.Stop();
+        UninstallWinEventHook();
         ReleaseClip();
     }
 }

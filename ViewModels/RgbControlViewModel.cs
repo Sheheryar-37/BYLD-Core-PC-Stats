@@ -61,6 +61,32 @@ public class RgbZoneViewModel : ViewModelBase
         }
     }
 
+    private bool _isGradient;
+    public bool IsGradient
+    {
+        get => _isGradient;
+        set
+        {
+            if (SetProperty(ref _isGradient, value))
+            {
+                ApplyColor();
+            }
+        }
+    }
+
+    private System.Windows.Media.Color _gradientEndColor;
+    public System.Windows.Media.Color GradientEndColor
+    {
+        get => _gradientEndColor;
+        set
+        {
+            if (SetProperty(ref _gradientEndColor, value))
+            {
+                ApplyColor();
+            }
+        }
+    }
+
     public RgbZoneViewModel(Zone zone, int deviceId, int zoneId, HardwareControlService hardwareService)
     {
         Name = ZoneNameMapper.GetDisplayName(zone.Name);
@@ -69,6 +95,8 @@ public class RgbZoneViewModel : ViewModelBase
         _zoneId = zoneId;
         _hardwareService = hardwareService;
         _selectedColor = System.Windows.Media.Colors.White; // Default
+        _gradientEndColor = System.Windows.Media.Colors.White;
+        _isGradient = false;
     }
 
     public RgbZoneViewModel(string demoName, uint demoLedCount)
@@ -79,13 +107,32 @@ public class RgbZoneViewModel : ViewModelBase
         _zoneId = -1;
         _hardwareService = null!;
         _selectedColor = System.Windows.Media.Colors.White;
+        _gradientEndColor = System.Windows.Media.Colors.White;
+        _isGradient = false;
     }
 
     private void ApplyColor()
     {
         if (HardwareControlService.IsDemoMode) return;
-        var orgbColor = new OpenRGB.NET.Color(SelectedColor.R, SelectedColor.G, SelectedColor.B);
-        _hardwareService.UpdateRgbZoneColor(_deviceId, _zoneId, orgbColor);
+        
+        if (IsGradient && LedCount > 1)
+        {
+            var colors = new OpenRGB.NET.Color[LedCount];
+            for (int i = 0; i < LedCount; i++)
+            {
+                float ratio = (float)i / (LedCount - 1);
+                byte r = (byte)(SelectedColor.R + ratio * (GradientEndColor.R - SelectedColor.R));
+                byte g = (byte)(SelectedColor.G + ratio * (GradientEndColor.G - SelectedColor.G));
+                byte b = (byte)(SelectedColor.B + ratio * (GradientEndColor.B - SelectedColor.B));
+                colors[i] = new OpenRGB.NET.Color(r, g, b);
+            }
+            _hardwareService.UpdateRgbZoneColors(_deviceId, _zoneId, colors);
+        }
+        else
+        {
+            var orgbColor = new OpenRGB.NET.Color(SelectedColor.R, SelectedColor.G, SelectedColor.B);
+            _hardwareService.UpdateRgbZoneColor(_deviceId, _zoneId, orgbColor);
+        }
 
         // Persist the change
         RgbSettingsPersistence.SaveCurrentState();
@@ -179,14 +226,145 @@ public class RgbControlViewModel : ViewModelBase
         set => SetProperty(ref _showAdminWarning, value);
     }
 
+    /// <summary>Modes supported by every detected device, offered in the "Apply to all" bar.</summary>
+    public ObservableCollection<string> CommonModes { get; } = new();
+
+    private string? _selectedCommonMode;
+    /// <summary>When set, applies the chosen lighting mode to every device that supports it.</summary>
+    public string? SelectedCommonMode
+    {
+        get => _selectedCommonMode;
+        set
+        {
+            if (!SetProperty(ref _selectedCommonMode, value) || value == null) return;
+            foreach (var device in Devices)
+            {
+                if (device.Modes.Contains(value)) device.SelectedMode = value;
+            }
+        }
+    }
+
+    private System.Windows.Media.Color _masterColor = System.Windows.Media.Colors.White;
+    /// <summary>The colour last applied to all devices; shown on the "Apply to all" swatch.</summary>
+    public System.Windows.Media.Color MasterColor
+    {
+        get => _masterColor;
+        set => SetProperty(ref _masterColor, value);
+    }
+
+    private bool _masterIsGradient;
+    /// <summary>Whether the last "apply to all" used a gradient pattern.</summary>
+    public bool MasterIsGradient
+    {
+        get => _masterIsGradient;
+        set => SetProperty(ref _masterIsGradient, value);
+    }
+
+    private System.Windows.Media.Color _masterEndColor = System.Windows.Media.Colors.White;
+    /// <summary>Gradient end colour for the "apply to all" pattern.</summary>
+    public System.Windows.Media.Color MasterEndColor
+    {
+        get => _masterEndColor;
+        set => SetProperty(ref _masterEndColor, value);
+    }
+
+    /// <summary>
+    /// Applies one colour (or gradient pattern) to every zone of every detected device.
+    /// </summary>
+    public void ApplyColorToAllZones(System.Windows.Media.Color color, bool isGradient, System.Windows.Media.Color endColor)
+    {
+        MasterColor = color;
+        MasterIsGradient = isGradient;
+        MasterEndColor = endColor;
+
+        foreach (var device in Devices)
+            ApplyColorToDevice(device, color, isGradient, endColor);
+    }
+
+    private static void ApplyColorToDevice(RgbDeviceViewModel device,
+        System.Windows.Media.Color color, bool isGradient, System.Windows.Media.Color endColor)
+    {
+        foreach (var zone in device.Zones)
+        {
+            // Set gradient values before SelectedColor so ApplyColor uses them.
+            zone.GradientEndColor = endColor;
+            zone.IsGradient = isGradient;
+            zone.SelectedColor = color;
+        }
+    }
+
+    /// <summary>Recomputes the intersection of modes across all devices.</summary>
+    private void RebuildCommonModes()
+    {
+        CommonModes.Clear();
+        if (Devices.Count == 0) return;
+
+        var common = Devices[0].Modes.AsEnumerable();
+        foreach (var device in Devices.Skip(1))
+            common = common.Intersect(device.Modes);
+
+        foreach (var mode in common)
+            CommonModes.Add(mode);
+    }
+
     public ICommand ConnectCommand { get; }
     public ICommand RefreshCommand { get; }
+
+    private System.Windows.Threading.DispatcherTimer? _autoRefreshTimer;
 
     public RgbControlViewModel(HardwareControlService hardwareService)
     {
         _hardwareService = hardwareService;
         ConnectCommand = new RelayCommand(_ => Connect());
         RefreshCommand = new RelayCommand(_ => LoadDevices(), _ => IsConnected);
+        StartAutoRefresh();
+    }
+
+    /// <summary>
+    /// Periodically re-enumerates OpenRGB devices so newly connected hardware
+    /// appears without the user pressing Refresh. The list is only rebuilt
+    /// when the device set actually changes, to avoid UI flicker.
+    /// </summary>
+    private void StartAutoRefresh()
+    {
+        if (HardwareControlService.IsDemoMode) return;
+
+        _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer
+        {
+            Interval = TimeSpan.FromSeconds(10)
+        };
+        _autoRefreshTimer.Tick += (s, e) => AutoRefreshDevices();
+        _autoRefreshTimer.Start();
+    }
+
+    /// <summary>Stops the auto-refresh timer. Call when the hosting view closes.</summary>
+    public void StopAutoRefresh()
+    {
+        _autoRefreshTimer?.Stop();
+    }
+
+    private void AutoRefreshDevices()
+    {
+        // Demo mode fakes IsConnected — polling the real server here would
+        // return an empty list and wipe the demo cards.
+        if (HardwareControlService.IsDemoMode) return;
+        if (IsLoading || !IsConnected) return;
+
+        var devices = _hardwareService.GetRgbDevices();
+        if (!HasDeviceListChanged(devices)) return;
+
+        Devices.Clear();
+        for (int i = 0; i < devices.Count; i++)
+            Devices.Add(new RgbDeviceViewModel(devices[i], i, _hardwareService));
+
+        RebuildCommonModes();
+        RgbSettingsPersistence.RestoreState(this);
+    }
+
+    private bool HasDeviceListChanged(List<Device> devices)
+    {
+        if (devices.Count != Devices.Count) return true;
+        return devices.Where((d, i) => d.Name != Devices[i].Name).Any();
     }
 
     public void Connect()
@@ -268,6 +446,8 @@ public class RgbControlViewModel : ViewModelBase
             }
         }
 
+        RebuildCommonModes();
+
         // Restore any previously-saved settings (colours + modes)
         RgbSettingsPersistence.RestoreState(this);
 
@@ -310,7 +490,11 @@ public static class RgbSettingsPersistence
                         ZoneName = z.Name,
                         ColorR = z.SelectedColor.R,
                         ColorG = z.SelectedColor.G,
-                        ColorB = z.SelectedColor.B
+                        ColorB = z.SelectedColor.B,
+                        IsGradient = z.IsGradient,
+                        GradientEndR = z.GradientEndColor.R,
+                        GradientEndG = z.GradientEndColor.G,
+                        GradientEndB = z.GradientEndColor.B
                     }).ToList()
                 }).ToList()
             };
@@ -363,6 +547,11 @@ public static class RgbSettingsPersistence
                         z => string.Equals(z.ZoneName, zoneVm.Name, StringComparison.OrdinalIgnoreCase));
                     if (savedZone != null)
                     {
+                        // Set colors before IsGradient, so the final setter applies it correctly.
+                        zoneVm.GradientEndColor = System.Windows.Media.Color.FromRgb(
+                            savedZone.GradientEndR, savedZone.GradientEndG, savedZone.GradientEndB);
+                        zoneVm.IsGradient = savedZone.IsGradient;
+                        
                         zoneVm.SelectedColor = System.Windows.Media.Color.FromRgb(
                             savedZone.ColorR, savedZone.ColorG, savedZone.ColorB);
                     }
@@ -398,4 +587,8 @@ public class RgbZoneState
     public byte ColorR { get; set; }
     public byte ColorG { get; set; }
     public byte ColorB { get; set; }
+    public bool IsGradient { get; set; }
+    public byte GradientEndR { get; set; }
+    public byte GradientEndG { get; set; }
+    public byte GradientEndB { get; set; }
 }

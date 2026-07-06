@@ -13,7 +13,9 @@ AppId={{9A97C51E-3107-430E-8EB3-58D0EFEB179D}
 AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
-DefaultDirName={localappdata}\ByldPC\PCStatsMonitor
+DefaultDirName={autopf}\{#MyAppPublisher}\{#MyAppName}
+ArchitecturesAllowed=x64
+ArchitecturesInstallIn64BitMode=x64
 DefaultGroupName={#MyAppPublisher}
 DisableProgramGroupPage=yes
 OutputDir=InstallerOutput
@@ -51,6 +53,31 @@ Filename: "{app}\OpenRGB\OpenRGB.exe"; Parameters: "--server --server-port 6742"
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec; WorkingDir: "{app}"
 
 [UninstallRun]
-; Kill OpenRGB on uninstall
-Filename: "taskkill.exe"; Parameters: "/F /IM OpenRGB.exe"; Flags: runhidden
+; Kill the app and OpenRGB, then unload the WinRing0 kernel driver.
+; While the driver is loaded, Windows locks WinRing0x64.sys and the file
+; (and its folder) survives uninstall.
+Filename: "taskkill.exe"; Parameters: "/F /IM PcStatsMonitor.exe"; Flags: runhidden; RunOnceId: "KillApp"
+Filename: "taskkill.exe"; Parameters: "/F /IM OpenRGB.exe"; Flags: runhidden; RunOnceId: "KillOpenRGB"
+Filename: "sc.exe"; Parameters: "stop WinRing0_1_2_0"; Flags: runhidden; RunOnceId: "StopWinRing0"
+Filename: "sc.exe"; Parameters: "delete WinRing0_1_2_0"; Flags: runhidden; RunOnceId: "DeleteWinRing0"
+
+[UninstallDelete]
+; Files created at runtime (not in the install log) that would otherwise
+; keep the install folder alive after uninstall.
+Type: filesandordirs; Name: "{app}\OpenRGB"
+Type: filesandordirs; Name: "{app}\settings"
+Type: filesandordirs; Name: "{app}\logs"
+Type: filesandordirs; Name: "{app}\Profiles"
+Type: files; Name: "{app}\theme.json"
+Type: dirifempty; Name: "{app}"
+Type: dirifempty; Name: "{autopf}\{#MyAppPublisher}"
+
+[Code]
+// This section must exist: Inno Setup raises "Internal error: PathRedir: Not
+// initialized" on every uninstall log entry when the script has no [Code]
+// section (bug present in the 7.0 previews).
+function InitializeUninstall(): Boolean;
+begin
+  Result := True;
+end;
 

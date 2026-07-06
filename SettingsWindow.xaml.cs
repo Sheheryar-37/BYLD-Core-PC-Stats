@@ -73,11 +73,136 @@ public partial class SettingsWindow : Window
         // if (TxtWeatherCityLayout != null) TxtWeatherCityLayout.ItemsSource = cities;
 
         LoadCurrentSettings();
+        CenterOnPrimaryDisplay();
+    }
+
+    /// <summary>
+    /// Stops the fan/RGB timers and releases the hardware handle so closed
+    /// Settings windows don't keep polling sensors in the background.
+    /// </summary>
+    protected override void OnClosed(EventArgs e)
+    {
+        FanViewModel.StopPolling();
+        RgbViewModel.StopAutoRefresh();
+        _hwControl?.Dispose();
+        _hwControl = null;
+        base.OnClosed(e);
+    }
+
+    /// <summary>
+    /// Positions the window in the center of the primary display's working area.
+    /// CenterScreen would otherwise open Settings on the small secondary display
+    /// when the main window is active there.
+    /// </summary>
+    private void CenterOnPrimaryDisplay()
+    {
+        var work = SystemParameters.WorkArea; // primary display, in DIPs
+        Left = work.Left + (work.Width - Width) / 2;
+        Top  = work.Top + (work.Height - Height) / 2;
     }
 
     private void Window_MouseLeftButtonDown(object sender, MouseButtonEventArgs e)
     {
         if (e.ButtonState == MouseButtonState.Pressed) DragMove();
+    }
+
+    /// <summary>
+    /// Persists the Dark/Light and Liquid Glass toggles and re-skins the window.
+    /// </summary>
+    private void AppearanceToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+
+        var theme = _themeService.CurrentTheme;
+        theme.UiTheme = TglLightTheme.IsChecked == true ? "Light" : "Dark";
+        theme.LiquidGlassEnabled = TglLiquidGlass.IsChecked == true;
+        _themeService.SaveTheme();
+        ApplyUiTheme();
+    }
+
+    /// <summary>
+    /// Applies the current UI theme (Dark/Light × Glass/Solid) to the window.
+    /// Works by mutating the shared theme brushes in place, which propagates
+    /// through every StaticResource reference in the XAML.
+    /// </summary>
+    private void ApplyUiTheme()
+    {
+        var theme = _themeService.CurrentTheme;
+        bool light = string.Equals(theme.UiTheme, "Light", StringComparison.OrdinalIgnoreCase);
+        bool glass = theme.LiquidGlassEnabled;
+
+        Background = NewBrush(WindowBackgroundHex(light, glass));
+        SetThemeBrush("TextBrush",          light ? "#1E293B" : "#E0E0E0");
+        SetThemeBrush("HeaderTextBrush",    light ? "#88334155" : "#88FFFFFF");
+        SetThemeBrush("CardBgBrush",        CardBackgroundHex(light, glass));
+        SetThemeBrush("CardBorderBrush",    light ? "#26000000" : (glass ? "#1AFFFFFF" : "#FF33334A"));
+        SetThemeBrush("TabSelectedBgBrush", light ? "#1A000000" : "#22FFFFFF");
+        SetThemeBrush("TabTextBrush",       light ? "#FF64748B" : "#FFAAAAAA");
+        SetThemeBrush("InputBgBrush",       light ? "#FFFFFFFF" : "#FF222222");
+        SetThemeBrush("InputFgBrush",       light ? "#FF1E293B" : "#FFFFFFFF");
+        SetThemeBrush("InputBorderBrush",   light ? "#FFC7CDD6" : "#FF444444");
+        SetThemeBrush("ButtonBgBrush",      light ? "#FFE9EDF2" : "#FF2A2A2A");
+        SetThemeBrush("ButtonFgBrush",      light ? "#FF1E293B" : "#FFEEEEEE");
+        SetThemeBrush("ButtonBorderBrush",  light ? "#26000000" : "#33FFFFFF");
+        SetThemeBrush("CheckBorderBrush",   light ? "#66000000" : "#55FFFFFF");
+        SetThemeBrush("SubtleTextBrush",    light ? "#FF52616F" : "#FFCCCCCC");
+        SetThemeBrush("PanelFillBrush",     light ? "#10000000" : "#11FFFFFF");
+        SetThemeBrush("WindowBorderBrush",  light ? "#29000000" : "#33FFFFFF");
+        SetThemeBrush("SliderTrackBrush",   light ? "#26000000" : "#33FFFFFF");
+        ApplyEmbeddedViewTheme(light, glass);
+    }
+
+    /// <summary>
+    /// Re-tints the Fan/RGB dashboard views. Their cards deliberately stay dark
+    /// navy in light mode (matching the Fan Control reference design), but they
+    /// switch from translucent glass to opaque so white card text stays readable,
+    /// and page-level headings outside the cards follow the window theme.
+    /// </summary>
+    private void ApplyEmbeddedViewTheme(bool light, bool glass)
+    {
+        SetBrushIn(FanView.Resources, "CardBg",      light ? "#FF1B2440" : (glass ? "#0AFFFFFF" : "#FF1D1D28"));
+        SetBrushIn(FanView.Resources, "CardBorder",  light ? "#FF2C3A63" : (glass ? "#1AFFFFFF" : "#FF33334A"));
+        SetBrushIn(FanView.Resources, "PageText",    light ? "#FF1E293B" : "#FFFFFFFF");
+        SetBrushIn(FanView.Resources, "PageDimText", light ? "#FF64748B" : "#88FFFFFF");
+        SetBrushIn(FanView.Resources, "WarnText",    light ? "#FFB03A44" : "#FFFFB0B0");
+        SetBrushIn(RgbView.Resources, "WarnText",      light ? "#FFB03A44" : "#FFFFB0B0");
+        SetBrushIn(RgbView.Resources, "RgbCardBg",     light ? "#FF1B2440" : "#FF0C0C1A");
+        SetBrushIn(RgbView.Resources, "RgbCardBorder", light ? "#FF2C3A63" : "#FF1A1A35");
+    }
+
+    private static string WindowBackgroundHex(bool light, bool glass)
+    {
+        if (light) return glass ? "#F2EEF1F6" : "#FFEEF1F6";
+        return glass ? "#D9161616" : "#FF14141C";
+    }
+
+    private static string CardBackgroundHex(bool light, bool glass)
+    {
+        if (light) return glass ? "#B3FFFFFF" : "#FFFFFFFF";
+        return glass ? "#0AFFFFFF" : "#FF1E1E28";
+    }
+
+    /// <summary>Replaces a themed brush resource so all DynamicResource references update live.</summary>
+    private void SetThemeBrush(string key, string hex)
+    {
+        SetBrushIn(Resources, key, hex);
+    }
+
+    /// <summary>
+    /// Replaces (not mutates) the brush in the dictionary: WPF freezes brushes used
+    /// in Style setters, so in-place Color changes are silently ignored — replacement
+    /// plus DynamicResource references is the only reliable way to re-theme.
+    /// </summary>
+    private static void SetBrushIn(ResourceDictionary resources, string key, string hex)
+    {
+        var brush = NewBrush(hex);
+        brush.Freeze();
+        resources[key] = brush;
+    }
+
+    private static SolidColorBrush NewBrush(string hex)
+    {
+        return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
     }
 
     public void JumpToSettingsTab(string tabHeaderName)
@@ -100,6 +225,11 @@ public partial class SettingsWindow : Window
         // General
         ChkLaunchOnStartup.IsChecked = theme.LaunchOnStartup;
         ChkDisableSecondaryScreenDragging.IsChecked = theme.DisableSecondaryScreenDragging;
+
+        // Appearance
+        TglLightTheme.IsChecked = string.Equals(theme.UiTheme, "Light", StringComparison.OrdinalIgnoreCase);
+        TglLiquidGlass.IsChecked = theme.LiquidGlassEnabled;
+        ApplyUiTheme();
 
         // Theme Colors
         BtnBgColor.Background = new BrushConverter().ConvertFromString(theme.BackgroundColor) as SolidColorBrush;
@@ -661,6 +791,34 @@ public partial class SettingsWindow : Window
 
     private void BtnClose_Click(object sender, RoutedEventArgs e) => Close();
 
+    /// <summary>
+    /// Minimizes the settings window.
+    /// </summary>
+    private void BtnMinimize_Click(object sender, RoutedEventArgs e)
+    {
+        WindowState = WindowState.Minimized;
+    }
+
+    /// <summary>
+    /// Toggles between maximized and normal window state.
+    /// Updates the button content to reflect the current state.
+    /// </summary>
+    private void BtnMaxRestore_Click(object sender, RoutedEventArgs e)
+    {
+        if (WindowState == WindowState.Maximized)
+        {
+            WindowState = WindowState.Normal;
+            BtnMaxRestore.Content = "\u25A1"; // □ Maximize icon
+            BtnMaxRestore.ToolTip = "Maximize";
+        }
+        else
+        {
+            WindowState = WindowState.Maximized;
+            BtnMaxRestore.Content = "\u2750"; // ❐ Restore icon
+            BtnMaxRestore.ToolTip = "Restore";
+        }
+    }
+
     // ── Clock Settings ─────────────────────────────────────────────────────────
 
     private static readonly string[] FaceNames = { 
@@ -683,16 +841,19 @@ public partial class SettingsWindow : Window
         foreach (var face in FaceNames)
         {
             bool isSelected = face == _selectedFace;
+            // The tiles preview the 7" display, which is always dark — they keep a
+            // fixed opaque dark backdrop in both Settings themes so the preview
+            // matches what the clock will actually look like on the case screen.
             var card = new Border
             {
                 Width = 100, Height = 100, CornerRadius = new CornerRadius(10),
                 Margin = new Thickness(0, 0, 10, 0),
-                Background = isSelected 
-                    ? new SolidColorBrush(Color.FromArgb(50, 59, 130, 246))
-                    : new SolidColorBrush(Color.FromArgb(15, 255, 255, 255)),
+                Background = isSelected
+                    ? new SolidColorBrush(Color.FromRgb(0x1B, 0x24, 0x40))
+                    : new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1C)),
                 BorderBrush = isSelected
                     ? new SolidColorBrush(Color.FromArgb(200, 59, 130, 246))
-                    : new SolidColorBrush(Color.FromArgb(40, 255, 255, 255)),
+                    : new SolidColorBrush(Color.FromArgb(70, 140, 150, 170)),
                 BorderThickness = new Thickness(isSelected ? 2 : 1),
                 Cursor = System.Windows.Input.Cursors.Hand,
                 Tag = face
@@ -912,6 +1073,33 @@ public partial class SettingsWindow : Window
             else scrollViewer.LineRight();
             e.Handled = true;
         }
+    }
+
+    /// <summary>
+    /// Scrolls the page-level ScrollViewer directly on mouse wheel so inner
+    /// controls (ListBoxes, TextBoxes) can't swallow the event and make the
+    /// page feel "stuck". The horizontal clock-face strip keeps its own wheel.
+    /// </summary>
+    private void PageScroll_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+    {
+        if (sender is not ScrollViewer scrollViewer) return;
+        if (IsInsideFaceStrip(e.OriginalSource as DependencyObject)) return;
+
+        scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta * 0.75);
+        e.Handled = true;
+    }
+
+    /// <summary>Returns true when the wheel event originated inside the ScrFaces strip.</summary>
+    private bool IsInsideFaceStrip(DependencyObject? source)
+    {
+        while (source != null)
+        {
+            if (ReferenceEquals(source, ScrFaces)) return true;
+            source = source is System.Windows.Media.Visual
+                ? System.Windows.Media.VisualTreeHelper.GetParent(source)
+                : LogicalTreeHelper.GetParent(source);
+        }
+        return false;
     }
 
     // ── Helpers ────────────────────────────────────────────────────────────────

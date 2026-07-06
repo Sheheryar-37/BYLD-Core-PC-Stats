@@ -1,5 +1,6 @@
 using System;
 using System.Windows;
+using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PcStatsMonitor.Services;
@@ -12,6 +13,8 @@ namespace PcStatsMonitor;
 public partial class App : Application
 {
     private IHost _host;
+    private SplashWindow? _splash;
+    private SplashWindow? _splashSecondary;
 
     private System.Windows.Forms.NotifyIcon? _notifyIcon;
 
@@ -55,14 +58,26 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        // ── Show Splash Screen immediately (plus one on the secondary display) ──
+        _splash = new SplashWindow();
+        _splash.Show();
+        _splashSecondary = SplashWindow.TryCreateForSecondaryDisplay();
+        _splashSecondary?.Show();
+        SetSplashStatus("Checking privileges...");
+
         // ── Mandatory Administrator Check ──
         if (!IsRunAsAdmin())
         {
+            if (_splash != null) _splash.Topmost = false;
+            
             MessageBox.Show(
+                _splash,
                 "BYLD Core requires Administrator privileges to access hardware sensors (CPU Temp, Clock, etc.).\n\nPlease close the app and 'Run as Administrator'.", 
                 "Elevation Required", 
                 MessageBoxButton.OK, 
                 MessageBoxImage.Warning);
+            
+            if (_splash != null) _splash.Topmost = true;
             
             // We don't shutdown here to allow the user to at least see the UI, 
             // but the warning explains why it's empty.
@@ -71,6 +86,7 @@ public partial class App : Application
         // Install the WinRing0x64 kernel driver BEFORE the host starts so that
         // LibreHardwareMonitor can read CPU temperature and clock via MSR on first run.
         var startupLogger = _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
+        SetSplashStatus("Installing hardware drivers...");
         try 
         {
             KernelDriverService.EnsureInstalled(startupLogger);
@@ -83,6 +99,7 @@ public partial class App : Application
         // ── License Verification is now securely handled within MainWindow ──
         startupLogger.LogInformation("[Startup] Passing execution to MainWindow for initialization...");
 
+        SetSplashStatus("Starting hardware monitoring...");
         await _host.StartAsync();
 
         DisplayDiagnosticLogger.LogDisplays("STARTUP");
@@ -113,10 +130,66 @@ public partial class App : Application
         contextMenu.Items.Add("Exit", null, (s, args) => Shutdown());
         _notifyIcon.ContextMenuStrip = contextMenu;
 
+        SetSplashStatus("Loading interface...");
         var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+
+        // ── Keep MainWindow invisible until hardware data is ready ──
+        // This prevents the user from seeing empty gauges after the splash closes.
+        mainWindow.Opacity = 0;
         mainWindow.Show();
+
+        SetSplashStatus("Waiting for sensor data...");
+
+        // Subscribe to the first MetricsUpdated event to know when gauges have real data
+        var hwService = _host.Services.GetRequiredService<IHardwareMonitorService>();
+        var splashRef = _splash;
+        var splashSecondaryRef = _splashSecondary;
+        bool splashClosed = false;
+
+        void CloseSplashAndReveal()
+        {
+            if (splashClosed) return;
+            splashClosed = true;
+
+            Dispatcher.Invoke(() =>
+            {
+                // Fade in the main window
+                var fadeIn = new System.Windows.Media.Animation.DoubleAnimation(0.0, 1.0,
+                    new Duration(TimeSpan.FromMilliseconds(350)));
+                mainWindow.BeginAnimation(Window.OpacityProperty, fadeIn);
+
+                // Close both splash screens with smooth fade-out
+                splashRef?.FinishAndClose();
+                splashSecondaryRef?.FinishAndClose();
+            });
+        }
+
+        // Close splash when first hardware metrics arrive (gauges will be populated)
+        void OnFirstMetrics(object? sender, Models.HardwareMetrics metrics)
+        {
+            hwService.MetricsUpdated -= OnFirstMetrics;
+            CloseSplashAndReveal();
+        }
+        hwService.MetricsUpdated += OnFirstMetrics;
+
+        // Safety timeout: if sensors take too long (e.g., driver issues), close splash anyway after 10s
+        var safetyTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(10) };
+        safetyTimer.Tick += (s, args) =>
+        {
+            safetyTimer.Stop();
+            hwService.MetricsUpdated -= OnFirstMetrics;
+            CloseSplashAndReveal();
+        };
+        safetyTimer.Start();
         
         base.OnStartup(e);
+    }
+
+    /// <summary>Mirrors a loading status message to both splash screens.</summary>
+    private void SetSplashStatus(string message)
+    {
+        _splash?.SetStatus(message);
+        _splashSecondary?.SetStatus(message);
     }
 
     private void ShowSettings()

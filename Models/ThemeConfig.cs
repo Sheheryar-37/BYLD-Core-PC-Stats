@@ -47,6 +47,13 @@ public class ThemeConfig
     // ── Utility / Restrictions ───────────────────────────────────────────────
     public bool DisableSecondaryScreenDragging { get; set; } = false;
 
+    // ── Settings UI Appearance ───────────────────────────────────────────────
+    /// <summary>Settings backend UI theme: "Dark" (default) or "Light".</summary>
+    public string UiTheme { get; set; } = "Dark";
+
+    /// <summary>When false, the glassy translucent surfaces are replaced with solid panels.</summary>
+    public bool LiquidGlassEnabled { get; set; } = true;
+
     // ── Rotation Order (Identifiers: "Gauges", "Storage", "Clock", or Plugin Name) ────
     public List<string> ScreenRotationOrder { get; set; } = new() { "Gauges", "Storage", "Clock" };
 
