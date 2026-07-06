@@ -22,3 +22,6 @@ tmp/
 .DS_Store
 Thumbs.db
 InstallerOutput/
+
+# Private client data (chats, logs, license keys) — never commit
+WhatsApp Chat with Joe Janeski USA BYLD/
