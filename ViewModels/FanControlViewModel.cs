@@ -63,6 +63,20 @@ public class CurveItemViewModel : ViewModelBase
         set { if (SetProperty(ref _maxSpeed, value)) RecalculateGraphPoints(); }
     }
 
+    /// <summary>
+    /// Maps a temperature to a fan speed percentage along this curve —
+    /// linear interpolation between (MinTemp, MinSpeed) and (MaxTemp, MaxSpeed).
+    /// </summary>
+    public float EvaluateSpeed(float temperature)
+    {
+        if (MaxTemp <= MinTemp) return MaxSpeed;
+        if (temperature <= MinTemp) return MinSpeed;
+        if (temperature >= MaxTemp) return MaxSpeed;
+
+        float t = (temperature - MinTemp) / (float)(MaxTemp - MinTemp);
+        return MinSpeed + t * (MaxSpeed - MinSpeed);
+    }
+
     private int _hysteresisUp;
     public int HysteresisUp { get => _hysteresisUp; set => SetProperty(ref _hysteresisUp, value); }
 
@@ -161,7 +175,10 @@ public class FanItemViewModel : ViewModelBase
 {
     private readonly HardwareControlService _hardwareService;
     public ISensor? Sensor { get; }
-    
+
+    /// <summary>Optional paired RPM (tach) sensor from the same hardware as the control.</summary>
+    public ISensor? RpmSensor { get; set; }
+
     private string _demoName = "Fan";
     public string Name => Sensor?.Name ?? _demoName;
     public string Identifier => Sensor?.Identifier.ToString() ?? "demo_fan";
@@ -277,10 +294,15 @@ public class FanItemViewModel : ViewModelBase
         MinimumPercentage = 0;
         Offset = 0;
         
-        AvailableCurves.Add("GPU");
-        AvailableCurves.Add("CPU Cooler");
-        AvailableCurves.Add("Case Fans");
-        SelectedCurve = AvailableCurves[0];
+        // Demo fans get placeholder curve names; live fans are filled by
+        // FanControlViewModel.SyncFanCurveLists() with the real curve names.
+        if (sensor == null)
+        {
+            AvailableCurves.Add("GPU");
+            AvailableCurves.Add("CPU Cooler");
+            AvailableCurves.Add("Case Fans");
+            SelectedCurve = AvailableCurves[0];
+        }
     }
 }
 
@@ -357,31 +379,62 @@ public class FanControlViewModel : ViewModelBase
     private void PollSensors()
     {
         if (IsLoading || Fans.Count == 0) return;
-        
+
         try
         {
             foreach (var fan in Fans)
-            {
-                if (fan.Sensor != null)
-                {
-                    // Update the parent hardware to refresh the sensor value
-                    fan.Sensor.Hardware.Update();
-                    
-                    if (fan.Sensor.Value.HasValue)
-                    {
-                        if (fan.Sensor.SensorType == LibreHardwareMonitor.Hardware.SensorType.Fan)
-                        {
-                            fan.CurrentRpm = (int)fan.Sensor.Value.Value;
-                        }
-                        else if (fan.Sensor.SensorType == LibreHardwareMonitor.Hardware.SensorType.Control && !fan.IsManual)
-                        {
-                            fan.SpeedPercentage = fan.Sensor.Value.Value;
-                        }
-                    }
-                }
-            }
+                UpdateFanReadings(fan);
+
+            EvaluateCurves();
         }
         catch { /* Silent fail for polling errors */ }
+    }
+
+    private static void UpdateFanReadings(FanItemViewModel fan)
+    {
+        if (fan.Sensor == null) return;
+
+        // Update the parent hardware to refresh the sensor values
+        fan.Sensor.Hardware.Update();
+        if (fan.Sensor.Value.HasValue)
+            ApplySensorReading(fan);
+        if (fan.RpmSensor?.Value is { } rpm)
+            fan.CurrentRpm = (int)rpm;
+    }
+
+    private static void ApplySensorReading(FanItemViewModel fan)
+    {
+        if (fan.Sensor!.SensorType == SensorType.Fan)
+            fan.CurrentRpm = (int)fan.Sensor.Value!.Value;
+        else if (fan.Sensor.SensorType == SensorType.Control && !fan.IsManual)
+            fan.SpeedPercentage = fan.Sensor.Value!.Value;
+    }
+
+    /// <summary>
+    /// The curve engine: every poll tick, each fan that is in curve mode with a
+    /// selected curve gets the speed interpolated from its curve's live
+    /// temperature source. This is what actually drives the fans.
+    /// </summary>
+    private void EvaluateCurves()
+    {
+        foreach (var fan in Fans)
+            ApplyCurveToFan(fan);
+    }
+
+    private void ApplyCurveToFan(FanItemViewModel fan)
+    {
+        if (fan.IsManual || fan.Sensor is not { SensorType: SensorType.Control }) return;
+
+        var curve = Curves.FirstOrDefault(c => c.Name == fan.SelectedCurve);
+        if (curve == null) return;
+
+        float? temp = ResolveSourceTemperature(curve.TemperatureSource);
+        if (temp == null) return;
+
+        float target = curve.EvaluateSpeed(temp.Value);
+        if (Math.Abs(target - fan.SpeedPercentage) < 1f) return;
+
+        _hardwareService.SetFanSpeed(fan.Sensor, target);
     }
 
     /// <summary>
@@ -411,6 +464,7 @@ public class FanControlViewModel : ViewModelBase
 
         Curves.Add(newCurve);
         FanCurvePersistence.SaveCurves(Curves);
+        SyncFanCurveLists();
     }
 
     /// <summary>
@@ -421,6 +475,7 @@ public class FanControlViewModel : ViewModelBase
         if (curve == null) return;
         Curves.Remove(curve);
         FanCurvePersistence.SaveCurves(Curves);
+        SyncFanCurveLists();
     }
 
     /// <summary>
@@ -454,6 +509,9 @@ public class FanControlViewModel : ViewModelBase
     /// <summary>
     /// Returns the list of available temperature source labels.
     /// </summary>
+    /// <summary>Maps temperature-source labels to their live sensors.</summary>
+    private readonly Dictionary<string, ISensor> _tempSources = new();
+
     private string[] GetAvailableSourceOptions()
     {
         if (HardwareControlService.IsDemoMode)
@@ -461,7 +519,64 @@ public class FanControlViewModel : ViewModelBase
             return new[] { "33 °C - CPU Package - Intel Core i", "40 °C - Memory - AMD Radeon RX", "Mix - Max" };
         }
 
-        return new[] { "CPU Package", "Motherboard VRM", "GPU Core", "Liquid Temp", "Mix - Max" };
+        _tempSources.Clear();
+        foreach (var sensor in _hardwareService.GetTemperatureSensors())
+            _tempSources[$"{sensor.Name} — {sensor.Hardware.Name}"] = sensor;
+
+        var options = _tempSources.Keys.ToList();
+        options.Add("Mix - Max");
+        return options.ToArray();
+    }
+
+    /// <summary>
+    /// Resolves a temperature-source label from the curve editor to a live
+    /// temperature reading. Falls back to keyword matching for labels saved by
+    /// older builds ("CPU Package", "GPU Core").
+    /// </summary>
+    private float? ResolveSourceTemperature(string? source)
+    {
+        if (string.IsNullOrWhiteSpace(source)) return null;
+        if (source == "Mix - Max") return MaxOfAllSources();
+        if (_tempSources.TryGetValue(source, out var sensor)) return ReadTemperature(sensor);
+        return ResolveLegacySource(source);
+    }
+
+    private float? MaxOfAllSources()
+    {
+        float? max = null;
+        foreach (var sensor in _tempSources.Values)
+            max = MaxOf(max, ReadTemperature(sensor));
+        return max;
+    }
+
+    private static float? MaxOf(float? a, float? b)
+    {
+        if (a == null) return b;
+        if (b == null) return a;
+        return Math.Max(a.Value, b.Value);
+    }
+
+    /// <summary>Reads a temperature, treating 0 as unavailable (dead MSR reads).</summary>
+    private static float? ReadTemperature(ISensor sensor)
+    {
+        sensor.Hardware.Update();
+        return sensor.Value is > 0 ? sensor.Value : null;
+    }
+
+    private float? ResolveLegacySource(string source)
+    {
+        var match = _tempSources.FirstOrDefault(kv => LegacyMatches(source, kv.Key));
+        return match.Value != null ? ReadTemperature(match.Value) : null;
+    }
+
+    private static bool LegacyMatches(string source, string label)
+    {
+        if (source.Contains("CPU", StringComparison.OrdinalIgnoreCase))
+            return label.Contains("CPU", StringComparison.OrdinalIgnoreCase) ||
+                   label.Contains("Tctl", StringComparison.OrdinalIgnoreCase);
+        if (source.Contains("GPU", StringComparison.OrdinalIgnoreCase))
+            return label.Contains("GPU Core", StringComparison.OrdinalIgnoreCase);
+        return false;
     }
 
     public void LoadFans()
@@ -598,12 +713,55 @@ public class FanControlViewModel : ViewModelBase
                 break;
         }
 
-        // Add ALL fans (both read-only SensorType.Fan and adjustable SensorType.Control) 
-        // so the Settings screen perfectly matches the Rotating Screen.
-        foreach (var sensor in sensors)
-        {
-            Fans.Add(new FanItemViewModel(sensor, _hardwareService));
-        }
+        // Pair each Control (%) sensor with its RPM tach so one physical fan
+        // shows as ONE card with both readings, instead of two half-cards.
+        foreach (var item in PairFanSensors(sensors))
+            Fans.Add(item);
+
+        SyncFanCurveLists();
+    }
+
+    private List<FanItemViewModel> PairFanSensors(List<ISensor> sensors)
+    {
+        var controls = sensors.Where(s => s.SensorType == SensorType.Control).ToList();
+        var tachs    = sensors.Where(s => s.SensorType == SensorType.Fan).ToList();
+
+        var result = controls.Select(c => CreatePairedItem(c, tachs)).ToList();
+        result.AddRange(tachs.Where(t => !HasMatchingControl(t, controls))
+                             .Select(t => new FanItemViewModel(t, _hardwareService)));
+        return result;
+    }
+
+    private FanItemViewModel CreatePairedItem(ISensor control, List<ISensor> tachs)
+    {
+        var rpm = tachs.FirstOrDefault(t => t.Hardware == control.Hardware && t.Name == control.Name)
+               ?? tachs.FirstOrDefault(t => t.Hardware == control.Hardware && t.Index == control.Index);
+        return new FanItemViewModel(control, _hardwareService) { RpmSensor = rpm };
+    }
+
+    private static bool HasMatchingControl(ISensor tach, List<ISensor> controls)
+    {
+        return controls.Any(c => c.Hardware == tach.Hardware &&
+                                 (c.Name == tach.Name || c.Index == tach.Index));
+    }
+
+    /// <summary>
+    /// Refreshes every fan card's curve dropdown to the current curve names,
+    /// preserving the selection when it still exists.
+    /// </summary>
+    private void SyncFanCurveLists()
+    {
+        var names = Curves.Select(c => c.Name).ToList();
+        foreach (var fan in Fans)
+            SyncCurveList(fan, names);
+    }
+
+    private static void SyncCurveList(FanItemViewModel fan, List<string> names)
+    {
+        var selected = fan.SelectedCurve;
+        fan.AvailableCurves.Clear();
+        foreach (var name in names) fan.AvailableCurves.Add(name);
+        fan.SelectedCurve = names.Contains(selected) ? selected : "";
     }
 }
 

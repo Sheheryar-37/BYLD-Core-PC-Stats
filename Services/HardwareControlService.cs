@@ -51,10 +51,57 @@ public class HardwareControlService : IDisposable
         {
             _computer.Open();
             Log("LibreHardwareMonitor Computer opened successfully.");
+            VerifyRing0OrReclaim();
         }
         catch (Exception ex)
         {
             Log($"Error opening Computer: {ex.Message}");
+        }
+    }
+
+    /// <summary>
+    /// Ring0 sanity check: a foreign WinRing0 instance (e.g. OpenRGB's) lets
+    /// Computer.Open() succeed while every MSR-based sensor reads 0. When the
+    /// CPU temperature is unreadable, reclaim the driver and reopen once.
+    /// </summary>
+    private void VerifyRing0OrReclaim()
+    {
+        if (CanReadCpuTemperature()) return;
+
+        Log("[Ring0] CPU temperature unreadable after open — reclaiming WinRing0 and reopening…");
+        bool reclaimed = KernelDriverService.ForceReclaim(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
+        if (!reclaimed)
+        {
+            Log("[Ring0] Reclaim failed — MSR sensors will stay unavailable this session.");
+            return;
+        }
+
+        ReopenComputer();
+        Log(CanReadCpuTemperature()
+            ? "[Ring0] Reclaim successful — CPU temperature now readable ✓"
+            : "[Ring0] Reclaim did not restore sensor reads.");
+    }
+
+    private bool CanReadCpuTemperature()
+    {
+        var cpu = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.Cpu);
+        if (cpu == null) return false;
+
+        cpu.Update();
+        return cpu.Sensors.Any(s => s.SensorType == SensorType.Temperature && s.Value > 0);
+    }
+
+    private void ReopenComputer()
+    {
+        try
+        {
+            _computer.Close();
+            _computer.Open();
+        }
+        catch (Exception ex)
+        {
+            Log($"[Ring0] Reopen failed: {ex.Message}");
         }
     }
 
@@ -177,6 +224,30 @@ public class HardwareControlService : IDisposable
             
         Log("═══════════════════════════════════════════════════════════");
         return fanSensors;
+    }
+
+    /// <summary>
+    /// Returns every temperature sensor with a live value, across all hardware
+    /// and sub-hardware. Used to build the fan-curve temperature source list.
+    /// </summary>
+    public List<ISensor> GetTemperatureSensors()
+    {
+        var list = new List<ISensor>();
+        if (IsDemoMode) return list;
+
+        foreach (var hardware in _computer.Hardware)
+            CollectTemperatureSensors(hardware, list);
+        return list;
+    }
+
+    private static void CollectTemperatureSensors(IHardware hardware, List<ISensor> list)
+    {
+        hardware.Update();
+        list.AddRange(hardware.Sensors.Where(
+            s => s.SensorType == SensorType.Temperature && s.Value.HasValue));
+
+        foreach (var sub in hardware.SubHardware)
+            CollectTemperatureSensors(sub, list);
     }
 
     public void SetFanSpeed(ISensor controlSensor, float percentage)

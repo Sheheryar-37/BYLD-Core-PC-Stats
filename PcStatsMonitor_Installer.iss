@@ -47,8 +47,10 @@ Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{a
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
 
 [Run]
-; Start OpenRGB in server mode (background, hidden) before launching the main app
-Filename: "{app}\OpenRGB\OpenRGB.exe"; Parameters: "--server --server-port 6742"; Description: "Start OpenRGB Server"; Flags: nowait runhidden skipifdoesntexist; WorkingDir: "{app}\OpenRGB"
+; NOTE: OpenRGB must NOT be started here. If the installer launches it first,
+; OpenRGB loads its own WinRing0 kernel driver and BYLD Core's sensor driver
+; can no longer initialize (err 183). The app manages the OpenRGB server
+; itself, after the sensor driver is verified.
 ; Launch main application
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec; WorkingDir: "{app}"
 

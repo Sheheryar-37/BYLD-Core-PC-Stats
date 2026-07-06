@@ -57,6 +57,9 @@ public static class KernelDriverService
     private static extern bool ControlService(nint hSvc, uint control, ref SERVICE_STATUS status);
 
     [DllImport("advapi32.dll", SetLastError = true)]
+    private static extern bool QueryServiceStatus(nint hSvc, ref SERVICE_STATUS status);
+
+    [DllImport("advapi32.dll", SetLastError = true)]
     private static extern bool DeleteService(nint hSvc);
 
     [DllImport("advapi32.dll", SetLastError = true)]
@@ -84,6 +87,7 @@ public static class KernelDriverService
     private const uint DEMAND_START  = 0x3;
     private const uint ERR_IGNORE    = 0x0;
     private const uint SVC_STOP      = 0x1;        // SERVICE_CONTROL_STOP
+    private const uint SVC_RUNNING   = 0x4;        // SERVICE_RUNNING
     private const uint GENERIC_RW    = 0xC0000000; // GENERIC_READ | GENERIC_WRITE
     private const uint OPEN_EXISTING = 0x3;
 
@@ -126,9 +130,9 @@ public static class KernelDriverService
 
         logger.LogDebug("[Driver] Driver found at {p}", driverPath);
 
-        if (TryOpenDevice())
+        if (TryOpenDevice() && IsOurServiceRunning(driverPath, logger))
         {
-            logger.LogInformation("[Driver] WinRing0 device already available ✓");
+            logger.LogInformation("[Driver] WinRing0 running from our own driver ✓");
             return;
         }
 
@@ -137,11 +141,52 @@ public static class KernelDriverService
         AddDefenderExclusion(AppContext.BaseDirectory, logger);
         LogRegisteredImagePath(logger);
 
-        int err = InstallAndStartDriver(driverPath, logger);
+        int err = TryOpenDevice()
+            ? ReclaimForeignInstance(driverPath, logger)
+            : InstallAndStartDriver(driverPath, logger);
         if (err == E_ALREADY_EXISTS || err == E_MARKED_DELETE)
             err = RecoverFromConflict(driverPath, logger);
 
         ReportOutcome(err, logger);
+    }
+
+    /// <summary>
+    /// Forcefully unloads whatever WinRing0 instance is present (killing the
+    /// owning OpenRGB process if needed) and installs our driver. Called as a
+    /// runtime safety net when sensors read zero despite an openable device.
+    /// OpenRGB is relaunched later by the RGB connection flow.
+    /// </summary>
+    /// <returns>True when our driver was started and its device is openable.</returns>
+    public static bool ForceReclaim(ILogger logger)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return false;
+
+        try
+        {
+            var driverPath = Path.Combine(AppContext.BaseDirectory, DriverSysFile);
+            if (!File.Exists(driverPath)) return false;
+
+            int err = RecoverFromConflict(driverPath, logger);
+            return err == 0 && TryOpenDevice();
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[Driver] ForceReclaim failed.");
+            return false;
+        }
+    }
+
+    /// <summary>
+    /// The WinRing0 device exists but the service is not ours (or not running) —
+    /// typically OpenRGB's bundled copy. That instance opens fine but returns
+    /// zeroed data to LibreHardwareMonitor's sensor reads, so it must be
+    /// unloaded and replaced with our driver.
+    /// </summary>
+    private static int ReclaimForeignInstance(string driverPath, ILogger logger)
+    {
+        logger.LogWarning("[Driver] WinRing0 device exists but was loaded by another program — " +
+            "LibreHardwareMonitor cannot read sensors through it. Reclaiming…");
+        return RecoverFromConflict(driverPath, logger);
     }
 
     // ── Device probe ────────────────────────────────────────────────────────
@@ -154,6 +199,73 @@ public static class KernelDriverService
     {
         using var handle = CreateFile(DevicePath, GENERIC_RW, 0, 0, OPEN_EXISTING, 0, 0);
         return !handle.IsInvalid;
+    }
+
+    // ── Service ownership check ─────────────────────────────────────────────
+
+    /// <summary>
+    /// True only when the WinRing0 service points at our bundled driver file AND
+    /// is currently running — the one state where LibreHardwareMonitor's reads
+    /// are known to work. A merely-openable device is not proof (see err 183).
+    /// </summary>
+    private static bool IsOurServiceRunning(string driverPath, ILogger logger)
+    {
+        var imagePath = ReadServiceImagePath();
+        if (!ImagePathMatches(imagePath, driverPath))
+        {
+            logger.LogInformation("[Driver] WinRing0 service ImagePath is '{p}' — not our driver.",
+                imagePath ?? "(no service entry)");
+            return false;
+        }
+
+        return IsServiceRunning();
+    }
+
+    private static string? ReadServiceImagePath()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(ServiceRegKey);
+            return key?.GetValue("ImagePath")?.ToString();
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static bool ImagePathMatches(string? imagePath, string driverPath)
+    {
+        if (string.IsNullOrWhiteSpace(imagePath)) return false;
+
+        var normalized = imagePath.Trim('"').Replace(@"\??\", "");
+        return string.Equals(normalized, driverPath, StringComparison.OrdinalIgnoreCase);
+    }
+
+    private static bool IsServiceRunning()
+    {
+        var hScm = OpenSCManager(null, null, ALL_ACCESS);
+        if (hScm == 0) return false;
+
+        try
+        {
+            return QueryRunningState(hScm);
+        }
+        finally
+        {
+            CloseServiceHandle(hScm);
+        }
+    }
+
+    private static bool QueryRunningState(nint hScm)
+    {
+        var hSvc = OpenService(hScm, DriverName, SVC_ALL);
+        if (hSvc == 0) return false;
+
+        var status = new SERVICE_STATUS();
+        bool ok = QueryServiceStatus(hSvc, ref status);
+        CloseServiceHandle(hSvc);
+        return ok && status.dwCurrentState == SVC_RUNNING;
     }
 
     // ── Diagnostics ─────────────────────────────────────────────────────────

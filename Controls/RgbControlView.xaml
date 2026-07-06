@@ -201,6 +201,30 @@
                             Command="{Binding ApplyAllColorCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                             ToolTip="Click to apply one color or gradient to all devices"/>
                 </Grid>
+                <!-- Undo apply-to-all: restores each device's own mode + colors -->
+                <Button Content="↩ Restore per-device settings" HorizontalAlignment="Left" Margin="0,10,0,0"
+                        Padding="10,4" FontSize="10" Cursor="Hand"
+                        Foreground="#94A3B8" Background="#14FFFFFF" BorderBrush="#2A2A4A" BorderThickness="1"
+                        Command="{Binding RestoreAllCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                        IsEnabled="{Binding CanRestoreDevices}"
+                        ToolTip="Undo 'apply to all' — every device goes back to the mode and colors it had before">
+                    <Button.Template>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}"
+                                    BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6" Padding="{TemplateBinding Padding}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                            <ControlTemplate.Triggers>
+                                <Trigger Property="IsMouseOver" Value="True">
+                                    <Setter Property="Background" Value="#22FFFFFF"/>
+                                </Trigger>
+                                <Trigger Property="IsEnabled" Value="False">
+                                    <Setter Property="Opacity" Value="0.4"/>
+                                </Trigger>
+                            </ControlTemplate.Triggers>
+                        </ControlTemplate>
+                    </Button.Template>
+                </Button>
             </StackPanel>
         </Border>
 

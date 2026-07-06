@@ -8,12 +8,14 @@ public partial class RgbControlView : UserControl
 {
     public ICommand ChangeColorCommand { get; }
     public ICommand ApplyAllColorCommand { get; }
+    public ICommand RestoreAllCommand { get; }
 
     public RgbControlView()
     {
         InitializeComponent();
         ChangeColorCommand = new RelayCommand(ExecuteChangeColor);
         ApplyAllColorCommand = new RelayCommand(_ => ExecuteApplyAllColor());
+        RestoreAllCommand = new RelayCommand(_ => (DataContext as RgbControlViewModel)?.RestoreDeviceStates());
     }
 
     /// <summary>

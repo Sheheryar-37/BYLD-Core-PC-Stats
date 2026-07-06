@@ -233,7 +233,13 @@
                 <!-- CONTROLS HEADER -->
                 <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
                     <TextBlock Text="Controls" Foreground="{DynamicResource PageText}" FontWeight="Bold" FontSize="14"/>
-                    <Border CornerRadius="9" BorderBrush="{DynamicResource PageDimText}" BorderThickness="1" Width="18" Height="18" Margin="8,0">
+                    <Border CornerRadius="9" BorderBrush="{DynamicResource PageDimText}" BorderThickness="1" Width="18" Height="18" Margin="8,0"
+                            Cursor="Help" Background="Transparent"
+                            ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="30000">
+                        <Border.ToolTip>
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap"
+                                       Text="Each card is one controllable fan. Toggle ON to follow a fan curve (choose it in the dropdown); toggle OFF to set a static speed — type an exact percentage or use the +/− buttons. Step up/down, Start/Stop %, Offset and Minimum % fine-tune how speed changes are applied."/>
+                        </Border.ToolTip>
                         <TextBlock Text="?" Foreground="{DynamicResource PageDimText}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>
@@ -269,16 +275,23 @@
                                         </Button>
                                     </Grid>
 
-                                    <!-- Curve label + toggle + dropdown -->
-                                    <TextBlock Text="Curve" FontSize="9" Foreground="{StaticResource DimText}" Margin="40,0,0,2"/>
+                                    <!-- Mode label (Curve / Static) + toggle + curve dropdown -->
+                                    <Grid Margin="40,0,0,2" HorizontalAlignment="Left">
+                                        <TextBlock Text="Curve" FontSize="9" Foreground="{StaticResource DimText}"
+                                                   Visibility="{Binding IsAuto, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        <TextBlock Text="Static (manual %)" FontSize="9" Foreground="{StaticResource DimText}"
+                                                   Visibility="{Binding IsManual, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </Grid>
                                     <Grid Margin="0,0,0,10">
                                         <Grid.ColumnDefinitions>
                                             <ColumnDefinition Width="Auto"/>
                                             <ColumnDefinition Width="*"/>
                                         </Grid.ColumnDefinitions>
-                                        <ToggleButton IsChecked="{Binding IsAuto}" Style="{StaticResource ToggleSwitchStyle}" Margin="0,0,6,0" VerticalAlignment="Center"/>
-                                        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCurves}" SelectedItem="{Binding SelectedCurve}" 
-                                                  Style="{StaticResource GlassComboStyle}" Height="22" Cursor="Hand" VerticalAlignment="Center">
+                                        <ToggleButton IsChecked="{Binding IsAuto}" Style="{StaticResource ToggleSwitchStyle}" Margin="0,0,6,0" VerticalAlignment="Center"
+                                                      ToolTip="ON: follow the selected fan curve. OFF: static — type an exact speed percentage."/>
+                                        <ComboBox Grid.Column="1" ItemsSource="{Binding AvailableCurves}" SelectedItem="{Binding SelectedCurve}"
+                                                  Style="{StaticResource GlassComboStyle}" Height="22" Cursor="Hand" VerticalAlignment="Center"
+                                                  Visibility="{Binding IsAuto, Converter={StaticResource BooleanToVisibilityConverter}}">
                                             <ComboBox.Resources>
                                                 <SolidColorBrush x:Key="{x:Static SystemColors.WindowBrushKey}" Color="#1E1E2E"/>
                                                 <SolidColorBrush x:Key="{x:Static SystemColors.HighlightBrushKey}" Color="#3b82f6"/>
@@ -390,7 +403,13 @@
                 <!-- CURVES HEADER -->
                 <StackPanel Orientation="Horizontal" Margin="0,10,0,10">
                     <TextBlock Text="Curves" Foreground="{DynamicResource PageText}" FontWeight="Bold" FontSize="14"/>
-                    <Border CornerRadius="9" BorderBrush="{DynamicResource PageDimText}" BorderThickness="1" Width="18" Height="18" Margin="8,0">
+                    <Border CornerRadius="9" BorderBrush="{DynamicResource PageDimText}" BorderThickness="1" Width="18" Height="18" Margin="8,0"
+                            Cursor="Help" Background="Transparent"
+                            ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="30000">
+                        <Border.ToolTip>
+                            <TextBlock MaxWidth="300" TextWrapping="Wrap"
+                                       Text="A curve maps a temperature to a fan speed: the fan ramps from Min speed at Min temp up to Max speed at Max temp, following the selected temperature source. Create curves with the + button, then assign one to a fan from the fan card's Curve dropdown."/>
+                        </Border.ToolTip>
                         <TextBlock Text="?" Foreground="{DynamicResource PageDimText}" FontSize="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                     </Border>
                 </StackPanel>

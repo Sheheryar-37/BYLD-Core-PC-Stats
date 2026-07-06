@@ -137,6 +137,10 @@ public class RgbZoneViewModel : ViewModelBase
         // Persist the change
         RgbSettingsPersistence.SaveCurrentState();
     }
+
+    /// <summary>Re-sends the currently selected colours to the hardware,
+    /// even when the colour properties did not change.</summary>
+    public void ReapplyColor() => ApplyColor();
 }
 
 public class RgbDeviceViewModel : ViewModelBase
@@ -268,11 +272,24 @@ public class RgbControlViewModel : ViewModelBase
         set => SetProperty(ref _masterEndColor, value);
     }
 
+    private sealed record ZoneSnapshot(
+        System.Windows.Media.Color Color, bool IsGradient, System.Windows.Media.Color EndColor);
+    private sealed record DeviceSnapshot(string? Mode, List<ZoneSnapshot> Zones);
+
+    /// <summary>Per-device state captured just before the first "apply to all",
+    /// so the user can undo it. Null when nothing has been applied yet.</summary>
+    private Dictionary<string, DeviceSnapshot>? _preApplySnapshot;
+
+    /// <summary>True when an "apply to all" can be undone.</summary>
+    public bool CanRestoreDevices => _preApplySnapshot != null;
+
     /// <summary>
     /// Applies one colour (or gradient pattern) to every zone of every detected device.
     /// </summary>
     public void ApplyColorToAllZones(System.Windows.Media.Color color, bool isGradient, System.Windows.Media.Color endColor)
     {
+        CaptureSnapshotIfNeeded();
+
         MasterColor = color;
         MasterIsGradient = isGradient;
         MasterEndColor = endColor;
@@ -284,13 +301,72 @@ public class RgbControlViewModel : ViewModelBase
     private static void ApplyColorToDevice(RgbDeviceViewModel device,
         System.Windows.Media.Color color, bool isGradient, System.Windows.Media.Color endColor)
     {
+        // Devices sitting in a hardware effect (Rainbow, Breathing…) ignore or
+        // black out on direct LED writes (ENE DRAM does) — switch the device to
+        // a colour-capable mode first.
+        var colorMode = device.Modes.FirstOrDefault(m => m == "Direct")
+                     ?? device.Modes.FirstOrDefault(m => m == "Static");
+        if (colorMode != null && device.SelectedMode != colorMode)
+            device.SelectedMode = colorMode;
+
         foreach (var zone in device.Zones)
         {
             // Set gradient values before SelectedColor so ApplyColor uses them.
             zone.GradientEndColor = endColor;
             zone.IsGradient = isGradient;
             zone.SelectedColor = color;
+            zone.ReapplyColor();
         }
+    }
+
+    private void CaptureSnapshotIfNeeded()
+    {
+        if (_preApplySnapshot != null) return;
+
+        _preApplySnapshot = Devices.ToDictionary(SnapshotKey, SnapshotDevice);
+        OnPropertyChanged(nameof(CanRestoreDevices));
+    }
+
+    private static string SnapshotKey(RgbDeviceViewModel device) => $"{device.DeviceId}:{device.Name}";
+
+    private static DeviceSnapshot SnapshotDevice(RgbDeviceViewModel device)
+    {
+        var zones = device.Zones
+            .Select(z => new ZoneSnapshot(z.SelectedColor, z.IsGradient, z.GradientEndColor))
+            .ToList();
+        return new DeviceSnapshot(device.SelectedMode, zones);
+    }
+
+    /// <summary>
+    /// Undoes the last "apply to all": restores every device's mode and zone
+    /// colours captured just before the first apply-all of this session.
+    /// </summary>
+    public void RestoreDeviceStates()
+    {
+        if (_preApplySnapshot == null) return;
+
+        foreach (var device in Devices)
+            RestoreDevice(device);
+
+        _preApplySnapshot = null;
+        OnPropertyChanged(nameof(CanRestoreDevices));
+    }
+
+    private void RestoreDevice(RgbDeviceViewModel device)
+    {
+        if (!_preApplySnapshot!.TryGetValue(SnapshotKey(device), out var snapshot)) return;
+
+        if (snapshot.Mode != null) device.SelectedMode = snapshot.Mode;
+        for (int i = 0; i < device.Zones.Count && i < snapshot.Zones.Count; i++)
+            RestoreZone(device.Zones[i], snapshot.Zones[i]);
+    }
+
+    private static void RestoreZone(RgbZoneViewModel zone, ZoneSnapshot snapshot)
+    {
+        zone.GradientEndColor = snapshot.EndColor;
+        zone.IsGradient = snapshot.IsGradient;
+        zone.SelectedColor = snapshot.Color;
+        zone.ReapplyColor();
     }
 
     /// <summary>Recomputes the intersection of modes across all devices.</summary>
@@ -343,12 +419,20 @@ public class RgbControlViewModel : ViewModelBase
         _autoRefreshTimer?.Stop();
     }
 
+    private int _reconnectTicks;
+
     private void AutoRefreshDevices()
     {
         // Demo mode fakes IsConnected — polling the real server here would
         // return an empty list and wipe the demo cards.
         if (HardwareControlService.IsDemoMode) return;
-        if (IsLoading || !IsConnected) return;
+        if (IsLoading) return;
+
+        if (!IsConnected)
+        {
+            TryReconnect();
+            return;
+        }
 
         var devices = _hardwareService.GetRgbDevices();
         if (!HasDeviceListChanged(devices)) return;
@@ -359,6 +443,17 @@ public class RgbControlViewModel : ViewModelBase
 
         RebuildCommonModes();
         RgbSettingsPersistence.RestoreState(this);
+    }
+
+    /// <summary>
+    /// Attempts to re-establish the OpenRGB connection roughly every 30 s
+    /// (every 3rd auto-refresh tick) so the device list recovers without a
+    /// manual refresh once the server comes up or restarts as admin.
+    /// </summary>
+    private void TryReconnect()
+    {
+        if (++_reconnectTicks % 3 != 0) return;
+        Connect();
     }
 
     private bool HasDeviceListChanged(List<Device> devices)
