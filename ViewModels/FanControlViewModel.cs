@@ -419,6 +419,16 @@ public class FanControlViewModel : ViewModelBase
     {
         foreach (var fan in Fans)
             ApplyCurveToFan(fan);
+
+        foreach (var curve in Curves)
+            UpdateCurveReadout(curve);
+    }
+
+    /// <summary>Shows the live RPM of the (first) fan driven by this curve on the curve card.</summary>
+    private void UpdateCurveReadout(CurveItemViewModel curve)
+    {
+        var fan = Fans.FirstOrDefault(f => f.SelectedCurve == curve.Name && f.CurrentRpm > 0);
+        curve.CurrentRpm = fan?.CurrentRpm ?? 0;
     }
 
     private void ApplyCurveToFan(FanItemViewModel fan)
