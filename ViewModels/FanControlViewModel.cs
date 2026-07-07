@@ -444,7 +444,8 @@ public class FanControlViewModel : ViewModelBase
         float target = curve.EvaluateSpeed(temp.Value);
         if (Math.Abs(target - fan.SpeedPercentage) < 1f) return;
 
-        _hardwareService.SetFanSpeed(fan.Sensor, target);
+        _hardwareService.SetFanSpeed(fan.Sensor, target,
+            $"curve '{curve.Name}', {curve.TemperatureSource} = {temp.Value:F0}°C");
     }
 
     /// <summary>

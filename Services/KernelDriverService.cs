@@ -179,6 +179,61 @@ public static class KernelDriverService
         }
     }
 
+    /// <summary>
+    /// Functional Ring0 verification using a throwaway LibreHardwareMonitor
+    /// Computer: reads a CPU temperature and, when it is zero (a foreign or
+    /// broken WinRing0 instance serves the device), reclaims the driver and
+    /// probes once more. MUST run before any long-lived Computer instance is
+    /// created — LHM's Ring0 state is process-global, and closing/reopening
+    /// around live instances corrupts them (endless NREs in cpu.Update()).
+    /// </summary>
+    public static void VerifyRing0WithProbe(ILogger logger)
+    {
+        if (!RuntimeInformation.IsOSPlatform(OSPlatform.Windows)) return;
+
+        try
+        {
+            RunRing0Probe(logger);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "[Driver] Ring0 probe failed unexpectedly.");
+        }
+    }
+
+    private static void RunRing0Probe(ILogger logger)
+    {
+        if (ProbeCpuTemperature())
+        {
+            logger.LogInformation("[Driver] Ring0 probe OK — CPU temperature readable ✓");
+            return;
+        }
+
+        logger.LogWarning("[Driver] Ring0 probe: CPU temperature reads zero — reclaiming driver…");
+        ForceReclaim(logger);
+        logger.LogInformation(ProbeCpuTemperature()
+            ? "[Driver] Ring0 probe OK after reclaim ✓"
+            : "[Driver] Ring0 probe still failing after reclaim — CPU temp and case fans may show 0 this session.");
+    }
+
+    private static bool ProbeCpuTemperature()
+    {
+        var computer = new LibreHardwareMonitor.Hardware.Computer { IsCpuEnabled = true };
+        try
+        {
+            computer.Open();
+            var cpu = computer.Hardware.FirstOrDefault(
+                h => h.HardwareType == LibreHardwareMonitor.Hardware.HardwareType.Cpu);
+            cpu?.Update();
+            return cpu?.Sensors.Any(
+                s => s.SensorType == LibreHardwareMonitor.Hardware.SensorType.Temperature && s.Value > 0) == true;
+        }
+        finally
+        {
+            computer.Close();
+        }
+    }
+
     // ── Device probe ────────────────────────────────────────────────────────
 
     /// <summary>

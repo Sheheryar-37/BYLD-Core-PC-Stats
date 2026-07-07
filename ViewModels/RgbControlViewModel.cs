@@ -171,6 +171,26 @@ public class RgbDeviceViewModel : ViewModelBase
         }
     }
 
+    /// <summary>
+    /// Switches the lighting mode and sends the colour WITH the mode change, for
+    /// modes that carry mode-specific colours (e.g. ENE DRAM "Static"). Used by
+    /// apply-to-all so the device doesn't light up with its stale stored colour.
+    /// </summary>
+    public void ApplyModeWithColor(string modeName, System.Windows.Media.Color color)
+    {
+        if (!Modes.Contains(modeName)) return;
+
+        if (!HardwareControlService.IsDemoMode)
+        {
+            var orgb = new OpenRGB.NET.Color(color.R, color.G, color.B);
+            _hardwareService.RequestRgbEffect(DeviceId, modeName, orgb);
+        }
+
+        _selectedMode = modeName;
+        OnPropertyChanged(nameof(SelectedMode));
+        RgbSettingsPersistence.SaveCurrentState();
+    }
+
     public RgbDeviceViewModel(Device device, int deviceId, HardwareControlService hardwareService)
     {
         DeviceId = deviceId;
@@ -303,11 +323,15 @@ public class RgbControlViewModel : ViewModelBase
     {
         // Devices sitting in a hardware effect (Rainbow, Breathing…) ignore or
         // black out on direct LED writes (ENE DRAM does) — switch the device to
-        // a colour-capable mode first.
-        var colorMode = device.Modes.FirstOrDefault(m => m == "Direct")
-                     ?? device.Modes.FirstOrDefault(m => m == "Static");
-        if (colorMode != null && device.SelectedMode != colorMode)
-            device.SelectedMode = colorMode;
+        // a colour-capable mode first. Prefer "Static" over "Direct": Static is
+        // stored by the hardware itself, while Direct needs continuous refresh
+        // and drops back to black on devices like ENE DRAM once writes stop.
+        // The colour is sent WITH the mode change — mode-specific-colour devices
+        // otherwise light up with their stale stored colour (usually red).
+        var colorMode = device.Modes.FirstOrDefault(m => m == "Static")
+                     ?? device.Modes.FirstOrDefault(m => m == "Direct");
+        if (colorMode != null)
+            device.ApplyModeWithColor(colorMode, color);
 
         foreach (var zone in device.Zones)
         {

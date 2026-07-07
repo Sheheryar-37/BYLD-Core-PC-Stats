@@ -21,7 +21,7 @@ public partial class SettingsWindow : Window
     public ObservableCollection<string> ScreenRotationList { get; set; } = new();
     public ObservableCollection<PluginToggle> PluginSettings { get; set; } = new();
     
-    private PcStatsMonitor.Services.HardwareControlService? _hwControl;
+    private readonly PcStatsMonitor.Services.HardwareControlService _hwControl;
     
     public PcStatsMonitor.ViewModels.FanControlViewModel FanViewModel { get; }
     public PcStatsMonitor.ViewModels.RgbControlViewModel RgbViewModel { get; }
@@ -49,13 +49,17 @@ public partial class SettingsWindow : Window
         }
     }
 
-    public SettingsWindow(IThemeService themeService, PluginManager? pluginManager = null)
+    public SettingsWindow(IThemeService themeService, PcStatsMonitor.Services.HardwareControlService hwControl,
+        PluginManager? pluginManager = null)
     {
         InitializeComponent();
         _themeService = themeService;
         _pluginManager = pluginManager;
-        
-        _hwControl = new PcStatsMonitor.Services.HardwareControlService();
+
+        // Shared process-wide instance — never create a second HardwareControlService:
+        // LibreHardwareMonitor's Ring0 state is process-global and a second Computer
+        // (or disposing one) corrupts the others.
+        _hwControl = hwControl;
         FanViewModel = new PcStatsMonitor.ViewModels.FanControlViewModel(_hwControl);
         RgbViewModel = new PcStatsMonitor.ViewModels.RgbControlViewModel(_hwControl);
         
@@ -84,8 +88,8 @@ public partial class SettingsWindow : Window
     {
         FanViewModel.StopPolling();
         RgbViewModel.StopAutoRefresh();
-        _hwControl?.Dispose();
-        _hwControl = null;
+        // Do NOT dispose _hwControl: it is the process-wide shared instance and the
+        // main window / 7" display keep polling it after Settings closes.
         base.OnClosed(e);
     }
 

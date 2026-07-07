@@ -31,6 +31,10 @@ public partial class App : Application
             {
                 services.AddSingleton<LicenseService>();
                 services.AddSingleton<IThemeService, ThemeService>();
+                // ONE HardwareControlService for the whole process: LibreHardwareMonitor's
+                // Ring0 driver state is process-global, so multiple Computer instances
+                // corrupt each other when any of them closes (NRE storm on every poll).
+                services.AddSingleton<HardwareControlService>();
                 services.AddSingleton<IHardwareMonitorService, HardwareMonitorService>();
                 services.AddHostedService(provider => (HardwareMonitorService)provider.GetRequiredService<IHardwareMonitorService>());
                 services.AddSingleton<PcStatsMonitor.ViewModels.MainViewModel>();
@@ -49,9 +53,16 @@ public partial class App : Application
             if (args.ExceptionObject is Exception ex)
                 CrashLogger.LogCrash(ex, "AppDomain UnhandledException"); 
         };
-        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, args) => 
-        { 
-            CrashLogger.LogCrash(args.Exception, "UnobservedTaskException"); 
+        System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, args) =>
+        {
+            // OpenRGB.NET's socket read-loop throws aborted-I/O SocketExceptions when
+            // the connection closes (app exit, server restart). Benign — don't record
+            // them as crashes, or the crash log fills with noise on every shutdown.
+            bool benignSocketAbort = System.Linq.Enumerable.All(
+                args.Exception.Flatten().InnerExceptions,
+                ex => ex is System.Net.Sockets.SocketException);
+            if (!benignSocketAbort)
+                CrashLogger.LogCrash(args.Exception, "UnobservedTaskException");
             args.SetObserved();
         };
     }
@@ -87,9 +98,13 @@ public partial class App : Application
         // LibreHardwareMonitor can read CPU temperature and clock via MSR on first run.
         var startupLogger = _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
         SetSplashStatus("Installing hardware drivers...");
-        try 
+        try
         {
             KernelDriverService.EnsureInstalled(startupLogger);
+            // Functional Ring0 check with a throwaway probe, BEFORE any long-lived
+            // Computer instance opens — reclaiming after they exist corrupts
+            // LibreHardwareMonitor's shared static driver state.
+            KernelDriverService.VerifyRing0WithProbe(startupLogger);
         }
         catch (Exception kernelEx)
         {
@@ -195,8 +210,9 @@ public partial class App : Application
     private void ShowSettings()
     {
         var themeService = _host.Services.GetRequiredService<IThemeService>();
+        var hwControl = _host.Services.GetRequiredService<HardwareControlService>();
         var mainWindow = _host.Services.GetRequiredService<MainWindow>();
-        
+
         foreach (Window window in Current.Windows)
         {
             if (window is SettingsWindow)
@@ -205,7 +221,7 @@ public partial class App : Application
                 return;
             }
         }
-        var settingsWindow = new SettingsWindow(themeService, mainWindow.PluginManager);
+        var settingsWindow = new SettingsWindow(themeService, hwControl, mainWindow.PluginManager);
         settingsWindow.Show();
     }
 

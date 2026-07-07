@@ -49,58 +49,17 @@ public class HardwareControlService : IDisposable
         };
         try
         {
+            // Ring0 health is verified (and reclaimed if needed) at app startup by
+            // KernelDriverService.VerifyRing0WithProbe, BEFORE this instance opens.
+            // Never Close/reopen the Computer here at runtime: LibreHardwareMonitor's
+            // Ring0 state is process-global and other instances would be corrupted.
             _computer.Open();
             Log("LibreHardwareMonitor Computer opened successfully.");
-            VerifyRing0OrReclaim();
         }
         catch (Exception ex)
         {
             Log($"Error opening Computer: {ex.Message}");
         }
-    }
-
-    /// <summary>
-    /// Ring0 sanity check: a foreign WinRing0 instance (e.g. OpenRGB's) lets
-    /// Computer.Open() succeed while every MSR-based sensor reads 0. When the
-    /// CPU temperature is unreadable, reclaim the driver and reopen once.
-    /// </summary>
-    private void VerifyRing0OrReclaim()
-    {
-        if (CanReadCpuTemperature()) return;
-
-        Log("[Ring0] CPU temperature unreadable after open — reclaiming WinRing0 and reopening…");
-
-        // Release our own handle first: while LibreHardwareMonitor holds the
-        // WinRing0 device open, the foreign driver cannot be unloaded.
-        _computer.Close();
-        bool reclaimed = KernelDriverService.ForceReclaim(
-            Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance);
-        OpenComputer();
-
-        Log(CanReadCpuTemperature()
-            ? "[Ring0] Reclaim successful — CPU temperature now readable ✓"
-            : $"[Ring0] Reclaim did not restore sensor reads (reclaimed={reclaimed}).");
-    }
-
-    private void OpenComputer()
-    {
-        try
-        {
-            _computer.Open();
-        }
-        catch (Exception ex)
-        {
-            Log($"[Ring0] Reopen failed: {ex.Message}");
-        }
-    }
-
-    private bool CanReadCpuTemperature()
-    {
-        var cpu = _computer.Hardware.FirstOrDefault(h => h.HardwareType == HardwareType.Cpu);
-        if (cpu == null) return false;
-
-        cpu.Update();
-        return cpu.Sensors.Any(s => s.SensorType == SensorType.Temperature && s.Value > 0);
     }
 
     /// <summary>
@@ -246,7 +205,10 @@ public class HardwareControlService : IDisposable
             CollectTemperatureSensors(sub, list);
     }
 
-    public void SetFanSpeed(ISensor controlSensor, float percentage)
+    public void SetFanSpeed(ISensor controlSensor, float percentage) => SetFanSpeed(controlSensor, percentage, null);
+
+    /// <summary>Sets a fan control to a percentage; <paramref name="reason"/> adds log context (e.g. which curve).</summary>
+    public void SetFanSpeed(ISensor controlSensor, float percentage, string? reason)
     {
         if (controlSensor == null || controlSensor.SensorType != SensorType.Control) return;
         
@@ -256,7 +218,7 @@ public class HardwareControlService : IDisposable
             {
                 // percentage is 0-100
                 controlSensor.Control.SetSoftware(percentage);
-                Log($"[FAN] Set control '{controlSensor.Name}' to {percentage}%");
+                Log($"[FAN] Set control '{controlSensor.Name}' to {percentage:F0}%{(reason == null ? "" : $" ({reason})")}");
             }
         }
         catch (Exception ex)
@@ -412,74 +374,150 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    private int _lastRgbDeviceCount = -1;
+    private bool _loggedRgbDisconnected;
+
     public List<OpenRGB.NET.Device> GetRgbDevices()
     {
-        Log("Requesting all OpenRGB devices from server...");
-        if (!_isConnectedToRgb || _rgbClient == null) 
+        if (!_isConnectedToRgb || _rgbClient == null)
         {
-            Log("Not connected to OpenRGB.");
+            LogRgbDisconnectedOnce();
             return new List<OpenRGB.NET.Device>();
         }
-        
+
         try
         {
+            _loggedRgbDisconnected = false;
             var devices = _rgbClient.GetAllControllerData().ToList();
-            Log($"Received {devices.Count} OpenRGB devices.");
+            LogRgbDeviceCountChange(devices.Count);
             return devices;
         }
         catch (Exception ex)
         {
-            Log($"Error fetching OpenRGB devices: {ex.Message}");
+            Log($"[RGB] Error fetching OpenRGB devices: {ex.Message}");
             return new List<OpenRGB.NET.Device>();
         }
+    }
+
+    private void LogRgbDisconnectedOnce()
+    {
+        if (_loggedRgbDisconnected) return;
+        Log("[RGB] Not connected to OpenRGB — device queries paused until reconnect.");
+        _loggedRgbDisconnected = true;
+    }
+
+    private void LogRgbDeviceCountChange(int count)
+    {
+        if (count == _lastRgbDeviceCount) return;
+        Log($"[RGB] Device list changed: {count} devices (was {_lastRgbDeviceCount}).");
+        _lastRgbDeviceCount = count;
+    }
+
+    private static string Hex(OpenRGB.NET.Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+
+    private static string ActiveModeName(OpenRGB.NET.Device device)
+    {
+        bool valid = device.ActiveModeIndex >= 0 && device.ActiveModeIndex < device.Modes.Length;
+        return valid ? device.Modes[device.ActiveModeIndex].Name : "?";
     }
 
     public void UpdateRgbZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
-        
+
         try
         {
             var device = _rgbClient.GetControllerData(deviceId);
             var zone = device.Zones[zoneId];
             var colors = Enumerable.Repeat(color, (int)zone.LedCount).ToArray();
             _rgbClient.UpdateZoneLeds(deviceId, zoneId, colors);
+            Log($"[RGB→] '{device.Name}' zone '{zone.Name}': wrote {colors.Length} LEDs = {Hex(color)} " +
+                $"(active mode: {ActiveModeName(device)})");
         }
-        catch { /* Handle connection or index errors */ }
+        catch (Exception ex)
+        {
+            Log($"[RGB→] Zone write FAILED dev={deviceId} zone={zoneId} color={Hex(color)}: {ex.Message}");
+        }
     }
 
     public void UpdateRgbZoneColors(int deviceId, int zoneId, OpenRGB.NET.Color[] colors)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
-        
+
         try
         {
             _rgbClient.UpdateZoneLeds(deviceId, zoneId, colors);
+            Log($"[RGB→] dev={deviceId} zone={zoneId}: wrote {colors.Length} LEDs gradient {Hex(colors[0])} → {Hex(colors[^1])}");
         }
-        catch { /* Handle connection or index errors */ }
+        catch (Exception ex)
+        {
+            Log($"[RGB→] Gradient zone write FAILED dev={deviceId} zone={zoneId}: {ex.Message}");
+        }
     }
 
     public void RequestRgbEffect(int deviceId, string effectName)
     {
+        RequestRgbEffect(deviceId, effectName, null);
+    }
+
+    /// <summary>
+    /// Switches a device's lighting mode. When <paramref name="color"/> is provided
+    /// and the mode carries mode-specific colours (e.g. ENE DRAM "Static"), the
+    /// colour is sent WITH the mode change — without this the device applies its
+    /// stale stored mode colour (ENE defaults to red, which is what showed up on
+    /// the client's Trident Z Neo during apply-to-all).
+    /// </summary>
+    public void RequestRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
+    {
         if (!_isConnectedToRgb || _rgbClient == null) return;
-        
+
         try
         {
-            var device = _rgbClient.GetControllerData(deviceId);
-            var modeIndex = Array.FindIndex(device.Modes, m => m.Name.Equals(effectName, StringComparison.OrdinalIgnoreCase));
-            if (modeIndex >= 0)
-            {
-                var mode = device.Modes[modeIndex];
-                // Only force Custom Mode if we are switching to direct LED control
-                if (mode.Name.Contains("Direct", StringComparison.OrdinalIgnoreCase) || 
-                    mode.Name.Contains("Custom", StringComparison.OrdinalIgnoreCase))
-                {
-                    _rgbClient.SetCustomMode(deviceId); 
-                }
-                _rgbClient.UpdateMode(deviceId, modeIndex);
-            }
+            ApplyRgbEffect(deviceId, effectName, color);
         }
-        catch { }
+        catch (Exception ex)
+        {
+            Log($"[RGB→] Mode switch FAILED dev={deviceId} mode='{effectName}': {ex.Message}");
+        }
+    }
+
+    private void ApplyRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
+    {
+        var device = _rgbClient!.GetControllerData(deviceId);
+        var modeIndex = Array.FindIndex(device.Modes, m => m.Name.Equals(effectName, StringComparison.OrdinalIgnoreCase));
+        if (modeIndex < 0)
+        {
+            Log($"[RGB→] '{device.Name}': mode '{effectName}' NOT FOUND — device offers: " +
+                string.Join(", ", device.Modes.Select(m => m.Name)));
+            return;
+        }
+
+        var mode = device.Modes[modeIndex];
+        // Only force Custom Mode if we are switching to direct LED control
+        if (mode.Name.Contains("Direct", StringComparison.OrdinalIgnoreCase) ||
+            mode.Name.Contains("Custom", StringComparison.OrdinalIgnoreCase))
+        {
+            _rgbClient.SetCustomMode(deviceId);
+        }
+
+        var modeColors = BuildModeColors(mode, color);
+        _rgbClient.UpdateMode(deviceId, modeIndex, colors: modeColors);
+        Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
+            $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
+    }
+
+    /// <summary>
+    /// Builds the colour slots for a mode change: the target colour repeated for
+    /// however many colours the mode expects. Null when no colour was requested
+    /// or the mode has no colour slots (e.g. Rainbow, Spectrum Cycle).
+    /// </summary>
+    private static OpenRGB.NET.Color[]? BuildModeColors(OpenRGB.NET.Mode mode, OpenRGB.NET.Color? color)
+    {
+        if (color == null) return null;
+
+        int slots = (int)Math.Max(mode.ColorMax, (uint)(mode.Colors?.Length ?? 0));
+        if (slots == 0) return null;
+        return Enumerable.Repeat(color.Value, slots).ToArray();
     }
 
     public void Dispose()

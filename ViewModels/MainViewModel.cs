@@ -42,7 +42,7 @@ public class MainViewModel : ViewModelBase
     /// RGB ViewModel exposed for the RGB Display Screen to bind against.
     /// Populated with demo data automatically when demo mode is active.
     /// </summary>
-    public RgbControlViewModel Rgb { get; } = new(new HardwareControlService());
+    public RgbControlViewModel Rgb { get; }
     private bool _rgbDemoLoaded = false;
 
     private void UpdateLogoBrush()
@@ -66,10 +66,12 @@ public class MainViewModel : ViewModelBase
         LogoBrush = isLight ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.White;
     }
 
-    public MainViewModel(IHardwareMonitorService monitorService, IThemeService themeService)
+    public MainViewModel(IHardwareMonitorService monitorService, IThemeService themeService,
+        HardwareControlService hardwareControl)
     {
         _monitorService = monitorService;
         _themeService = themeService;
+        Rgb = new RgbControlViewModel(hardwareControl);
 
         _themeService.ThemeChanged += (s, theme) => 
         {

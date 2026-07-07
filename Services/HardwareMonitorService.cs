@@ -174,13 +174,13 @@ public interface IHardwareMonitorService
         foreach (var hardware in _computer.Hardware)
         {
             try { hardware.Update(); }
-            catch (Exception ex) { _logger.LogWarning(ex, "Failed to update hardware {hw}", hardware.Name); }
+            catch (Exception ex) { LogUpdateFailureOnce(hardware.Name, ex); }
 
             // Also update any sub-hardware (common on modern CPUs with chiplets)
             foreach (var sub in hardware.SubHardware)
             {
                 try { sub.Update(); }
-                catch (Exception ex) { _logger.LogWarning(ex, "Failed to update sub-hardware {hw}", sub.Name); }
+                catch (Exception ex) { LogUpdateFailureOnce(sub.Name, ex); }
             }
 
             ReadHardware(hardware, metrics);
@@ -194,22 +194,26 @@ public interface IHardwareMonitorService
         if (metrics.CpuTemp <= 0 && _cachedIgpuSocTemp > 0)
         {
             metrics.CpuTemp = _cachedIgpuSocTemp;
-            _logger.LogDebug("[CPU] Using AMD iGPU SoC temperature as CPU proxy: {t:F0}°C", _cachedIgpuSocTemp);
+            if (FirstTime("cpu:igpu-proxy"))
+                _logger.LogInformation("[CPU] CPU temp unreadable — using AMD iGPU SoC temperature as proxy (logged once).");
         }
 
         // ── Post-loop fallback: use discrete GPU fan/temp for motherboard gauge ─────────
-        _logger.LogDebug("[Board] Post-loop check: MBTemp={t:F0}°C | FanSpeed={f:F0} RPM | CachedGpuFan={gf:F0} RPM | CachedGpuTemp={gt:F0}°C",
-            metrics.MotherboardTemp, metrics.FanSpeed, _cachedDiscreteGpuFanRpm, _cachedDiscreteGpuTemp);
+        if (FirstTime("board:postloop"))
+            _logger.LogDebug("[Board] Post-loop check: MBTemp={t:F0}°C | FanSpeed={f:F0} RPM | CachedGpuFan={gf:F0} RPM | CachedGpuTemp={gt:F0}°C",
+                metrics.MotherboardTemp, metrics.FanSpeed, _cachedDiscreteGpuFanRpm, _cachedDiscreteGpuTemp);
 
         if (metrics.FanSpeed <= 0 && _cachedDiscreteGpuFanRpm >= 0)
         {
             metrics.FanSpeed = _cachedDiscreteGpuFanRpm;
-            _logger.LogDebug("[Board] → Using discrete GPU fan speed as fallback: {f:F0} RPM", _cachedDiscreteGpuFanRpm);
+            if (FirstTime("board:gpufan-fallback"))
+                _logger.LogInformation("[Board] No motherboard fan reading — using discrete GPU fan speed as fallback (logged once).");
         }
         if (metrics.MotherboardTemp <= 0 && _cachedDiscreteGpuTemp > 0)
         {
             metrics.MotherboardTemp = _cachedDiscreteGpuTemp;
-            _logger.LogDebug("[Board] → Using discrete GPU temp as VRM proxy: {t:F0}°C", _cachedDiscreteGpuTemp);
+            if (FirstTime("board:gputemp-fallback"))
+                _logger.LogInformation("[Board] No VRM temperature — using discrete GPU temp as proxy (logged once).");
         }
 
         try
@@ -302,10 +306,23 @@ public interface IHardwareMonitorService
             metrics.NetworkUp, metrics.NetworkDown);
     }
 
+    /// <summary>Keys already logged this session — keeps per-tick diagnostics non-repetitive.</summary>
+    private readonly HashSet<string> _loggedOnce = new();
+
+    /// <summary>True only the first time <paramref name="key"/> is seen this session.</summary>
+    private bool FirstTime(string key) => _loggedOnce.Add(key);
+
+    private void LogUpdateFailureOnce(string hardwareName, Exception ex)
+    {
+        if (FirstTime($"updatefail:{hardwareName}"))
+            _logger.LogWarning(ex, "Failed to update hardware {hw} (further identical errors suppressed this session)", hardwareName);
+    }
+
     private void ReadHardware(IHardware hardware, HardwareMetrics metrics)
     {
-        // Dump all sensor names to log on first read for diagnostics
-        if (_logger.IsEnabled(LogLevel.Debug))
+        // Dump all sensor names to log on FIRST read only — this previously ran
+        // every tick and single-handedly wrote megabytes of log per minute.
+        if (_logger.IsEnabled(LogLevel.Debug) && FirstTime($"sensordump:{hardware.Identifier}"))
         {
             foreach (var s in hardware.Sensors)
                 _logger.LogDebug("[{hw}] Sensor: [{type}] \"{name}\" = {val}", hardware.Name, s.SensorType, s.Name, s.Value);
@@ -313,7 +330,8 @@ public interface IHardwareMonitorService
 
         if (hardware.HardwareType == HardwareType.Cpu)
         {
-            _logger.LogDebug("[CPU] Processing '{hw}' (Type: {t})", hardware.Name, hardware.HardwareType);
+            if (FirstTime($"cpu:{hardware.Identifier}"))
+                _logger.LogDebug("[CPU] Processing '{hw}' (Type: {t})", hardware.Name, hardware.HardwareType);
 
             // ── CPU Temperature ──
             // For Zen 4 (Ryzen 7000): LHM exposes 'Core (Tctl/Tdie)' and per-core temps.
@@ -560,11 +578,13 @@ public interface IHardwareMonitorService
         }
         else if (hardware.HardwareType == HardwareType.Motherboard)
         {
-            // Log motherboard detection and what sub-hardware is available
+            // Log motherboard detection and what sub-hardware is available — ONCE
+            // per session; this used to repeat every second.
             var sensorCount = hardware.Sensors.Length;
             var subHwCount = hardware.SubHardware.Length;
-            _logger.LogInformation("[Board] Motherboard detected: '{n}' | Sensors={s} | SubHardware={sub}",
-                hardware.Name, sensorCount, subHwCount);
+            if (FirstTime($"board:{hardware.Identifier}"))
+                _logger.LogInformation("[Board] Motherboard detected: '{n}' | Sensors={s} | SubHardware={sub}",
+                    hardware.Name, sensorCount, subHwCount);
 
             // Fetch any fans on the direct board level
             foreach (var s in hardware.Sensors)
@@ -577,11 +597,16 @@ public interface IHardwareMonitorService
 
             // List all sub-hardware types (SuperIO chips are where VRM/Fan data comes from)
             foreach (var sub in hardware.SubHardware)
-                _logger.LogInformation("[Board]   SubHW: '{n}' (Type={t}, Sensors={s})",
-                    sub.Name, sub.HardwareType, sub.Sensors.Length);
+            {
+                if (FirstTime($"board:sub:{sub.Identifier}"))
+                    _logger.LogInformation("[Board]   SubHW: '{n}' (Type={t}, Sensors={s})",
+                        sub.Name, sub.HardwareType, sub.Sensors.Length);
+            }
 
-            if (subHwCount == 0)
-                _logger.LogWarning("[Board] ⚠ No sub-hardware (Super I/O) detected — HVCI/VBS likely blocking port I/O access. VRM temp and fan speed will use GPU fallback.");
+            if (subHwCount == 0 && FirstTime("board:no-superio"))
+                _logger.LogWarning("[Board] ⚠ No sub-hardware (Super I/O) detected — the sensor driver cannot reach " +
+                    "the I/O chip, or LibreHardwareMonitor does not support it. VRM temp and fan speed will use GPU " +
+                    "fallback. (logged once per session)");
         }
         else if (hardware.HardwareType == HardwareType.SuperIO)
         {
@@ -590,14 +615,18 @@ public interface IHardwareMonitorService
             var fanSensors  = hardware.Sensors.Where(s => s.SensorType == SensorType.Fan).ToList();
             var voltSensors = hardware.Sensors.Where(s => s.SensorType == SensorType.Voltage).ToList();
 
-            _logger.LogInformation("[SuperIO] '{n}' | TempSensors={tc} | FanSensors={fc} | VoltageSensors={vc}",
-                hardware.Name, tempSensors.Count, fanSensors.Count, voltSensors.Count);
+            if (FirstTime($"superio:{hardware.Identifier}"))
+            {
+                _logger.LogInformation("[SuperIO] '{n}' | TempSensors={tc} | FanSensors={fc} | VoltageSensors={vc}",
+                    hardware.Name, tempSensors.Count, fanSensors.Count, voltSensors.Count);
+                foreach (var t in tempSensors)
+                    _logger.LogDebug("[SuperIO]   Temp: '{n}' = {v}°C", t.Name, t.Value);
+                foreach (var f in fanSensors)
+                    _logger.LogDebug("[SuperIO]   Fan:  '{n}' = {v} RPM", f.Name, f.Value);
+            }
 
-            foreach (var t in tempSensors)
-                _logger.LogDebug("[SuperIO]   Temp: '{n}' = {v}°C", t.Name, t.Value);
             foreach (var f in fanSensors)
             {
-                _logger.LogDebug("[SuperIO]   Fan:  '{n}' = {v} RPM", f.Name, f.Value);
                 if (f.Value.HasValue) metrics.Fans.Add(new FanMetric { Name = f.Name, Speed = f.Value.Value });
             }
 

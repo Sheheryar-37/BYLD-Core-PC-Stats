@@ -22,12 +22,15 @@ public partial class MainWindow : Window
     public PluginManager PluginManager => _pluginManager;
     private PluginManager _pluginManager;
     private MouseHookService _mouseHook;
+    private readonly Services.HardwareControlService _hwControl;
 
-    public MainWindow(MainViewModel viewModel, IThemeService themeService, Microsoft.Extensions.Logging.ILogger<MainWindow> logger)
+    public MainWindow(MainViewModel viewModel, IThemeService themeService,
+        Services.HardwareControlService hwControl, Microsoft.Extensions.Logging.ILogger<MainWindow> logger)
     {
         InitializeComponent();
         DataContext = viewModel;
         _themeService = themeService;
+        _hwControl = hwControl;
         _logger = logger;
         
         _mouseHook = new MouseHookService();
@@ -574,7 +577,7 @@ public partial class MainWindow : Window
         // Must disable Topmost so SettingsWindow can appear above it
         this.Topmost = false;
         
-        var settingsWindow = new SettingsWindow(_themeService, _pluginManager);
+        var settingsWindow = new SettingsWindow(_themeService, _hwControl, _pluginManager);
         settingsWindow.Owner = this;
         settingsWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
         
