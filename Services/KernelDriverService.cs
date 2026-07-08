@@ -201,19 +201,80 @@ public static class KernelDriverService
         }
     }
 
+    private static string ReclaimMarkerPath =>
+        Path.Combine(AppContext.BaseDirectory, "settings", "ring0_reclaim_attempted.marker");
+
     private static void RunRing0Probe(ILogger logger)
     {
         if (ProbeCpuTemperature())
         {
             logger.LogInformation("[Driver] Ring0 probe OK — CPU temperature readable ✓");
+            TryDeleteReclaimMarker();
             return;
         }
 
-        logger.LogWarning("[Driver] Ring0 probe: CPU temperature reads zero — reclaiming driver…");
+        // Reclaiming stops kernel services and (previously) killed OpenRGB. When it
+        // cannot actually fix the reads — e.g. this Windows build blocks WinRing0's
+        // sensor access altogether — repeating it on every launch is pure risk:
+        // killing OpenRGB mid-SMBus-write can hard-freeze the whole system.
+        if (File.Exists(ReclaimMarkerPath))
+        {
+            logger.LogWarning("[Driver] Ring0 probe: CPU temperature reads zero. A reclaim was already " +
+                "attempted on this install without success — skipping. CPU temp and case fans will show 0.");
+            return;
+        }
+
+        if (Process.GetProcessesByName("OpenRGB").Length > 0)
+        {
+            logger.LogWarning("[Driver] Ring0 probe: CPU temperature reads zero, but OpenRGB is running — " +
+                "skipping reclaim (stopping OpenRGB mid-SMBus-write can hang the system). " +
+                "Will retry on a launch where OpenRGB is not running.");
+            return;
+        }
+
+        logger.LogWarning("[Driver] Ring0 probe: CPU temperature reads zero — reclaiming driver (one attempt per install)…");
         ForceReclaim(logger);
-        logger.LogInformation(ProbeCpuTemperature()
-            ? "[Driver] Ring0 probe OK after reclaim ✓"
-            : "[Driver] Ring0 probe still failing after reclaim — CPU temp and case fans may show 0 this session.");
+        ReportProbeOutcome(logger);
+    }
+
+    private static void ReportProbeOutcome(ILogger logger)
+    {
+        if (ProbeCpuTemperature())
+        {
+            logger.LogInformation("[Driver] Ring0 probe OK after reclaim ✓");
+            return;
+        }
+
+        WriteReclaimMarker(logger);
+        logger.LogWarning("[Driver] Ring0 probe still failing after reclaim — marked as attempted; " +
+            "no further automatic reclaims on this install. CPU temp and case fans will show 0.");
+    }
+
+    private static void WriteReclaimMarker(ILogger logger)
+    {
+        try
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(ReclaimMarkerPath)!);
+            File.WriteAllText(ReclaimMarkerPath,
+                $"Reclaim attempted {DateTime.Now:yyyy-MM-dd HH:mm:ss} — probe still failing. " +
+                "Delete this file to allow another automatic reclaim attempt.");
+        }
+        catch (Exception ex)
+        {
+            logger.LogDebug(ex, "[Driver] Could not write reclaim marker.");
+        }
+    }
+
+    private static void TryDeleteReclaimMarker()
+    {
+        try
+        {
+            if (File.Exists(ReclaimMarkerPath)) File.Delete(ReclaimMarkerPath);
+        }
+        catch
+        {
+            // Non-fatal: marker cleanup only affects future reclaim attempts.
+        }
     }
 
     private static bool ProbeCpuTemperature()

@@ -11,10 +11,14 @@
         <SolidColorBrush x:Key="WarnText" Color="#FFB0B0"/>
         <SolidColorBrush x:Key="RgbCardBg" Color="#0C0C1A"/>
         <SolidColorBrush x:Key="RgbCardBorder" Color="#1A1A35"/>
+        <SolidColorBrush x:Key="RgbCardText" Color="#F1F5F9"/>
+        <SolidColorBrush x:Key="RgbDimText" Color="#94A3B8"/>
+        <SolidColorBrush x:Key="RgbInputBg" Color="#1A1A2E"/>
+        <SolidColorBrush x:Key="RgbInputBorder" Color="#2A2A4A"/>
         
         <!-- ═══ Dark ComboBox Toggle ═══ -->
         <ControlTemplate x:Key="DarkComboToggle" TargetType="ToggleButton">
-            <Border x:Name="Border" CornerRadius="6" Background="#1A1A2E" BorderBrush="#2A2A4A" BorderThickness="1" Padding="10,6">
+            <Border x:Name="Border" CornerRadius="6" Background="{DynamicResource RgbInputBg}" BorderBrush="{DynamicResource RgbInputBorder}" BorderThickness="1" Padding="10,6">
                 <Grid>
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="*"/>
@@ -26,9 +30,10 @@
                 </Grid>
             </Border>
             <ControlTemplate.Triggers>
+                <!-- Hover feedback is the blue border only — a hardcoded dark hover
+                     background made the dropdown unreadable in light mode. -->
                 <Trigger Property="IsMouseOver" Value="True">
                     <Setter TargetName="Border" Property="BorderBrush" Value="#3B82F6"/>
-                    <Setter TargetName="Border" Property="Background" Value="#1E1E36"/>
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter TargetName="Border" Property="BorderBrush" Value="#3B82F6"/>
@@ -38,7 +43,7 @@
 
         <!-- ═══ Dark ComboBox Style ═══ -->
         <Style x:Key="RgbComboStyle" TargetType="ComboBox">
-            <Setter Property="Foreground" Value="#E2E8F0"/>
+            <Setter Property="Foreground" Value="{DynamicResource RgbCardText}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="FontWeight" Value="SemiBold"/>
             <Setter Property="Template">
@@ -48,20 +53,21 @@
                             <ToggleButton Template="{StaticResource DarkComboToggle}" 
                                           Focusable="False" 
                                           IsChecked="{Binding Path=IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
-                            <ContentPresenter Name="ContentSite" Margin="12,6,32,6" VerticalAlignment="Center" 
+                            <ContentPresenter Name="ContentSite" Margin="12,6,32,6" VerticalAlignment="Center"
                                               HorizontalAlignment="Left" IsHitTestVisible="False"
-                                              Content="{TemplateBinding SelectionBoxItem}" 
+                                              TextElement.Foreground="{DynamicResource RgbCardText}"
+                                              Content="{TemplateBinding SelectionBoxItem}"
                                               ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
                             <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" 
                                    AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
                                 <Grid SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" 
                                       MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                    <Border Background="#16162A" BorderThickness="1" BorderBrush="#2A2A4A" CornerRadius="6" Margin="0,2,0,0">
+                                    <Border Background="{DynamicResource RgbInputBg}" BorderThickness="1" BorderBrush="{DynamicResource RgbInputBorder}" CornerRadius="6" Margin="0,2,0,0">
                                         <Border.Effect>
                                             <DropShadowEffect BlurRadius="12" ShadowDepth="4" Opacity="0.4" Color="#000000"/>
                                         </Border.Effect>
                                     </Border>
-                                    <Border Background="#16162A" CornerRadius="6" Margin="0,2,0,0">
+                                    <Border Background="{DynamicResource RgbInputBg}" CornerRadius="6" Margin="0,2,0,0">
                                         <ScrollViewer Margin="4,6" SnapsToDevicePixels="True">
                                             <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
                                         </ScrollViewer>
@@ -76,7 +82,7 @@
 
         <!-- ═══ Dark ComboBoxItem Style ═══ -->
         <Style x:Key="RgbComboItemStyle" TargetType="ComboBoxItem">
-            <Setter Property="Foreground" Value="#C8CDD5"/>
+            <Setter Property="Foreground" Value="{DynamicResource RgbCardText}"/>
             <Setter Property="FontSize" Value="12"/>
             <Setter Property="Padding" Value="10,6"/>
             <Setter Property="Template">
@@ -90,9 +96,10 @@
                                 <Setter TargetName="Bg" Property="Background" Value="#2563EB"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
+                            <!-- Solid BrandBlue + white works on both the light and dark popup -->
                             <Trigger Property="IsSelected" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="#1E3A5F"/>
-                                <Setter Property="Foreground" Value="#93C5FD"/>
+                                <Setter TargetName="Bg" Property="Background" Value="#3B82F6"/>
+                                <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -204,7 +211,7 @@
                 <!-- Undo apply-to-all: restores each device's own mode + colors -->
                 <Button Content="↩ Restore per-device settings" HorizontalAlignment="Left" Margin="0,10,0,0"
                         Padding="10,4" FontSize="10" Cursor="Hand"
-                        Foreground="#94A3B8" Background="#14FFFFFF" BorderBrush="#2A2A4A" BorderThickness="1"
+                        Foreground="{DynamicResource RgbDimText}" Background="#14FFFFFF" BorderBrush="{DynamicResource RgbInputBorder}" BorderThickness="1"
                         Command="{Binding RestoreAllCommand, RelativeSource={RelativeSource AncestorType=UserControl}}"
                         IsEnabled="{Binding CanRestoreDevices}"
                         ToolTip="Undo 'apply to all' — every device goes back to the mode and colors it had before">
@@ -261,7 +268,7 @@
                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" Foreground="#F1F5F9" FontWeight="Bold" FontSize="14"/>
+                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource RgbCardText}" FontWeight="Bold" FontSize="14"/>
                                     <TextBlock Text="{Binding Type, StringFormat='({0})'}" Foreground="#64748B" FontSize="11" Margin="0,1,0,0"/>
                                 </StackPanel>
                             </StackPanel>
@@ -297,7 +304,7 @@
                                                         <ColumnDefinition Width="Auto"/>
                                                     </Grid.ColumnDefinitions>
                                                     <StackPanel VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding Name}" Foreground="#CBD5E1" FontSize="12" 
+                                                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource RgbCardText}" FontSize="12" 
                                                                    TextTrimming="CharacterEllipsis"/>
                                                         <TextBlock Text="{Binding LedCount, StringFormat='{}{0} LEDs'}" 
                                                                    Foreground="#475569" FontSize="9" Margin="0,1,0,0"/>
@@ -335,7 +342,7 @@
             </Border.Style>
             <StackPanel HorizontalAlignment="Center">
                 <TextBlock Text="⚡" FontSize="24" HorizontalAlignment="Center" Margin="0,0,0,8"/>
-                <TextBlock Text="RGB Not Connected" Foreground="#94A3B8" FontSize="13" FontWeight="SemiBold" 
+                <TextBlock Text="RGB Not Connected" Foreground="{DynamicResource RgbDimText}" FontSize="13" FontWeight="SemiBold" 
                            HorizontalAlignment="Center" Margin="0,0,0,4"/>
                 <TextBlock Text="To enable RGB control:" 
                            Foreground="#475569" FontSize="11" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Left" 
@@ -343,23 +350,22 @@
                 <TextBlock Text="1. Download and install OpenRGB from openrgb.org&#x0a;2. Open OpenRGB and go to the 'SDK Server' tab&#x0a;3. Click 'Start Server' (or check 'Autostart Server' in Settings)&#x0a;4. Click Connect below" 
                            Foreground="#475569" FontSize="11" TextWrapping="Wrap" TextAlignment="Left" 
                            HorizontalAlignment="Left" Margin="0,0,0,12"/>
-                <Button Content="Connect to OpenRGB" Command="{Binding ConnectCommand}" 
-                        Width="140" Height="30" Cursor="Hand" FontSize="11" FontWeight="SemiBold">
+                <Button Content="Connect to OpenRGB" Command="{Binding ConnectCommand}"
+                        Width="140" Height="30" Cursor="Hand" FontSize="11" FontWeight="SemiBold"
+                        Foreground="White">
                     <Button.Template>
                         <ControlTemplate TargetType="Button">
-                            <Border x:Name="Bg" CornerRadius="6" Background="#1E3A5F" BorderBrush="#2563EB" BorderThickness="1">
+                            <!-- Solid BrandBlue reads correctly on both themes -->
+                            <Border x:Name="Bg" CornerRadius="6" Background="#2563EB" BorderBrush="#2563EB" BorderThickness="1">
                                 <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                             </Border>
                             <ControlTemplate.Triggers>
                                 <Trigger Property="IsMouseOver" Value="True">
-                                    <Setter TargetName="Bg" Property="Background" Value="#2563EB"/>
+                                    <Setter TargetName="Bg" Property="Background" Value="#3B82F6"/>
                                 </Trigger>
                             </ControlTemplate.Triggers>
                         </ControlTemplate>
                     </Button.Template>
-                    <Button.Foreground>
-                        <SolidColorBrush Color="#93C5FD"/>
-                    </Button.Foreground>
                 </Button>
             </StackPanel>
         </Border>

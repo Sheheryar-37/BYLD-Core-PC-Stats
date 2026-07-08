@@ -44,39 +44,24 @@ public interface IHardwareMonitorService
     
     public event EventHandler<HardwareMetrics>? MetricsUpdated;
 
-    public HardwareMonitorService(ILogger<HardwareMonitorService> logger, IThemeService themeService)
+    public HardwareMonitorService(ILogger<HardwareMonitorService> logger, IThemeService themeService,
+        HardwareControlService hardwareControl)
     {
         _logger = logger;
         _themeService = themeService;
-        
-        var config = _themeService.CurrentTheme;
 
-        _computer = new Computer
+        // Share the process-wide Computer owned by HardwareControlService — a second
+        // Computer instance loses GPU fan/control sensors (AMD ADL is process-global)
+        // and risks corrupting LHM's shared Ring0 state.
+        _computer = hardwareControl.Computer;
+
+        // Allow 2 seconds for initial polling to complete before taking a diagnostic snapshot.
+        // This ensures that the snapshot contains actual sensor values instead of 0s.
+        System.Threading.Tasks.Task.Run(async () =>
         {
-            IsCpuEnabled = true,
-            IsGpuEnabled = true,
-            IsMemoryEnabled = true,
-            IsStorageEnabled = true,
-            IsMotherboardEnabled = true,
-            IsControllerEnabled = true,
-            IsNetworkEnabled = true,
-            IsBatteryEnabled = true
-        };
-        
-        try
-        {
-            _computer.Open();
-            // Allow 2 seconds for initial polling to complete before taking a diagnostic snapshot.
-            // This ensures that the snapshot contains actual sensor values instead of 0s.
-            System.Threading.Tasks.Task.Run(async () => {
-                await System.Threading.Tasks.Task.Delay(2000);
-                SensorStartupLogger.LogHardwareSnapshot(_computer, _logger);
-            });
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to initialize LibreHardwareMonitor");
-        }
+            await System.Threading.Tasks.Task.Delay(2000);
+            SensorStartupLogger.LogHardwareSnapshot(_computer, _logger);
+        });
 
         // Warm up PerformanceCounter — first call always returns 0, second call returns real data.
         // Do this in background so startup is not delayed.
@@ -161,7 +146,7 @@ public interface IHardwareMonitorService
         }
         
         SensorStartupLogger.LogHardwareSnapshot(_computer, _logger, "EXIT");
-        _computer.Close();
+        // The shared Computer is owned and closed by HardwareControlService.Dispose().
     }
 
     /// <summary>

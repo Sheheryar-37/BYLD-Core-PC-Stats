@@ -37,6 +37,14 @@ public class HardwareControlService : IDisposable
         catch { }
     }
 
+    /// <summary>
+    /// The single LibreHardwareMonitor Computer for the whole process, shared with
+    /// HardwareMonitorService. LHM's Ring0 driver state and AMD's ADL library are
+    /// process-global: a second Computer instance either corrupts the first or
+    /// silently loses GPU fan/control sensors (whichever opens first wins ADL).
+    /// </summary>
+    public Computer Computer => _computer;
+
     public HardwareControlService()
     {
         Log("Initializing HardwareControlService...");
@@ -45,7 +53,11 @@ public class HardwareControlService : IDisposable
             IsCpuEnabled = true,
             IsGpuEnabled = true,
             IsMotherboardEnabled = true,
-            IsControllerEnabled = true // Required for Fan Control
+            IsControllerEnabled = true, // Required for Fan Control
+            IsMemoryEnabled = true,     // The following are read by HardwareMonitorService,
+            IsStorageEnabled = true,    // which shares this Computer instance.
+            IsNetworkEnabled = true,
+            IsBatteryEnabled = true
         };
         try
         {
@@ -415,6 +427,25 @@ public class HardwareControlService : IDisposable
 
     private static string Hex(OpenRGB.NET.Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
 
+    // ── Duplicate-write suppression ─────────────────────────────────────────
+    // Identical writes fired in rapid succession (auto-refresh restore colliding
+    // with a user action, multiple bindings settling) hammer the DRAM SMBus and
+    // have hard-frozen a client machine. Identical payloads within this window
+    // are skipped; different payloads always go through.
+    private static readonly TimeSpan DuplicateWriteWindow = TimeSpan.FromSeconds(1);
+    private readonly Dictionary<string, (string payload, DateTime at)> _lastRgbWrites = new();
+
+    /// <summary>True when the identical payload was already sent to this target within the window.</summary>
+    private bool IsDuplicateRgbWrite(string target, string payload)
+    {
+        bool duplicate = _lastRgbWrites.TryGetValue(target, out var last) &&
+                         last.payload == payload &&
+                         DateTime.UtcNow - last.at < DuplicateWriteWindow;
+        if (!duplicate)
+            _lastRgbWrites[target] = (payload, DateTime.UtcNow);
+        return duplicate;
+    }
+
     private static string ActiveModeName(OpenRGB.NET.Device device)
     {
         bool valid = device.ActiveModeIndex >= 0 && device.ActiveModeIndex < device.Modes.Length;
@@ -424,6 +455,11 @@ public class HardwareControlService : IDisposable
     public void UpdateRgbZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
+        if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", Hex(color)))
+        {
+            Log($"[RGB→] deduped identical zone write dev={deviceId} zone={zoneId} {Hex(color)}");
+            return;
+        }
 
         try
         {
@@ -443,6 +479,11 @@ public class HardwareControlService : IDisposable
     public void UpdateRgbZoneColors(int deviceId, int zoneId, OpenRGB.NET.Color[] colors)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
+        if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", $"{Hex(colors[0])}→{Hex(colors[^1])}×{colors.Length}"))
+        {
+            Log($"[RGB→] deduped identical gradient write dev={deviceId} zone={zoneId}");
+            return;
+        }
 
         try
         {
@@ -470,6 +511,11 @@ public class HardwareControlService : IDisposable
     public void RequestRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
+        if (IsDuplicateRgbWrite($"mode:{deviceId}", $"{effectName}|{(color == null ? "" : Hex(color.Value))}"))
+        {
+            Log($"[RGB→] deduped identical mode switch dev={deviceId} '{effectName}'");
+            return;
+        }
 
         try
         {

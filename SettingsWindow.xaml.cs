@@ -122,6 +122,7 @@ public partial class SettingsWindow : Window
         theme.LiquidGlassEnabled = TglLiquidGlass.IsChecked == true;
         _themeService.SaveTheme();
         ApplyUiTheme();
+        LoadClockSettings(); // clock face tiles are code-built with the theme baked in
     }
 
     /// <summary>
@@ -164,14 +165,23 @@ public partial class SettingsWindow : Window
     /// </summary>
     private void ApplyEmbeddedViewTheme(bool light, bool glass)
     {
-        SetBrushIn(FanView.Resources, "CardBg",      light ? "#FF1B2440" : (glass ? "#0AFFFFFF" : "#FF1D1D28"));
-        SetBrushIn(FanView.Resources, "CardBorder",  light ? "#FF2C3A63" : (glass ? "#1AFFFFFF" : "#FF33334A"));
+        SetBrushIn(FanView.Resources, "CardBg",      light ? "#FFFFFFFF" : (glass ? "#0AFFFFFF" : "#FF1D1D28"));
+        SetBrushIn(FanView.Resources, "CardBorder",  light ? "#26000000" : (glass ? "#1AFFFFFF" : "#FF33334A"));
+        SetBrushIn(FanView.Resources, "CardText",    light ? "#FF1E293B" : "#FFFFFFFF");
+        SetBrushIn(FanView.Resources, "DimText",     light ? "#FF64748B" : "#88FFFFFF");
+        SetBrushIn(FanView.Resources, "CardFill",    light ? "#14000000" : "#11FFFFFF");
+        SetBrushIn(FanView.Resources, "CardStroke",  light ? "#26000000" : "#22FFFFFF");
+        SetBrushIn(FanView.Resources, "FanPopupBg",  light ? "#FFFFFFFF" : "#FF1E1E2E");
         SetBrushIn(FanView.Resources, "PageText",    light ? "#FF1E293B" : "#FFFFFFFF");
         SetBrushIn(FanView.Resources, "PageDimText", light ? "#FF64748B" : "#88FFFFFF");
         SetBrushIn(FanView.Resources, "WarnText",    light ? "#FFB03A44" : "#FFFFB0B0");
-        SetBrushIn(RgbView.Resources, "WarnText",      light ? "#FFB03A44" : "#FFFFB0B0");
-        SetBrushIn(RgbView.Resources, "RgbCardBg",     light ? "#FF1B2440" : "#FF0C0C1A");
-        SetBrushIn(RgbView.Resources, "RgbCardBorder", light ? "#FF2C3A63" : "#FF1A1A35");
+        SetBrushIn(RgbView.Resources, "WarnText",        light ? "#FFB03A44" : "#FFFFB0B0");
+        SetBrushIn(RgbView.Resources, "RgbCardBg",       light ? "#FFFFFFFF" : "#FF0C0C1A");
+        SetBrushIn(RgbView.Resources, "RgbCardBorder",   light ? "#26000000" : "#FF1A1A35");
+        SetBrushIn(RgbView.Resources, "RgbCardText",     light ? "#FF1E293B" : "#FFF1F5F9");
+        SetBrushIn(RgbView.Resources, "RgbDimText",      light ? "#FF64748B" : "#FF94A3B8");
+        SetBrushIn(RgbView.Resources, "RgbInputBg",      light ? "#FFEFF2F7" : "#FF1A1A2E");
+        SetBrushIn(RgbView.Resources, "RgbInputBorder",  light ? "#26000000" : "#FF2A2A4A");
     }
 
     private static string WindowBackgroundHex(bool light, bool glass)
@@ -850,16 +860,15 @@ public partial class SettingsWindow : Window
         foreach (var face in FaceNames)
         {
             bool isSelected = face == _selectedFace;
-            // The tiles preview the 7" display, which is always dark — they keep a
-            // fixed opaque dark backdrop in both Settings themes so the preview
-            // matches what the clock will actually look like on the case screen.
+            // Tiles follow the Settings theme (client preference); the mini clock
+            // preview itself keeps its real dark face so it still reflects how the
+            // clock renders on the always-dark 7" display.
+            bool lightTiles = string.Equals(_themeService.CurrentTheme.UiTheme, "Light", StringComparison.OrdinalIgnoreCase);
             var card = new Border
             {
                 Width = 100, Height = 100, CornerRadius = new CornerRadius(10),
                 Margin = new Thickness(0, 0, 10, 0),
-                Background = isSelected
-                    ? new SolidColorBrush(Color.FromRgb(0x1B, 0x24, 0x40))
-                    : new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1C)),
+                Background = TileBackground(lightTiles, isSelected),
                 BorderBrush = isSelected
                     ? new SolidColorBrush(Color.FromArgb(200, 59, 130, 246))
                     : new SolidColorBrush(Color.FromArgb(70, 140, 150, 170)),
@@ -871,9 +880,9 @@ public partial class SettingsWindow : Window
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             
             // Visual Preview (Mini Clock)
-            var previewBox = new Viewbox { Width = 60, Height = 60, Margin = new Thickness(0,0,0,5) };
+            var previewBox = new Viewbox { Width = 60, Height = 60 };
             var previewClock = new PcStatsMonitor.Controls.BuiltInClockScreen();
-            var prevCfg = new ClockConfig { 
+            var prevCfg = new ClockConfig {
                 FaceName = face, ClockScale = 0.9,
                 HourHandColor = "#FFFFFF", MinuteHandColor = "#FFFFFF", SecondHandColor = "#3b82f6",
                 ClockFaceColor = "#1A1A1A",
@@ -881,12 +890,30 @@ public partial class SettingsWindow : Window
             };
             previewClock.ApplyConfig(prevCfg, new ThemeConfig { BackgroundColor = "Transparent" });
             previewBox.Child = previewClock;
-            stack.Children.Add(previewBox);
+
+            // The clock renders with its real dark face (it previews the always-dark
+            // 7" display). On light tiles it needs a dark "mini screen" backdrop, or
+            // the white hands/markers wash out and the face reads as a black dot.
+            var previewHost = new Border
+            {
+                CornerRadius = new CornerRadius(8),
+                Padding = new Thickness(4),
+                Margin = new Thickness(0, 0, 0, 5),
+                HorizontalAlignment = HorizontalAlignment.Center,
+                Background = lightTiles
+                    ? new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1C))
+                    : Brushes.Transparent,
+                Child = previewBox
+            };
+            stack.Children.Add(previewHost);
 
             var label = new TextBlock
             {
                 Text = face, HorizontalAlignment = HorizontalAlignment.Center,
-                Foreground = Brushes.White, Opacity = isSelected ? 1.0 : 0.7,
+                Foreground = lightTiles
+                    ? new SolidColorBrush(Color.FromRgb(0x1E, 0x29, 0x3B))
+                    : Brushes.White,
+                Opacity = isSelected ? 1.0 : 0.7,
                 FontWeight = isSelected ? FontWeights.Bold : FontWeights.Normal,
                 FontSize = 11
             };
@@ -906,6 +933,27 @@ public partial class SettingsWindow : Window
             PnlFaces.Children.Add(card);
         }
 
+        ApplyClockControlValues(clk);
+    }
+
+    /// <summary>Face-tile backdrop for the current theme and selection state.</summary>
+    private static SolidColorBrush TileBackground(bool light, bool isSelected)
+    {
+        if (light)
+        {
+            return isSelected
+                ? new SolidColorBrush(Color.FromRgb(0xDB, 0xE7, 0xFB))
+                : new SolidColorBrush(Color.FromRgb(0xFF, 0xFF, 0xFF));
+        }
+
+        return isSelected
+            ? new SolidColorBrush(Color.FromRgb(0x1B, 0x24, 0x40))
+            : new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1C));
+    }
+
+    /// <summary>Populates the Clock tab's controls (colors, sliders, combos, toggles) from the config.</summary>
+    private void ApplyClockControlValues(ClockConfig clk)
+    {
         // Setup color buttons
         SetColorButton(BtnClockHourColor,  clk.HourHandColor);
         SetColorButton(BtnClockMinColor,   clk.MinuteHandColor);

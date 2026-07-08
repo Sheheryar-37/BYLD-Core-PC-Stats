@@ -19,6 +19,10 @@
         <SolidColorBrush x:Key="PageText" Color="#FFFFFF"/>
         <SolidColorBrush x:Key="PageDimText" Color="#88FFFFFF"/>
         <SolidColorBrush x:Key="WarnText" Color="#FFB0B0"/>
+        <SolidColorBrush x:Key="CardText" Color="#FFFFFF"/>
+        <SolidColorBrush x:Key="CardFill" Color="#11FFFFFF"/>
+        <SolidColorBrush x:Key="CardStroke" Color="#22FFFFFF"/>
+        <SolidColorBrush x:Key="FanPopupBg" Color="#1E1E2E"/>
 
         <!-- Tiny +/- Button -->
         <Style x:Key="TinyBtnStyle" TargetType="Button">
@@ -97,8 +101,8 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="ToggleButton">
-                        <Border x:Name="Bg" CornerRadius="4" Background="#11FFFFFF" Padding="6,3" BorderThickness="1" BorderBrush="#22FFFFFF">
-                            <TextBlock x:Name="Lbl" Text="Linear" FontSize="9" Foreground="#88FFFFFF" HorizontalAlignment="Center"/>
+                        <Border x:Name="Bg" CornerRadius="4" Background="{DynamicResource CardFill}" Padding="6,3" BorderThickness="1" BorderBrush="{DynamicResource CardStroke}">
+                            <TextBlock x:Name="Lbl" Text="Linear" FontSize="9" Foreground="{DynamicResource DimText}" HorizontalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
@@ -167,13 +171,14 @@
         
         <!-- Glass ComboBox Toggle -->
         <ControlTemplate x:Key="GlassComboBoxToggle" TargetType="ToggleButton">
-            <Border x:Name="Border" CornerRadius="6" Background="#0CFFFFFF" BorderThickness="1" BorderBrush="#22FFFFFF">
-                <Path x:Name="Arrow" Fill="#AAFFFFFF" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Data="M 0 0 L 4 4 L 8 0 Z"/>
+            <Border x:Name="Border" CornerRadius="6" Background="{DynamicResource CardFill}" BorderThickness="1" BorderBrush="{DynamicResource CardStroke}">
+                <Path x:Name="Arrow" Fill="{DynamicResource DimText}" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,8,0" Data="M 0 0 L 4 4 L 8 0 Z"/>
             </Border>
             <ControlTemplate.Triggers>
+                <!-- Hover feedback via blue border only — hardcoded fills/whites broke light mode -->
                 <Trigger Property="IsMouseOver" Value="True">
-                    <Setter TargetName="Border" Property="Background" Value="#15FFFFFF"/>
-                    <Setter TargetName="Arrow" Property="Fill" Value="White"/>
+                    <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
+                    <Setter TargetName="Arrow" Property="Fill" Value="{StaticResource BrandBlue}"/>
                 </Trigger>
                 <Trigger Property="IsChecked" Value="True">
                     <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
@@ -190,15 +195,17 @@
                     <ControlTemplate TargetType="ComboBox">
                         <Grid>
                             <ToggleButton Template="{StaticResource GlassComboBoxToggle}" Focusable="False" IsChecked="{Binding IsDropDownOpen, Mode=TwoWay, RelativeSource={RelativeSource TemplatedParent}}"/>
-                            <ContentPresenter Margin="8,4,24,4" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False" Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
+                            <ContentPresenter Margin="8,4,24,4" VerticalAlignment="Center" HorizontalAlignment="Left" IsHitTestVisible="False"
+                                              TextElement.Foreground="{DynamicResource CardText}"
+                                              Content="{TemplateBinding SelectionBoxItem}" ContentTemplate="{TemplateBinding SelectionBoxItemTemplate}"/>
                             <Popup Name="Popup" Placement="Bottom" IsOpen="{TemplateBinding IsDropDownOpen}" AllowsTransparency="True" Focusable="False" PopupAnimation="Fade">
                                 <Grid SnapsToDevicePixels="True" MinWidth="{TemplateBinding ActualWidth}" MaxHeight="{TemplateBinding MaxDropDownHeight}">
-                                    <Border Background="#1E1E2E" BorderThickness="1" BorderBrush="#33FFFFFF" CornerRadius="4" Margin="0,2,0,0">
+                                    <Border Background="{DynamicResource FanPopupBg}" BorderThickness="1" BorderBrush="#33FFFFFF" CornerRadius="4" Margin="0,2,0,0">
                                         <Border.Effect>
                                             <DropShadowEffect BlurRadius="8" ShadowDepth="2" Opacity="0.5"/>
                                         </Border.Effect>
                                     </Border>
-                                    <Border Background="#1E1E2E" CornerRadius="4" Margin="0,2,0,0">
+                                    <Border Background="{DynamicResource FanPopupBg}" CornerRadius="4" Margin="0,2,0,0">
                                         <ScrollViewer Margin="2" SnapsToDevicePixels="True">
                                             <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Contained"/>
                                         </ScrollViewer>
@@ -238,7 +245,7 @@
                             ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="30000">
                         <Border.ToolTip>
                             <ToolTip Padding="0" Background="Transparent" BorderThickness="0" HasDropShadow="False">
-                                <Border Background="#1E1E2E" BorderBrush="#3A3A55" BorderThickness="1" CornerRadius="6" Padding="10">
+                                <Border Background="#F2141420" BorderBrush="#3A3A55" BorderThickness="1" CornerRadius="6" Padding="10">
                                     <TextBlock MaxWidth="300" TextWrapping="Wrap" FontSize="11" Foreground="#F0F0F5"
                                                Text="Each card is one controllable fan. Toggle ON to follow a fan curve (choose it in the dropdown); toggle OFF to set a static speed — type an exact percentage or use the +/− buttons. Step up/down, Start/Stop %, Offset and Minimum % fine-tune how speed changes are applied."/>
                                 </Border>
@@ -267,13 +274,13 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <Path Data="{StaticResource FanIconGeom}" Fill="{StaticResource BrandBlue}" Width="20" Height="20" Stretch="Uniform" Margin="0,0,8,0"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="White" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
-                                        <Button Grid.Column="2" Content="⋮" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand"
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource CardText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Button Grid.Column="2" Content="⋮" Foreground="{DynamicResource CardText}" FontWeight="Bold" FontSize="14" Cursor="Hand"
                                                 Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">
                                             <Button.ContextMenu>
-                                                <ContextMenu Background="#1E1E2E" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                    <MenuItem Header="Reset to Auto" Foreground="White" Click="FanContextReset_Click"/>
-                                                    <MenuItem Header="Set Manual (50%)" Foreground="White" Click="FanContextManual_Click"/>
+                                                <ContextMenu Background="{DynamicResource FanPopupBg}" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                    <MenuItem Header="Reset to Auto" Foreground="{DynamicResource CardText}" Click="FanContextReset_Click"/>
+                                                    <MenuItem Header="Set Manual (50%)" Foreground="{DynamicResource CardText}" Click="FanContextManual_Click"/>
                                                 </ContextMenu>
                                             </Button.ContextMenu>
                                         </Button>
@@ -305,9 +312,9 @@
 
                                     <!-- % and RPM -->
                                     <Grid Margin="0,0,0,4">
-                                        <TextBlock Text="{Binding SpeedPercentage, StringFormat={}{0:F1} %}" Foreground="White" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                        <TextBlock Text="{Binding SpeedPercentage, StringFormat={}{0:F1} %}" Foreground="{DynamicResource CardText}" FontSize="13" FontWeight="Bold" HorizontalAlignment="Left"/>
                                         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
-                                            <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="White" FontSize="13" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="{DynamicResource CardText}" FontSize="13" FontWeight="Bold"/>
                                             <TextBlock Text=" ▼" Foreground="{StaticResource DimText}" FontSize="9" VerticalAlignment="Center"/>
                                         </StackPanel>
                                     </Grid>
@@ -324,10 +331,10 @@
 
                                     <!-- Zero-fan mode hint -->
                                     <TextBlock Text="GPU is in zero-fan mode (normal at low temps)"
-                                               Foreground="#88FFFFFF" FontSize="8" FontStyle="Italic" Margin="0,0,0,4"
+                                               Foreground="{DynamicResource DimText}" FontSize="8" FontStyle="Italic" Margin="0,0,0,4"
                                                Visibility="{Binding IsZeroRpm, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
 
-                                    <Rectangle Height="1" Fill="#1AFFFFFF" Margin="0,0,0,8"/>
+                                    <Rectangle Height="1" Fill="{DynamicResource CardFill}" Margin="0,0,0,8"/>
 
                                     <!-- Params grid: 3 rows x 2 cols with editable TextBox + +/- -->
                                     <Grid>
@@ -412,7 +419,7 @@
                             ToolTipService.InitialShowDelay="100" ToolTipService.ShowDuration="30000">
                         <Border.ToolTip>
                             <ToolTip Padding="0" Background="Transparent" BorderThickness="0" HasDropShadow="False">
-                                <Border Background="#1E1E2E" BorderBrush="#3A3A55" BorderThickness="1" CornerRadius="6" Padding="10">
+                                <Border Background="#F2141420" BorderBrush="#3A3A55" BorderThickness="1" CornerRadius="6" Padding="10">
                                     <TextBlock MaxWidth="300" TextWrapping="Wrap" FontSize="11" Foreground="#F0F0F5"
                                                Text="A curve maps a temperature to a fan speed: the fan ramps from Min speed at Min temp up to Max speed at Max temp, following the selected temperature source. Create curves with the + button, then assign one to a fan from the fan card's Curve dropdown."/>
                                 </Border>
@@ -447,11 +454,11 @@
                                         <Button Grid.Column="2" Content="✕" Foreground="#E63946" Style="{StaticResource DeleteBtnStyle}" 
                                                 Command="{Binding DataContext.DeleteCurveCommand, RelativeSource={RelativeSource AncestorType=UserControl}}" 
                                                 CommandParameter="{Binding}" ToolTip="Delete this curve" Margin="0,0,4,0"/>
-                                        <Button Grid.Column="3" Content="⋮" Foreground="White" FontWeight="Bold" FontSize="14" Cursor="Hand"
+                                        <Button Grid.Column="3" Content="⋮" Foreground="{DynamicResource CardText}" FontWeight="Bold" FontSize="14" Cursor="Hand"
                                                 Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">
                                             <Button.ContextMenu>
-                                                <ContextMenu Background="#1E1E2E" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                    <MenuItem Header="Duplicate" Foreground="White" Click="CurveContextDuplicate_Click"/>
+                                                <ContextMenu Background="{DynamicResource FanPopupBg}" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                    <MenuItem Header="Duplicate" Foreground="{DynamicResource CardText}" Click="CurveContextDuplicate_Click"/>
                                                     <MenuItem Header="Delete" Foreground="#E63946" Click="CurveContextDelete_Click"/>
                                                 </ContextMenu>
                                             </Button.ContextMenu>
@@ -469,12 +476,12 @@
                                     <!-- Temp Source -->
                                     <TextBlock Text="Temperature source" FontSize="9" Foreground="{StaticResource DimText}" Margin="0,0,0,2"/>
                                     <Border BorderBrush="#33FFFFFF" BorderThickness="0,0,0,1" Padding="2" Margin="0,0,0,10">
-                                        <TextBlock Text="{Binding TemperatureSource}" Foreground="White" FontSize="10" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding TemperatureSource}" Foreground="{DynamicResource CardText}" FontSize="10" TextTrimming="CharacterEllipsis"/>
                                     </Border>
 
                                     <!-- RPM -->
                                     <Grid Margin="0,0,0,8">
-                                        <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="White" FontSize="14" FontWeight="Bold" HorizontalAlignment="Left"/>
+                                        <TextBlock Text="{Binding CurrentRpm, StringFormat={}{0} RPM}" Foreground="{DynamicResource CardText}" FontSize="14" FontWeight="Bold" HorizontalAlignment="Left"/>
                                     </Grid>
 
                                     <!-- Details: Min/Max temp and speed (%) with editable TextBoxes -->
@@ -527,7 +534,7 @@
 
                                     <!-- Hysteresis -->
                                     <TextBlock Text="Hysteresis" FontSize="9" Foreground="{StaticResource DimText}" Margin="0,0,0,2"/>
-                                    <TextBlock Foreground="#AAFFFFFF" FontSize="10" Margin="0,0,0,8">
+                                    <TextBlock Foreground="{DynamicResource CardText}" FontSize="10" Margin="0,0,0,8">
                                         <Run Text="↑"/><Run Text="{Binding HysteresisUp, StringFormat={}{0} °C, Mode=OneWay}"/>
                                         <Run Text="  ↓"/><Run Text="{Binding HysteresisDown, StringFormat={}{0} °C, Mode=OneWay}"/>
                                     </TextBlock>

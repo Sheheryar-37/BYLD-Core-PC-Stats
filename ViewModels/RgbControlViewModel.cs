@@ -141,6 +141,22 @@ public class RgbZoneViewModel : ViewModelBase
     /// <summary>Re-sends the currently selected colours to the hardware,
     /// even when the colour properties did not change.</summary>
     public void ReapplyColor() => ApplyColor();
+
+    /// <summary>
+    /// Updates the colour properties WITHOUT triggering a hardware write, so a
+    /// caller can follow up with one single <see cref="ReapplyColor"/>. Setting
+    /// the properties normally fires a write per property change, which hammered
+    /// the RAM's SMBus with duplicate writes during apply-to-all.
+    /// </summary>
+    public void SetColorsSilently(System.Windows.Media.Color color, bool isGradient, System.Windows.Media.Color endColor)
+    {
+        _selectedColor = color;
+        _isGradient = isGradient;
+        _gradientEndColor = endColor;
+        OnPropertyChanged(nameof(SelectedColor));
+        OnPropertyChanged(nameof(IsGradient));
+        OnPropertyChanged(nameof(GradientEndColor));
+    }
 }
 
 public class RgbDeviceViewModel : ViewModelBase
@@ -335,10 +351,9 @@ public class RgbControlViewModel : ViewModelBase
 
         foreach (var zone in device.Zones)
         {
-            // Set gradient values before SelectedColor so ApplyColor uses them.
-            zone.GradientEndColor = endColor;
-            zone.IsGradient = isGradient;
-            zone.SelectedColor = color;
+            // Exactly ONE hardware write per zone — property setters would each
+            // fire their own write and hammer the DRAM controller's SMBus.
+            zone.SetColorsSilently(color, isGradient, endColor);
             zone.ReapplyColor();
         }
     }

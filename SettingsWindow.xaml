@@ -589,7 +589,7 @@
                                                 <ColumnDefinition Width="15"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtInterval" Text="{Binding Value, ElementName=SldInterval, UpdateSourceTrigger=PropertyChanged, FallbackValue=15}" Background="#222222" Foreground="{StaticResource BrandBlue}" BorderBrush="#444444" BorderThickness="1" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Center" Padding="2"/>
+                                            <TextBox x:Name="TxtInterval" Text="{Binding Value, ElementName=SldInterval, UpdateSourceTrigger=PropertyChanged, FallbackValue=15}" Background="{DynamicResource InputBgBrush}" Foreground="{StaticResource BrandBlue}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Center" Padding="2"/>
                                             <TextBlock Grid.Column="1" Text="s" Foreground="{StaticResource BrandBlue}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                             <Slider x:Name="SldInterval" Grid.Column="2" Minimum="3" Maximum="1200" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SldInterval_ValueChanged" VerticalAlignment="Center" Margin="5,0,0,0"/>
                                         </Grid>
