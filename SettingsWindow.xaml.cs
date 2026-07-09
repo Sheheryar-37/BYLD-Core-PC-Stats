@@ -118,11 +118,71 @@ public partial class SettingsWindow : Window
         if (_isInitializing) return;
 
         var theme = _themeService.CurrentTheme;
-        theme.UiTheme = TglLightTheme.IsChecked == true ? "Light" : "Dark";
         theme.LiquidGlassEnabled = TglLiquidGlass.IsChecked == true;
         _themeService.SaveTheme();
         ApplyUiTheme();
+    }
+
+    /// <summary>Persists the settings-window theme (Dark / Light / System) and re-skins the window.</summary>
+    private void CmbUiTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+
+        var theme = _themeService.CurrentTheme;
+        theme.UiTheme = CmbUiTheme.SelectedIndex switch
+        {
+            1 => "Light",
+            2 => "System",
+            _ => "Dark"
+        };
+        // Only "Follow settings theme" tracks this choice — explicit widget
+        // choices (and custom Colors-tab values) must not be overwritten.
+        if (string.Equals(theme.WidgetTheme, "Auto", StringComparison.OrdinalIgnoreCase))
+            ApplyWidgetThemePreset(theme);
+        _themeService.SaveTheme();
+        ApplyUiTheme();
         LoadClockSettings(); // clock face tiles are code-built with the theme baked in
+    }
+
+    /// <summary>
+    /// Persists the widget-theme choice for the 7" display and applies its
+    /// colour preset (background/foreground/track + clock face colours).
+    /// </summary>
+    private void CmbWidgetTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+
+        var theme = _themeService.CurrentTheme;
+        theme.WidgetTheme = CmbWidgetTheme.SelectedIndex switch
+        {
+            1 => "Light",
+            2 => "Auto",
+            3 => "System",
+            _ => "Dark"
+        };
+        ApplyWidgetThemePreset(theme);
+        _themeService.SaveTheme();
+        LoadCurrentSettings(); // refresh colour swatches + clock tab to the new preset
+    }
+
+    /// <summary>
+    /// Writes the widget colour preset for the effective widget theme into the
+    /// config. "Auto" resolves against the settings Light Theme toggle.
+    /// </summary>
+    private static void ApplyWidgetThemePreset(ThemeConfig theme)
+    {
+        bool light = theme.IsWidgetThemeLight;
+        theme.BackgroundColor = light ? "#F4F6FA" : Models.Constants.DefaultThemeBackground;
+        theme.ForegroundColor = light ? "#1E293B" : Models.Constants.DefaultThemeForeground;
+        theme.TrackColor      = light ? "#D9DEE7" : Models.Constants.DefaultThemeTrack;
+        theme.Clock.ClockFaceColor  = light ? "#FFFFFF" : "#1A1A1A";
+        theme.Clock.HourHandColor   = light ? "#1E293B" : "#FFFFFF";
+        theme.Clock.MinuteHandColor = light ? "#1E293B" : "#FFFFFF";
+        theme.Clock.MarkerColor     = light ? "#475569" : "#FFFFFF";
+        theme.Clock.DigitalColor    = light ? "#1E293B" : "#FFFFFF";
+        theme.Clock.DateColor       = light ? "#475569" : "#AAAAAA";
+        // The weather screen has its own theme switch — keep it in sync.
+        theme.Weather.WeatherTheme  = light ? "Light" : "Dark";
     }
 
     /// <summary>
@@ -133,7 +193,7 @@ public partial class SettingsWindow : Window
     private void ApplyUiTheme()
     {
         var theme = _themeService.CurrentTheme;
-        bool light = string.Equals(theme.UiTheme, "Light", StringComparison.OrdinalIgnoreCase);
+        bool light = theme.IsUiThemeLight; // resolves "System" against the Windows app theme
         bool glass = theme.LiquidGlassEnabled;
 
         Background = NewBrush(WindowBackgroundHex(light, glass));
@@ -246,8 +306,20 @@ public partial class SettingsWindow : Window
         ChkDisableSecondaryScreenDragging.IsChecked = theme.DisableSecondaryScreenDragging;
 
         // Appearance
-        TglLightTheme.IsChecked = string.Equals(theme.UiTheme, "Light", StringComparison.OrdinalIgnoreCase);
+        CmbUiTheme.SelectedIndex = theme.UiTheme?.ToLowerInvariant() switch
+        {
+            "light"  => 1,
+            "system" => 2,
+            _        => 0
+        };
         TglLiquidGlass.IsChecked = theme.LiquidGlassEnabled;
+        CmbWidgetTheme.SelectedIndex = theme.WidgetTheme?.ToLowerInvariant() switch
+        {
+            "light"  => 1,
+            "auto"   => 2,
+            "system" => 3,
+            _        => 0
+        };
         ApplyUiTheme();
 
         // Theme Colors
@@ -863,7 +935,7 @@ public partial class SettingsWindow : Window
             // Tiles follow the Settings theme (client preference); the mini clock
             // preview itself keeps its real dark face so it still reflects how the
             // clock renders on the always-dark 7" display.
-            bool lightTiles = string.Equals(_themeService.CurrentTheme.UiTheme, "Light", StringComparison.OrdinalIgnoreCase);
+            bool lightTiles = _themeService.CurrentTheme.IsUiThemeLight;
             var card = new Border
             {
                 Width = 100, Height = 100, CornerRadius = new CornerRadius(10),

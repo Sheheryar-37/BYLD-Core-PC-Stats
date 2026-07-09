@@ -15,6 +15,7 @@ public class ThemeConfig
 
     [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush AccentColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(AccentColor)); } catch { return System.Windows.Media.Brushes.DodgerBlue; } } }
     [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush ForegroundColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(ForegroundColor)); } catch { return System.Windows.Media.Brushes.White; } } }
+    [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush BackgroundColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(BackgroundColor)); } catch { return System.Windows.Media.Brushes.Black; } } }
     public bool LaunchOnStartup { get; set; } = false;
 
     // ── Branding ─────────────────────────────────────────────────────────────
@@ -53,6 +54,41 @@ public class ThemeConfig
 
     /// <summary>When false, the glassy translucent surfaces are replaced with solid panels.</summary>
     public bool LiquidGlassEnabled { get; set; } = true;
+
+    /// <summary>
+    /// Theme for the 7" display widgets (clock, gauges): "Dark" (default),
+    /// "Light", "System" (Windows app theme), or "Auto" (follows <see cref="UiTheme"/>).
+    /// </summary>
+    public string WidgetTheme { get; set; } = "Dark";
+
+    /// <summary>Resolved settings-window theme: true when the Settings UI should render light.
+    /// "System" resolves against the Windows app theme.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsUiThemeLight =>
+        string.Equals(UiTheme, "Light", StringComparison.OrdinalIgnoreCase) ||
+        (string.Equals(UiTheme, "System", StringComparison.OrdinalIgnoreCase) && IsWindowsAppThemeLight());
+
+    /// <summary>Resolved widget theme: true when the 7" display should render light.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public bool IsWidgetThemeLight =>
+        string.Equals(WidgetTheme, "Light", StringComparison.OrdinalIgnoreCase) ||
+        (string.Equals(WidgetTheme, "System", StringComparison.OrdinalIgnoreCase) && IsWindowsAppThemeLight()) ||
+        (string.Equals(WidgetTheme, "Auto", StringComparison.OrdinalIgnoreCase) && IsUiThemeLight);
+
+    /// <summary>Reads the Windows "app mode" (light/dark) the user set in Windows Settings.</summary>
+    private static bool IsWindowsAppThemeLight()
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(
+                @"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
+            return key?.GetValue("AppsUseLightTheme") is int value && value == 1;
+        }
+        catch
+        {
+            return false;
+        }
+    }
 
     // ── Rotation Order (Identifiers: "Gauges", "Storage", "Clock", or Plugin Name) ────
     public List<string> ScreenRotationOrder { get; set; } = new() { "Gauges", "Storage", "Clock" };

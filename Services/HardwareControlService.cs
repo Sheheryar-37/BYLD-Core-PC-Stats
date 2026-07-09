@@ -401,6 +401,7 @@ public class HardwareControlService : IDisposable
         {
             _loggedRgbDisconnected = false;
             var devices = _rgbClient.GetAllControllerData().ToList();
+            _rgbDeviceCache = devices.ToArray();
             LogRgbDeviceCountChange(devices.Count);
             return devices;
         }
@@ -426,6 +427,53 @@ public class HardwareControlService : IDisposable
     }
 
     private static string Hex(OpenRGB.NET.Color c) => $"#{c.R:X2}{c.G:X2}{c.B:X2}";
+
+    // ── RGB worker ──────────────────────────────────────────────────────────
+    // Every OpenRGB socket operation runs on this single background worker.
+    // The client's round-6 logs showed the UI thread hard-blocked for 52s in a
+    // synchronous socket call after a large write burst: when the OpenRGB
+    // server stalls, Send() blocks with no timeout — the UI must never wait
+    // on it. Bounded queue: when the server is stuck we drop (and log) new
+    // writes instead of building an unbounded backlog.
+    private readonly System.Collections.Concurrent.BlockingCollection<Action> _rgbQueue =
+        new(boundedCapacity: 64);
+    private Task? _rgbWorker;
+
+    private void EnqueueRgbOp(string description, Action op)
+    {
+        _rgbWorker ??= Task.Factory.StartNew(ProcessRgbQueue, TaskCreationOptions.LongRunning);
+        if (!_rgbQueue.TryAdd(op))
+            Log($"[RGB→] queue full — dropped: {description}");
+    }
+
+    private void ProcessRgbQueue()
+    {
+        foreach (var op in _rgbQueue.GetConsumingEnumerable())
+            RunRgbOp(op);
+    }
+
+    private void RunRgbOp(Action op)
+    {
+        try
+        {
+            op();
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB→] Worker operation failed: {ex.Message}");
+        }
+    }
+
+    // ── Device metadata cache ───────────────────────────────────────────────
+    // Zone LED counts and mode lists come from here instead of a blocking
+    // GetControllerData round-trip before every write.
+    private volatile OpenRGB.NET.Device[] _rgbDeviceCache = Array.Empty<OpenRGB.NET.Device>();
+
+    private OpenRGB.NET.Device? GetCachedDevice(int deviceId)
+    {
+        var cache = _rgbDeviceCache;
+        return deviceId >= 0 && deviceId < cache.Length ? cache[deviceId] : null;
+    }
 
     // ── Duplicate-write suppression ─────────────────────────────────────────
     // Identical writes fired in rapid succession (auto-refresh restore colliding
@@ -461,12 +509,17 @@ public class HardwareControlService : IDisposable
             return;
         }
 
+        EnqueueRgbOp($"zone write dev={deviceId} zone={zoneId}", () => WriteZoneColor(deviceId, zoneId, color));
+    }
+
+    private void WriteZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color)
+    {
         try
         {
-            var device = _rgbClient.GetControllerData(deviceId);
+            var device = GetCachedDevice(deviceId) ?? _rgbClient!.GetControllerData(deviceId);
             var zone = device.Zones[zoneId];
             var colors = Enumerable.Repeat(color, (int)zone.LedCount).ToArray();
-            _rgbClient.UpdateZoneLeds(deviceId, zoneId, colors);
+            _rgbClient!.UpdateZoneLeds(deviceId, zoneId, colors);
             Log($"[RGB→] '{device.Name}' zone '{zone.Name}': wrote {colors.Length} LEDs = {Hex(color)} " +
                 $"(active mode: {ActiveModeName(device)})");
         }
@@ -485,9 +538,14 @@ public class HardwareControlService : IDisposable
             return;
         }
 
+        EnqueueRgbOp($"gradient write dev={deviceId} zone={zoneId}", () => WriteZoneGradient(deviceId, zoneId, colors));
+    }
+
+    private void WriteZoneGradient(int deviceId, int zoneId, OpenRGB.NET.Color[] colors)
+    {
         try
         {
-            _rgbClient.UpdateZoneLeds(deviceId, zoneId, colors);
+            _rgbClient!.UpdateZoneLeds(deviceId, zoneId, colors);
             Log($"[RGB→] dev={deviceId} zone={zoneId}: wrote {colors.Length} LEDs gradient {Hex(colors[0])} → {Hex(colors[^1])}");
         }
         catch (Exception ex)
@@ -517,6 +575,11 @@ public class HardwareControlService : IDisposable
             return;
         }
 
+        EnqueueRgbOp($"mode switch dev={deviceId} '{effectName}'", () => RunRgbEffectSwitch(deviceId, effectName, color));
+    }
+
+    private void RunRgbEffectSwitch(int deviceId, string effectName, OpenRGB.NET.Color? color)
+    {
         try
         {
             ApplyRgbEffect(deviceId, effectName, color);
@@ -529,7 +592,7 @@ public class HardwareControlService : IDisposable
 
     private void ApplyRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
     {
-        var device = _rgbClient!.GetControllerData(deviceId);
+        var device = GetCachedDevice(deviceId) ?? _rgbClient!.GetControllerData(deviceId);
         var modeIndex = Array.FindIndex(device.Modes, m => m.Name.Equals(effectName, StringComparison.OrdinalIgnoreCase));
         if (modeIndex < 0)
         {
@@ -568,6 +631,7 @@ public class HardwareControlService : IDisposable
 
     public void Dispose()
     {
+        _rgbQueue.CompleteAdding();
         _computer.Close();
         if (_rgbClient != null && _rgbClient.Connected)
         {

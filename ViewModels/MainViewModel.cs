@@ -47,23 +47,12 @@ public class MainViewModel : ViewModelBase
 
     private void UpdateLogoBrush()
     {
-        bool isLight = false;
-        var mode = Theme?.Weather?.WeatherTheme ?? "Dark";
-        if (mode == "System" || mode == "Auto")
-        {
-            try
-            {
-                using var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Microsoft\Windows\CurrentVersion\Themes\Personalize");
-                var val = key?.GetValue("AppsUseLightTheme");
-                isLight = (val is int i && i == 1);
-            }
-            catch { }
-        }
-        else
-        {
-            isLight = mode == "Light";
-        }
-        LogoBrush = isLight ? System.Windows.Media.Brushes.Black : System.Windows.Media.Brushes.White;
+        // The logo tint follows the widget theme for the 7" display — a light
+        // widget theme needs a dark logo, and vice versa.
+        bool isLight = Theme?.IsWidgetThemeLight ?? false;
+        LogoBrush = isLight
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x29, 0x3B))
+            : System.Windows.Media.Brushes.White;
     }
 
     public MainViewModel(IHardwareMonitorService monitorService, IThemeService themeService,
@@ -73,12 +62,16 @@ public class MainViewModel : ViewModelBase
         _themeService = themeService;
         Rgb = new RgbControlViewModel(hardwareControl);
 
-        _themeService.ThemeChanged += (s, theme) => 
+        _themeService.ThemeChanged += (s, theme) =>
         {
-            Application.Current.Dispatcher.Invoke(() => 
+            Application.Current.Dispatcher.Invoke(() =>
             {
+                // ThemeService mutates and re-sends the SAME ThemeConfig instance,
+                // so the Theme setter's change detection never fires — refresh the
+                // derived state explicitly here.
                 Theme = theme;
                 OnPropertyChanged(nameof(Theme));
+                UpdateLogoBrush();
             });
         };
         Theme = _themeService.CurrentTheme;

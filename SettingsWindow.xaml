@@ -394,11 +394,15 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
-                                            <TextBlock Text="Light Theme" FontSize="12"/>
-                                            <TextBlock Text="Switch the settings interface between dark and light." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                            <TextBlock Text="Settings Theme" FontSize="12"/>
+                                            <TextBlock Text="Dark, light, or match your Windows theme." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         </StackPanel>
-                                        <ToggleButton x:Name="TglLightTheme" Grid.Column="1" Style="{StaticResource AppearanceToggleStyle}"
-                                                      VerticalAlignment="Center" Click="AppearanceToggle_Click"/>
+                                        <ComboBox x:Name="CmbUiTheme" Grid.Column="1" Width="170" VerticalAlignment="Center"
+                                                  Style="{StaticResource ModernComboBoxStyle}" SelectionChanged="CmbUiTheme_SelectionChanged">
+                                            <ComboBoxItem Content="Dark"/>
+                                            <ComboBoxItem Content="Light"/>
+                                            <ComboBoxItem Content="Use system theme"/>
+                                        </ComboBox>
                                     </Grid>
 
                                     <Grid>
@@ -412,6 +416,24 @@
                                         </StackPanel>
                                         <ToggleButton x:Name="TglLiquidGlass" Grid.Column="1" Style="{StaticResource AppearanceToggleStyle}"
                                                       VerticalAlignment="Center" IsChecked="True" Click="AppearanceToggle_Click"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
+                                            <TextBlock Text="Widget Theme (7&quot; display)" FontSize="12"/>
+                                            <TextBlock Text="Colors for the clock and widgets on the case screen. 'Follow settings theme' matches the Settings Theme above." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <ComboBox x:Name="CmbWidgetTheme" Grid.Column="1" Width="170" VerticalAlignment="Center"
+                                                  Style="{StaticResource ModernComboBoxStyle}" SelectionChanged="CmbWidgetTheme_SelectionChanged">
+                                            <ComboBoxItem Content="Dark"/>
+                                            <ComboBoxItem Content="Light"/>
+                                            <ComboBoxItem Content="Follow settings theme"/>
+                                            <ComboBoxItem Content="Use system theme"/>
+                                        </ComboBox>
                                     </Grid>
                                 </StackPanel>
                             </Border>

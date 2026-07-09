@@ -376,9 +376,17 @@ public class FanControlViewModel : ViewModelBase
         _pollTimer?.Stop();
     }
 
+    private int _emptyFanPolls;
+
     private void PollSensors()
     {
-        if (IsLoading || Fans.Count == 0) return;
+        if (IsLoading) return;
+
+        if (Fans.Count == 0)
+        {
+            RetryFanDetection();
+            return;
+        }
 
         try
         {
@@ -388,6 +396,19 @@ public class FanControlViewModel : ViewModelBase
             EvaluateCurves();
         }
         catch { /* Silent fail for polling errors */ }
+    }
+
+    /// <summary>
+    /// GPU fan/control sensors appear a few seconds after startup (AMD's ADL
+    /// initializes lazily), so a fan list loaded too early stays empty forever.
+    /// Retry detection every ~12 s while the list is empty (client round 6:
+    /// "no fans show up again" while the deep scan found 2 sensors later).
+    /// </summary>
+    private void RetryFanDetection()
+    {
+        if (HardwareControlService.IsDemoMode) return;
+        if (++_emptyFanPolls % 8 != 0) return;
+        LoadFans();
     }
 
     private static void UpdateFanReadings(FanItemViewModel fan)

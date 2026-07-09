@@ -448,7 +448,7 @@ public class RgbControlViewModel : ViewModelBase
         {
             Interval = TimeSpan.FromSeconds(10)
         };
-        _autoRefreshTimer.Tick += (s, e) => AutoRefreshDevices();
+        _autoRefreshTimer.Tick += async (s, e) => await AutoRefreshDevicesAsync();
         _autoRefreshTimer.Start();
     }
 
@@ -460,12 +460,12 @@ public class RgbControlViewModel : ViewModelBase
 
     private int _reconnectTicks;
 
-    private void AutoRefreshDevices()
+    private async Task AutoRefreshDevicesAsync()
     {
         // Demo mode fakes IsConnected — polling the real server here would
         // return an empty list and wipe the demo cards.
         if (HardwareControlService.IsDemoMode) return;
-        if (IsLoading) return;
+        if (IsLoading || _connecting) return;
 
         if (!IsConnected)
         {
@@ -473,7 +473,8 @@ public class RgbControlViewModel : ViewModelBase
             return;
         }
 
-        var devices = _hardwareService.GetRgbDevices();
+        // Network round-trip on the thread pool; UI updates back on the dispatcher.
+        var devices = await Task.Run(() => _hardwareService.GetRgbDevices());
         if (!HasDeviceListChanged(devices)) return;
 
         Devices.Clear();
@@ -482,6 +483,7 @@ public class RgbControlViewModel : ViewModelBase
 
         RebuildCommonModes();
         RgbSettingsPersistence.RestoreState(this);
+        ReapplyStateToHardware();
     }
 
     /// <summary>
@@ -501,26 +503,44 @@ public class RgbControlViewModel : ViewModelBase
         return devices.Where((d, i) => d.Name != Devices[i].Name).Any();
     }
 
-    public void Connect()
+    private bool _connecting;
+
+    /// <summary>
+    /// Fire-and-forget wrapper for existing callers; the real work runs in
+    /// <see cref="ConnectAsync"/> off the UI thread.
+    /// </summary>
+    public void Connect() => _ = ConnectAsync();
+
+    /// <summary>
+    /// Connects to the OpenRGB server and loads devices. All socket work runs
+    /// on the thread pool — the round-6 client logs showed the UI thread
+    /// hard-blocked for 52 s inside a synchronous OpenRGB call, so no OpenRGB
+    /// I/O may ever run on the dispatcher thread.
+    /// </summary>
+    public async Task ConnectAsync()
     {
-        IsLoading = true;
-        if (HardwareControlService.IsDemoMode)
+        if (_connecting) return;
+        _connecting = true;
+
+        try
         {
-            IsConnected = true;
+            IsLoading = true;
+            IsConnected = HardwareControlService.IsDemoMode ||
+                          await Task.Run(() => _hardwareService.ConnectRgbServer());
+            if (IsConnected)
+                await LoadDevicesAsync();
         }
-        else
+        finally
         {
-            IsConnected = _hardwareService.ConnectRgbServer();
+            IsLoading = false;
+            _connecting = false;
         }
-        
-        if (IsConnected)
-        {
-            LoadDevices();
-        }
-        IsLoading = false;
     }
 
-    public void LoadDevices()
+    /// <summary>Fire-and-forget wrapper for existing callers.</summary>
+    public void LoadDevices() => _ = LoadDevicesAsync();
+
+    public async Task LoadDevicesAsync()
     {
         if (!IsConnected) return;
 
@@ -549,43 +569,69 @@ public class RgbControlViewModel : ViewModelBase
         }
         else
         {
-            var devices = _hardwareService.GetRgbDevices();
+            // Fetch on the thread pool — GetRgbDevices is a network round-trip.
+            var devices = await Task.Run(() => _hardwareService.GetRgbDevices());
+
+            // If we connected but found 0 devices, it's highly likely OpenRGB
+            // needs to run as Admin to see SMBus/USB RGB controllers.
+            if (devices.Count == 0)
+            {
+                ShowAdminWarning = true;
+                devices = await Task.Run(RetryDevicesAsAdmin);
+            }
+
             for (int i = 0; i < devices.Count; i++)
             {
                 Devices.Add(new RgbDeviceViewModel(devices[i], i, _hardwareService));
             }
-
-            // If we connected but found 0 devices, or couldn't get devices, 
-            // it's highly likely OpenRGB needs to be run as Admin to see SMBus/USB RGB controllers.
-            if (devices.Count == 0 && !HardwareControlService.IsDemoMode)
-            {
-                ShowAdminWarning = true;
-                _hardwareService.RestartOpenRgbAsAdmin();
-                
-                // Sleep to allow it to restart, then try once more.
-                System.Threading.Thread.Sleep(3000);
-                if (_hardwareService.ConnectRgbServer())
-                {
-                    devices = _hardwareService.GetRgbDevices();
-                    for (int i = 0; i < devices.Count; i++)
-                    {
-                        Devices.Add(new RgbDeviceViewModel(devices[i], i, _hardwareService));
-                    }
-                    ShowAdminWarning = devices.Count == 0;
-                }
-            }
-            else
-            {
-                ShowAdminWarning = false;
-            }
+            ShowAdminWarning = devices.Count == 0;
         }
 
         RebuildCommonModes();
 
         // Restore any previously-saved settings (colours + modes)
         RgbSettingsPersistence.RestoreState(this);
+        ReapplyStateToHardware();
 
         IsLoading = false;
+    }
+
+    /// <summary>
+    /// Restarts OpenRGB elevated, waits for the server, and re-fetches the
+    /// device list. Runs on the thread pool — it sleeps for seconds.
+    /// </summary>
+    private List<Device> RetryDevicesAsAdmin()
+    {
+        _hardwareService.RestartOpenRgbAsAdmin();
+        System.Threading.Thread.Sleep(3000);
+        return _hardwareService.ConnectRgbServer()
+            ? _hardwareService.GetRgbDevices()
+            : new List<Device>();
+    }
+
+    /// <summary>
+    /// Pushes the restored modes and colours to the hardware unconditionally.
+    /// After a PC shutdown the devices boot with their own defaults; restoring
+    /// only the view-model properties can no-op when values look unchanged, so
+    /// the client's saved colours never reached the hardware (round-6 item 1).
+    /// The writes go through the deduped background queue, so this is cheap.
+    /// </summary>
+    private void ReapplyStateToHardware()
+    {
+        if (HardwareControlService.IsDemoMode) return;
+
+        foreach (var device in Devices)
+            ReapplyDevice(device);
+    }
+
+    private static void ReapplyDevice(RgbDeviceViewModel device)
+    {
+        var firstZone = device.Zones.FirstOrDefault();
+        if (device.SelectedMode is { } mode && firstZone != null)
+            device.ApplyModeWithColor(mode, firstZone.SelectedColor);
+
+        foreach (var zone in device.Zones)
+            zone.ReapplyColor();
     }
 }
 

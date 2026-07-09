@@ -227,8 +227,15 @@
                 <Grid.RenderTransform>
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
-                <!-- TOP LOGO Area (Same as Gauges) -->
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
+                <!-- TOP LOGO Area (tinted to follow the widget theme, same as Gauges) -->
+                <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
+                    <Image x:Name="LogoImageSsd" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageSsd, Path=ActualWidth}" Height="{Binding ElementName=LogoImageSsd, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImageSsd, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
 
                 <ItemsControl ItemsSource="{Binding Metrics.Drives}" AlternationCount="2" Margin="0,120,0,85">
                     <!-- Use an ItemsPanel of Grid so we can absolutely align Top/Bottom independently -->
@@ -291,11 +298,12 @@
                                     <!--<Ellipse Width="10" Height="10" Fill="#060606" Stroke="#111111" StrokeThickness="0.5" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="14, 0, 0, 28" />-->
 
                                     <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center" Margin="0,10,0,0">
-                                        <!-- VENDOR -->
-                                        <TextBlock Text="{Binding Vendor}" Foreground="{Binding DataContext.Theme.ForegroundColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="24" FontWeight="Heavy" HorizontalAlignment="Center" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
+                                        <!-- VENDOR — fixed light text: the SSD card graphic is always dark,
+                                             so theme foreground (dark in light mode) would be unreadable here -->
+                                        <TextBlock Text="{Binding Vendor}" Foreground="#F2F2F2" FontSize="24" FontWeight="Heavy" HorizontalAlignment="Center" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}" MaxWidth="300" TextTrimming="CharacterEllipsis"/>
 
                                         <!-- MODEL -->
-                                        <TextBlock Text="{Binding Model}" Foreground="{Binding DataContext.Theme.ForegroundColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="15" FontWeight="Normal" HorizontalAlignment="Center" Margin="0,2,0,12" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}" Opacity="0.8"/>
+                                        <TextBlock Text="{Binding Model}" Foreground="#D0D0D0" FontSize="15" FontWeight="Normal" HorizontalAlignment="Center" Margin="0,2,0,12" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}" Opacity="0.8"/>
                                         
                                         <!-- PROGRESS BAR -->
                                         <ProgressBar Value="{Binding UsedSpaceGb}" Maximum="{Binding TotalSpaceGb}" Width="160" Height="8" Foreground="{Binding DataContext.Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" Background="#33FFFFFF" BorderThickness="0" Margin="0,0,0,4">
@@ -310,16 +318,16 @@
 
                                         <!-- TEXT USAGE STATS -->
                                         <Grid Width="160" Margin="0,0,0,5">
-                                            <TextBlock Text="{Binding UsedSpaceGb, StringFormat={}{0:0} GB Used}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="11" FontWeight="Bold" Opacity="0.9" HorizontalAlignment="Left" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
-                                            <TextBlock Text="{Binding TotalSpaceGb, StringFormat={}{0:0} GB Total}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="11" FontWeight="Bold" Opacity="0.6" HorizontalAlignment="Right" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <TextBlock Text="{Binding UsedSpaceGb, StringFormat={}{0:0} GB Used}" Foreground="#E0E0E0" FontSize="11" FontWeight="Bold" Opacity="0.9" HorizontalAlignment="Left" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            <TextBlock Text="{Binding TotalSpaceGb, StringFormat={}{0:0} GB Total}" Foreground="#E0E0E0" FontSize="11" FontWeight="Bold" Opacity="0.6" HorizontalAlignment="Right" FontFamily="{Binding DataContext.Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}}"/>
                                         </Grid>
                                     </StackPanel>
                                     
-                                    <!-- Red square accent at bottom center -->
-                                    <Rectangle Width="50" Height="50" Fill="#E63946" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,0" />
+                                    <!-- Accent square at bottom center (follows the theme accent) -->
+                                    <Rectangle Width="50" Height="50" Fill="{Binding DataContext.Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,0" />
 
-                                    <!-- Right Arrow -->
-                                    <Path Fill="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}}" Data="M 0,0 L 9,6 L 0,15 Z" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0" />
+                                    <!-- Right Arrow — fixed light on the always-dark card -->
+                                    <Path Fill="#CCCCCC" Data="M 0,0 L 9,6 L 0,15 Z" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0" />
                                 </Grid>
                             </Border>
                         </DataTemplate>
@@ -332,8 +340,15 @@
                 <Grid.RenderTransform>
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" />
-                
+                <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
+                    <Image x:Name="LogoImagePlugin" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImagePlugin, Path=ActualWidth}" Height="{Binding ElementName=LogoImagePlugin, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImagePlugin, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
+
                 <ContentControl x:Name="PluginHost" Margin="0,100,0,0" HorizontalAlignment="Stretch" VerticalAlignment="Stretch" />
             </Grid>
 
@@ -342,7 +357,14 @@
                 <Grid.RenderTransform>
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
+                    <Image x:Name="LogoImageClock" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageClock, Path=ActualWidth}" Height="{Binding ElementName=LogoImageClock, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImageClock, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
                 <controls:BuiltInClockScreen x:Name="BuiltInClock"/>
             </Grid>
 
@@ -351,7 +373,14 @@
                 <Grid.RenderTransform>
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
+                    <Image x:Name="LogoImageWeather" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageWeather, Path=ActualWidth}" Height="{Binding ElementName=LogoImageWeather, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImageWeather, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
                 <controls:WeatherScreen x:Name="WeatherCtrl"/>
             </Grid>
 
@@ -369,7 +398,14 @@
                 <Grid.RenderTransform>
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
+                    <Image x:Name="LogoImageFans" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageFans, Path=ActualWidth}" Height="{Binding ElementName=LogoImageFans, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImageFans, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
                 <controls:FansScreen x:Name="FansScreenCtrl" />
             </Grid>
 
@@ -378,7 +414,14 @@
                 <Grid.RenderTransform>
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
-                <Image Source="{Binding Theme.LogoPath}" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Stretch="Uniform" Panel.ZIndex="99"/>
+                <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
+                    <Image x:Name="LogoImageRgb" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageRgb, Path=ActualWidth}" Height="{Binding ElementName=LogoImageRgb, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImageRgb, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
                 <controls:RgbDisplayScreen x:Name="RgbScreenCtrl" />
             </Grid>
 

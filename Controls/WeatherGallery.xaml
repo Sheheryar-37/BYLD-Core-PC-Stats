@@ -13,7 +13,9 @@
              For now, we will simply use the ones in the application scope. -->
     </UserControl.Resources>
 
-    <Grid Background="#060606">
+    <!-- Root follows the widget theme background; the icon card stays dark
+         (icons are designed for a dark backdrop, like the SSD cards). -->
+    <Grid Background="{Binding Theme.BackgroundColorBrush}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/> <!-- Header -->
             <RowDefinition Height="*"/>    <!-- Icon Display -->
@@ -23,7 +25,7 @@
         <!-- Header -->
         <StackPanel Grid.Row="0" Margin="20,40,20,20">
             <TextBlock Text="INTERNAL GALLERY" Foreground="#3b82f6" FontSize="12" FontWeight="Bold" HorizontalAlignment="Center"/>
-            <TextBlock Text="Weather Icon Review" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+            <TextBlock Text="Weather Icon Review" Foreground="{Binding Theme.ForegroundColorBrush}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
         </StackPanel>
 
         <!-- Icon Display -->
