@@ -482,8 +482,9 @@ public class RgbControlViewModel : ViewModelBase
             Devices.Add(new RgbDeviceViewModel(devices[i], i, _hardwareService));
 
         RebuildCommonModes();
+        // Property-level restore only — the full hardware reapply happens once
+        // per connect in LoadDevicesAsync, not on every device-list change.
         RgbSettingsPersistence.RestoreState(this);
-        ReapplyStateToHardware();
     }
 
     /// <summary>
@@ -589,9 +590,12 @@ public class RgbControlViewModel : ViewModelBase
 
         RebuildCommonModes();
 
-        // Restore any previously-saved settings (colours + modes)
-        RgbSettingsPersistence.RestoreState(this);
-        ReapplyStateToHardware();
+        // Restore any previously-saved settings (colours + modes). The hardware
+        // reapply must ONLY run when a saved state genuinely existed — on a fresh
+        // install the view-model defaults (white, whatever mode the device woke
+        // up in) would otherwise be forced onto the hardware (client round 7).
+        if (RgbSettingsPersistence.RestoreState(this))
+            ReapplyStateToHardware();
 
         IsLoading = false;
     }
@@ -696,17 +700,19 @@ public static class RgbSettingsPersistence
     /// Matching is done by device name + zone name (not by index) to be resilient
     /// against device enumeration order changes.
     /// </summary>
-    public static void RestoreState(RgbControlViewModel viewModel)
+    /// <returns>True when a saved state existed and was applied — callers must
+    /// not push anything to the hardware when this is false.</returns>
+    public static bool RestoreState(RgbControlViewModel viewModel)
     {
         _activeViewModel = viewModel;
 
-        if (!File.Exists(SettingsFile)) return;
+        if (!File.Exists(SettingsFile)) return false;
 
         try
         {
             var json = File.ReadAllText(SettingsFile);
             var state = JsonSerializer.Deserialize<RgbPersistedState>(json);
-            if (state?.Devices == null) return;
+            if (state?.Devices == null) return false;
 
             foreach (var deviceVm in viewModel.Devices)
             {
@@ -737,10 +743,13 @@ public static class RgbSettingsPersistence
                     }
                 }
             }
+
+            return true;
         }
         catch
         {
             // Silently fail — if the file is corrupt, start fresh
+            return false;
         }
     }
 }

@@ -53,7 +53,7 @@
         <!-- Inline editable TextBox for fan params -->
         <Style x:Key="InlineEditBox" TargetType="TextBox">
             <Setter Property="Background" Value="Transparent"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource CardText}"/>
             <Setter Property="BorderThickness" Value="0,0,0,1"/>
             <Setter Property="BorderBrush" Value="#22FFFFFF"/>
             <Setter Property="FontSize" Value="10"/>
@@ -188,7 +188,7 @@
 
         <!-- Glass ComboBox Style -->
         <Style x:Key="GlassComboStyle" TargetType="ComboBox">
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Foreground" Value="{DynamicResource CardText}"/>
             <Setter Property="FontSize" Value="11"/>
             <Setter Property="Template">
                 <Setter.Value>

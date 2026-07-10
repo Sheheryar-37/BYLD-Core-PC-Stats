@@ -28,8 +28,9 @@
             <TextBlock Text="Weather Icon Review" Foreground="{Binding Theme.ForegroundColorBrush}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
         </StackPanel>
 
-        <!-- Icon Display -->
-        <Border Grid.Row="1" Margin="30" Background="#111" CornerRadius="30" BorderBrush="#222" BorderThickness="1">
+        <!-- Icon Display — card follows the widget theme; the PNG icons carry
+             their own dark padding, which doubles as a preview chip on light. -->
+        <Border Grid.Row="1" Margin="30" Background="{Binding Theme.WidgetCardBrush}" CornerRadius="30" BorderBrush="{Binding Theme.WidgetCardBorderBrush}" BorderThickness="1">
             <Grid VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel>
                     <!-- Icon Visualization (New Unified Display) -->
@@ -38,7 +39,7 @@
                     </Border>
  
                     <TextBlock x:Name="TxtIndex" Text="1 of 18" Foreground="#888888" FontSize="14" HorizontalAlignment="Center"/>
-                    <TextBlock x:Name="TxtName" Text="Sunny" Foreground="White" FontSize="32" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
+                    <TextBlock x:Name="TxtName" Text="Sunny" Foreground="{Binding Theme.ForegroundColorBrush}" FontSize="32" FontWeight="Bold" HorizontalAlignment="Center" Margin="0,5,0,0"/>
                     <TextBlock x:Name="TxtId" Text="ID: 800" Foreground="#555" FontSize="12" HorizontalAlignment="Center" Margin="0,5,0,0"/>
                     <TextBlock x:Name="TxtDescription" Text="Clear sky" Foreground="#888888" FontSize="16" HorizontalAlignment="Center" Margin="10,15,10,0" TextWrapping="Wrap" TextAlignment="Center"/>
                     
@@ -56,7 +57,7 @@
                 <ColumnDefinition Width="*"/>
             </Grid.ColumnDefinitions>
 
-            <Button Grid.Column="0" Content="PREVIOUS" Margin="0,0,10,0" Padding="20" Background="#1A1A1A" Foreground="White" FontWeight="Bold" BorderThickness="0" Cursor="Hand" Click="BtnPrev_Click">
+            <Button Grid.Column="0" Content="PREVIOUS" Margin="0,0,10,0" Padding="20" Background="{Binding Theme.WidgetCardBrush}" Foreground="{Binding Theme.ForegroundColorBrush}" FontWeight="Bold" BorderThickness="1" BorderBrush="{Binding Theme.WidgetCardBorderBrush}" Cursor="Hand" Click="BtnPrev_Click">
                 <Button.Resources>
                     <Style TargetType="Border">
                         <Setter Property="CornerRadius" Value="15"/>

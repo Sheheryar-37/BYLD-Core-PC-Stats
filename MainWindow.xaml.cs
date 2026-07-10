@@ -32,6 +32,17 @@ public partial class MainWindow : Window
         _themeService = themeService;
         _hwControl = hwControl;
         _logger = logger;
+
+        // Clock and weather are configured by code when the rotation lands on
+        // them — without this, a theme change while one is on screen would not
+        // show until the next rotation cycle (client round 7, item 2).
+        _themeService.ThemeChanged += (s, cfg) =>
+            Dispatcher.Invoke(() => OnThemeServiceChanged(cfg));
+        // Never persist a transient per-screen colour swap: put the user's real
+        // colours back right before the theme file is written. The subsequent
+        // ThemeChanged re-applies the visible screen's override.
+        _themeService.ThemeSaving += (s, e) =>
+            Dispatcher.Invoke(() => RestoreBaseColorsIfOverridden(_themeService.CurrentTheme));
         
         _mouseHook = new MouseHookService();
 
@@ -459,6 +470,10 @@ public partial class MainWindow : Window
             if (!currentScreenValid) targetScreen = GaugesContainer;
         }
 
+        // Per-screen theme override (client request): swap the display colours
+        // for the screen we are about to show, before the transition animates.
+        ApplyScreenTheme(targetScreen, config);
+
         UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea, WeatherGalleryArea, FansScreenArea, RgbScreenArea };
 
         if (animate)
@@ -570,6 +585,118 @@ public partial class MainWindow : Window
     {
         // Added to resolve the XamlParseException for the 'Loaded' event in XAML.
         // You can add your custom loaded animations or logic here!
+    }
+
+    // ── Per-screen theme overrides ──────────────────────────────────────────
+    // Only one rotating screen is visible at a time, so an override swaps the
+    // display colours IN MEMORY as the rotation transitions. The user's saved
+    // colours are snapshotted first and restored on screens without overrides,
+    // and nothing here is ever written to disk.
+
+    /// <summary>The user's saved colours, captured before the first in-memory override.</summary>
+    private sealed record ScreenColorBase(
+        string Background, string Foreground, string Track,
+        string ClockFace, string ClockHour, string ClockMinute, string ClockMarker,
+        string ClockDigital, string ClockDate, string WeatherTheme);
+
+    private ScreenColorBase? _baseColors;
+    private bool _screenColorsOverridden;
+    private UIElement? _activeThemedScreen;
+
+    /// <summary>Handles theme changes coming from Settings: forget the old colour
+    /// snapshot (the saved colours may have changed) and re-theme the visible screen.</summary>
+    private void OnThemeServiceChanged(ThemeConfig config)
+    {
+        _baseColors = null;
+        _screenColorsOverridden = false;
+
+        if (_activeThemedScreen != null)
+            ApplyScreenTheme(_activeThemedScreen, config);
+        else
+            RefreshCodeConfiguredScreens(config);
+    }
+
+    /// <summary>Applies the per-screen theme override for the screen about to show.
+    /// Screens without an explicit override always render the user's saved colours.</summary>
+    private void ApplyScreenTheme(UIElement targetScreen, ThemeConfig config)
+    {
+        _activeThemedScreen = targetScreen;
+        string? key = ScreenKeyFor(targetScreen);
+
+        if (key == null || !config.HasScreenThemeOverride(key))
+        {
+            RestoreBaseColorsIfOverridden(config);
+            return;
+        }
+
+        bool light = config.IsScreenThemeLight(key);
+        _baseColors ??= CaptureBaseColors(config);
+        config.ApplyWidgetColorPreset(light);
+        _screenColorsOverridden = true;
+        RefreshThemeVisuals(config, light);
+    }
+
+    private void RestoreBaseColorsIfOverridden(ThemeConfig config)
+    {
+        if (!_screenColorsOverridden || _baseColors == null)
+        {
+            RefreshCodeConfiguredScreens(config);
+            return;
+        }
+
+        var b = _baseColors;
+        config.BackgroundColor      = b.Background;
+        config.ForegroundColor      = b.Foreground;
+        config.TrackColor           = b.Track;
+        config.Clock.ClockFaceColor  = b.ClockFace;
+        config.Clock.HourHandColor   = b.ClockHour;
+        config.Clock.MinuteHandColor = b.ClockMinute;
+        config.Clock.MarkerColor     = b.ClockMarker;
+        config.Clock.DigitalColor    = b.ClockDigital;
+        config.Clock.DateColor       = b.ClockDate;
+        config.Weather.WeatherTheme  = b.WeatherTheme;
+        _screenColorsOverridden = false;
+        RefreshThemeVisuals(config, logoLightOverride: null);
+    }
+
+    private static ScreenColorBase CaptureBaseColors(ThemeConfig c) => new(
+        c.BackgroundColor, c.ForegroundColor, c.TrackColor,
+        c.Clock.ClockFaceColor, c.Clock.HourHandColor, c.Clock.MinuteHandColor,
+        c.Clock.MarkerColor, c.Clock.DigitalColor, c.Clock.DateColor,
+        c.Weather?.WeatherTheme ?? "Dark");
+
+    /// <summary>Maps a rotating-screen element to its ScreenThemes key. Null for
+    /// screens without per-screen theming (plugins, internal gallery).</summary>
+    private string? ScreenKeyFor(UIElement screen)
+    {
+        if (screen == GaugesContainer) return "Gauges";
+        if (screen == SsdScreen) return "Storage";
+        if (screen == ClockScreen) return "Clock";
+        if (screen == WeatherScreenArea) return "Weather";
+        if (screen == FansScreenArea) return "Fans";
+        if (screen == RgbScreenArea) return "RGB";
+        return null;
+    }
+
+    private void RefreshThemeVisuals(ThemeConfig config, bool? logoLightOverride)
+    {
+        (DataContext as MainViewModel)?.NotifyThemeRefreshed(logoLightOverride);
+        RefreshCodeConfiguredScreens(config);
+    }
+
+    /// <summary>Re-applies the current config to the code-configured screens so
+    /// theme changes are visible immediately, not on the next rotation.</summary>
+    private void RefreshCodeConfiguredScreens(ThemeConfig config)
+    {
+        try
+        {
+            BuiltInClock.ApplyConfig(config.Clock, config);
+            WeatherCtrl.ApplyConfig(config.Weather ?? new WeatherConfig(), config);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "[Theme] Live screen refresh failed.");
+        }
     }
 
     private void BtnOpenSettings_Click(object sender, RoutedEventArgs e)

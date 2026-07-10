@@ -13,6 +13,11 @@ public interface IThemeService
     void SaveTheme(bool writeToDisk = true);
     void NotifyThemeUpdated();
     event EventHandler<ThemeConfig>? ThemeChanged;
+
+    /// <summary>Raised immediately BEFORE the theme is written to disk, so holders
+    /// of transient in-memory colour swaps (per-screen overrides) can restore the
+    /// user's real colours and keep them from being persisted.</summary>
+    event EventHandler? ThemeSaving;
     
     // Profiles
     string[] GetProfiles();
@@ -28,6 +33,7 @@ public class ThemeService : IThemeService
     public ThemeConfig CurrentTheme { get; private set; } = new();
 
     public event EventHandler<ThemeConfig>? ThemeChanged;
+    public event EventHandler? ThemeSaving;
 
     public ThemeService(ILogger<ThemeService> logger)
     {
@@ -67,6 +73,9 @@ public class ThemeService : IThemeService
     {
         if (writeToDisk)
         {
+            // Let per-screen theme overrides restore the user's real colours first,
+            // so transient in-memory swaps are never persisted.
+            ThemeSaving?.Invoke(this, EventArgs.Empty);
             var json = JsonSerializer.Serialize(CurrentTheme, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(_themePath, json);
         }

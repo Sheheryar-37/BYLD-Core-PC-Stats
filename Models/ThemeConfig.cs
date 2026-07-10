@@ -16,6 +16,18 @@ public class ThemeConfig
     [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush AccentColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(AccentColor)); } catch { return System.Windows.Media.Brushes.DodgerBlue; } } }
     [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush ForegroundColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(ForegroundColor)); } catch { return System.Windows.Media.Brushes.White; } } }
     [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush BackgroundColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(BackgroundColor)); } catch { return System.Windows.Media.Brushes.Black; } } }
+
+    /// <summary>Card surface for widget screens, following the resolved widget theme.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public System.Windows.Media.SolidColorBrush WidgetCardBrush => IsWidgetThemeLight
+        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0xFF, 0xFF, 0xFF))
+        : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x11, 0x11, 0x11));
+
+    /// <summary>Card border for widget screens, following the resolved widget theme.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public System.Windows.Media.SolidColorBrush WidgetCardBorderBrush => IsWidgetThemeLight
+        ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromArgb(0x26, 0x00, 0x00, 0x00))
+        : new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x22, 0x22, 0x22));
     public bool LaunchOnStartup { get; set; } = false;
 
     // ── Branding ─────────────────────────────────────────────────────────────
@@ -74,6 +86,55 @@ public class ThemeConfig
         string.Equals(WidgetTheme, "Light", StringComparison.OrdinalIgnoreCase) ||
         (string.Equals(WidgetTheme, "System", StringComparison.OrdinalIgnoreCase) && IsWindowsAppThemeLight()) ||
         (string.Equals(WidgetTheme, "Auto", StringComparison.OrdinalIgnoreCase) && IsUiThemeLight);
+
+    /// <summary>
+    /// Optional per-screen theme overrides for the 7" display's rotating screens.
+    /// Key: screen id ("Gauges", "Storage", "Clock", "Weather", "Fans", "RGB");
+    /// value: "Dark" or "Light". Screens without an entry (or set to "Auto")
+    /// follow <see cref="WidgetTheme"/>.
+    /// </summary>
+    public Dictionary<string, string> ScreenThemes { get; set; } = new();
+
+    /// <summary>True when the given rotating screen has an explicit Dark/Light override.</summary>
+    public bool HasScreenThemeOverride(string screenKey)
+    {
+        return ScreenThemes != null &&
+               ScreenThemes.TryGetValue(screenKey, out var value) &&
+               (value.Equals("Dark", StringComparison.OrdinalIgnoreCase) ||
+                value.Equals("Light", StringComparison.OrdinalIgnoreCase));
+    }
+
+    /// <summary>Resolved theme for one rotating screen: its own override when set,
+    /// otherwise the widget theme.</summary>
+    public bool IsScreenThemeLight(string screenKey)
+    {
+        if (ScreenThemes != null && ScreenThemes.TryGetValue(screenKey, out var value))
+        {
+            if (value.Equals("Light", StringComparison.OrdinalIgnoreCase)) return true;
+            if (value.Equals("Dark", StringComparison.OrdinalIgnoreCase)) return false;
+        }
+
+        return IsWidgetThemeLight;
+    }
+
+    /// <summary>
+    /// Writes the widget colour preset (7" background/foreground/track, clock
+    /// colours, weather theme) for light or dark onto this config. Shared by the
+    /// widget-theme setting and the per-screen overrides.
+    /// </summary>
+    public void ApplyWidgetColorPreset(bool light)
+    {
+        BackgroundColor = light ? "#F4F6FA" : Constants.DefaultThemeBackground;
+        ForegroundColor = light ? "#1E293B" : Constants.DefaultThemeForeground;
+        TrackColor      = light ? "#D9DEE7" : Constants.DefaultThemeTrack;
+        Clock.ClockFaceColor  = light ? "#FFFFFF" : "#1A1A1A";
+        Clock.HourHandColor   = light ? "#1E293B" : "#FFFFFF";
+        Clock.MinuteHandColor = light ? "#1E293B" : "#FFFFFF";
+        Clock.MarkerColor     = light ? "#475569" : "#FFFFFF";
+        Clock.DigitalColor    = light ? "#1E293B" : "#FFFFFF";
+        Clock.DateColor       = light ? "#475569" : "#AAAAAA";
+        Weather.WeatherTheme  = light ? "Light" : "Dark";
+    }
 
     /// <summary>Reads the Windows "app mode" (light/dark) the user set in Windows Settings.</summary>
     private static bool IsWindowsAppThemeLight()

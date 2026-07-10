@@ -49,10 +49,29 @@ public class MainViewModel : ViewModelBase
     {
         // The logo tint follows the widget theme for the 7" display — a light
         // widget theme needs a dark logo, and vice versa.
-        bool isLight = Theme?.IsWidgetThemeLight ?? false;
+        SetLogoBrush(Theme?.IsWidgetThemeLight ?? false);
+    }
+
+    private void SetLogoBrush(bool isLight)
+    {
         LogoBrush = isLight
             ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x29, 0x3B))
             : System.Windows.Media.Brushes.White;
+    }
+
+    /// <summary>
+    /// Re-raises the Theme bindings after in-memory colour swaps (per-screen
+    /// theme overrides). When <paramref name="logoLightOverride"/> is given, the
+    /// logo tint follows the active screen's resolved theme instead of the
+    /// global widget theme.
+    /// </summary>
+    public void NotifyThemeRefreshed(bool? logoLightOverride = null)
+    {
+        OnPropertyChanged(nameof(Theme));
+        if (logoLightOverride is { } isLight)
+            SetLogoBrush(isLight);
+        else
+            UpdateLogoBrush();
     }
 
     public MainViewModel(IHardwareMonitorService monitorService, IThemeService themeService,

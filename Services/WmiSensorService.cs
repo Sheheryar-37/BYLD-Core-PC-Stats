@@ -20,15 +20,24 @@ public static class WmiSensorService
     // ACPI thermal zone values are in tenths of Kelvin (2732 = 273.2 K → 0 °C)
     private const float KelvinTenthsOffset = 2732f;
 
+    // WMI class availability never changes within a session. Without these
+    // flags the fallbacks re-threw a ManagementException EVERY polling tick
+    // on machines where the classes don't exist (640 exceptions in one client
+    // log) — a measurable, pointless CPU cost.
+    private static bool _acpiThermalUnsupported;
+    private static bool _perfThermalUnsupported;
+
     // ── CPU Temperature ─────────────────────────────────────────────────────
 
     /// <summary>
     /// Reads CPU temperature from ACPI Thermal Zones via WMI root\WMI.
     /// Works on HP/Dell/Lenovo laptops where WinRing0 MSR access is blocked.
+    /// Unsupported WMI classes are remembered and never queried again.
     /// </summary>
     public static float? GetCpuTemperatureCelsius(ILogger? logger = null)
     {
         // Attempt 1: ACPI Thermal Zones (works on many laptops)
+        if (!_acpiThermalUnsupported)
         try
         {
             using var searcher = new ManagementObjectSearcher(
@@ -56,10 +65,12 @@ public static class WmiSensorService
         }
         catch (Exception ex)
         {
-            logger?.LogDebug(ex, "[WMI] MSAcpi_ThermalZoneTemperature unavailable.");
+            _acpiThermalUnsupported = true;
+            logger?.LogDebug(ex, "[WMI] MSAcpi_ThermalZoneTemperature unavailable — skipping for the rest of this session.");
         }
 
         // Attempt 2: Win32_PerfFormattedData_Counters_ThermalZoneInformation (Windows 11 desktops)
+        if (_perfThermalUnsupported) return null;
         try
         {
             using var searcher2 = new ManagementObjectSearcher(
@@ -88,7 +99,8 @@ public static class WmiSensorService
         }
         catch (Exception ex)
         {
-            logger?.LogDebug(ex, "[WMI] ThermalZoneInformation counter unavailable.");
+            _perfThermalUnsupported = true;
+            logger?.LogDebug(ex, "[WMI] ThermalZoneInformation counter unavailable — skipping for the rest of this session.");
         }
 
         return null;

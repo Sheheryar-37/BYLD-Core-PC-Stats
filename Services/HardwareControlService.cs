@@ -257,14 +257,28 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    /// <summary>Serializes every use of the OpenRGB client (create/replace, reads,
+    /// writes). Two view-models plus the write worker share this service; without
+    /// serialization a reconnect could replace the client under an in-flight
+    /// operation, leaving the worker wedged on a dead socket (client round 7).</summary>
+    private readonly object _rgbClientLock = new();
+
     /// <summary>
-    /// Connects to the local OpenRGB server.
+    /// Connects to the local OpenRGB server. Idempotent: when the current client
+    /// is already connected, returns immediately instead of replacing it — both
+    /// view-models call this and client churn breaks in-flight writes.
     /// </summary>
     public bool ConnectRgbServer(string ip = "127.0.0.1", int port = 6742)
     {
+        lock (_rgbClientLock)
+        {
+            if (_isConnectedToRgb && _rgbClient?.Connected == true)
+                return true;
+        }
+
         Log("═══════════════════════════════════════════════════════════");
         Log($"OPENRGB CONNECTION — Attempting {ip}:{port}...");
-        
+
         // Check if OpenRGB process is running
         try
         {
@@ -288,9 +302,13 @@ public class HardwareControlService : IDisposable
         
         try
         {
-            _rgbClient = new OpenRGB.NET.OpenRgbClient(name: "PC Stats Monitor", ip: ip, port: port);
-            _rgbClient.Connect();
-            _isConnectedToRgb = _rgbClient.Connected;
+            lock (_rgbClientLock)
+            {
+                DisposeRgbClientQuietly();
+                _rgbClient = new OpenRGB.NET.OpenRgbClient(name: "PC Stats Monitor", ip: ip, port: port, timeoutMs: 5000);
+                _rgbClient.Connect();
+                _isConnectedToRgb = _rgbClient.Connected;
+            }
             Log($"[RGB] Connection success: {_isConnectedToRgb}");
             
             if (_isConnectedToRgb)
@@ -323,6 +341,22 @@ public class HardwareControlService : IDisposable
             _isConnectedToRgb = false;
             return false;
         }
+    }
+
+    /// <summary>Disposes the previous client before a replacement — abandoned
+    /// sockets otherwise linger and surface as unobserved socket exceptions.</summary>
+    private void DisposeRgbClientQuietly()
+    {
+        try
+        {
+            _rgbClient?.Dispose();
+        }
+        catch
+        {
+            // Old client may already be dead — nothing to do.
+        }
+        _rgbClient = null;
+        _isConnectedToRgb = false;
     }
 
     public void EnsureOpenRgbRunningAsAdmin()
@@ -400,7 +434,11 @@ public class HardwareControlService : IDisposable
         try
         {
             _loggedRgbDisconnected = false;
-            var devices = _rgbClient.GetAllControllerData().ToList();
+            List<OpenRGB.NET.Device> devices;
+            lock (_rgbClientLock)
+            {
+                devices = _rgbClient.GetAllControllerData().ToList();
+            }
             _rgbDeviceCache = devices.ToArray();
             LogRgbDeviceCountChange(devices.Count);
             return devices;
@@ -516,11 +554,20 @@ public class HardwareControlService : IDisposable
     {
         try
         {
-            var device = GetCachedDevice(deviceId) ?? _rgbClient!.GetControllerData(deviceId);
-            var zone = device.Zones[zoneId];
-            var colors = Enumerable.Repeat(color, (int)zone.LedCount).ToArray();
-            _rgbClient!.UpdateZoneLeds(deviceId, zoneId, colors);
-            Log($"[RGB→] '{device.Name}' zone '{zone.Name}': wrote {colors.Length} LEDs = {Hex(color)} " +
+            var device = GetCachedDevice(deviceId);
+            uint ledCount;
+            string deviceName;
+            string zoneName;
+            lock (_rgbClientLock)
+            {
+                device ??= _rgbClient!.GetControllerData(deviceId);
+                var zone = device.Zones[zoneId];
+                ledCount = zone.LedCount;
+                deviceName = device.Name;
+                zoneName = zone.Name;
+                _rgbClient!.UpdateZoneLeds(deviceId, zoneId, Enumerable.Repeat(color, (int)ledCount).ToArray());
+            }
+            Log($"[RGB→] '{deviceName}' zone '{zoneName}': wrote {ledCount} LEDs = {Hex(color)} " +
                 $"(active mode: {ActiveModeName(device)})");
         }
         catch (Exception ex)
@@ -545,7 +592,10 @@ public class HardwareControlService : IDisposable
     {
         try
         {
-            _rgbClient!.UpdateZoneLeds(deviceId, zoneId, colors);
+            lock (_rgbClientLock)
+            {
+                _rgbClient!.UpdateZoneLeds(deviceId, zoneId, colors);
+            }
             Log($"[RGB→] dev={deviceId} zone={zoneId}: wrote {colors.Length} LEDs gradient {Hex(colors[0])} → {Hex(colors[^1])}");
         }
         catch (Exception ex)
@@ -592,7 +642,12 @@ public class HardwareControlService : IDisposable
 
     private void ApplyRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
     {
-        var device = GetCachedDevice(deviceId) ?? _rgbClient!.GetControllerData(deviceId);
+        var device = GetCachedDevice(deviceId);
+        lock (_rgbClientLock)
+        {
+            device ??= _rgbClient!.GetControllerData(deviceId);
+        }
+
         var modeIndex = Array.FindIndex(device.Modes, m => m.Name.Equals(effectName, StringComparison.OrdinalIgnoreCase));
         if (modeIndex < 0)
         {
@@ -602,15 +657,18 @@ public class HardwareControlService : IDisposable
         }
 
         var mode = device.Modes[modeIndex];
-        // Only force Custom Mode if we are switching to direct LED control
-        if (mode.Name.Contains("Direct", StringComparison.OrdinalIgnoreCase) ||
-            mode.Name.Contains("Custom", StringComparison.OrdinalIgnoreCase))
-        {
-            _rgbClient.SetCustomMode(deviceId);
-        }
-
         var modeColors = BuildModeColors(mode, color);
-        _rgbClient.UpdateMode(deviceId, modeIndex, colors: modeColors);
+        lock (_rgbClientLock)
+        {
+            // Only force Custom Mode if we are switching to direct LED control
+            if (mode.Name.Contains("Direct", StringComparison.OrdinalIgnoreCase) ||
+                mode.Name.Contains("Custom", StringComparison.OrdinalIgnoreCase))
+            {
+                _rgbClient!.SetCustomMode(deviceId);
+            }
+
+            _rgbClient!.UpdateMode(deviceId, modeIndex, colors: modeColors);
+        }
         Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
             $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
     }

@@ -544,6 +544,10 @@ public class FanControlViewModel : ViewModelBase
     /// <summary>Maps temperature-source labels to their live sensors.</summary>
     private readonly Dictionary<string, ISensor> _tempSources = new();
 
+    /// <summary>Synthetic CPU source backed by the AMD iGPU SoC sensor — the same
+    /// proxy the 7" gauges use when WinRing0 is blocked and Tctl reads zero.</summary>
+    private const string CpuProxySource = "CPU Temperature (via iGPU proxy)";
+
     private string[] GetAvailableSourceOptions()
     {
         if (HardwareControlService.IsDemoMode)
@@ -556,8 +560,38 @@ public class FanControlViewModel : ViewModelBase
             _tempSources[$"{sensor.Name} — {sensor.Hardware.Name}"] = sensor;
 
         var options = _tempSources.Keys.ToList();
+        AddCpuProxyIfNeeded(options);
         options.Add("Mix - Max");
         return options.ToArray();
+    }
+
+    /// <summary>
+    /// When no CPU temperature sensor delivers a real value (WinRing0 blocked on
+    /// Windows 11 22H2+), offer the iGPU SoC proxy as the FIRST source so new
+    /// curves default to something that actually works.
+    /// </summary>
+    private void AddCpuProxyIfNeeded(List<string> options)
+    {
+        bool cpuAlive = _tempSources.Values.Any(
+            s => s.Hardware.HardwareType == HardwareType.Cpu && s.Value > 0);
+        if (cpuAlive) return;
+
+        if (_tempSources.Values.Any(IsIgpuSocSensor))
+            options.Insert(0, CpuProxySource);
+    }
+
+    /// <summary>The AMD iGPU's SoC temperature sensor — it sits on the CPU die and
+    /// tracks CPU temperature closely. Only the integrated GPU exposes it.</summary>
+    private static bool IsIgpuSocSensor(ISensor sensor)
+    {
+        return sensor.Hardware.HardwareType == HardwareType.GpuAmd &&
+               sensor.Name.Contains("SoC", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private float? ReadIgpuSocProxy()
+    {
+        var soc = _tempSources.Values.FirstOrDefault(IsIgpuSocSensor);
+        return soc != null ? ReadTemperature(soc) : null;
     }
 
     /// <summary>
@@ -569,8 +603,22 @@ public class FanControlViewModel : ViewModelBase
     {
         if (string.IsNullOrWhiteSpace(source)) return null;
         if (source == "Mix - Max") return MaxOfAllSources();
-        if (_tempSources.TryGetValue(source, out var sensor)) return ReadTemperature(sensor);
+        if (source == CpuProxySource) return ReadIgpuSocProxy();
+        if (_tempSources.TryGetValue(source, out var sensor)) return ReadSensorWithCpuFallback(sensor);
         return ResolveLegacySource(source);
+    }
+
+    /// <summary>
+    /// Reads a sensor; when a CPU temperature sensor is dead (permanent zero on
+    /// WinRing0-blocked machines), transparently falls back to the iGPU SoC proxy
+    /// so existing curves bound to "Core (Tctl/Tdie)" keep driving fans.
+    /// </summary>
+    private float? ReadSensorWithCpuFallback(ISensor sensor)
+    {
+        var value = ReadTemperature(sensor);
+        if (value != null) return value;
+
+        return sensor.Hardware.HardwareType == HardwareType.Cpu ? ReadIgpuSocProxy() : null;
     }
 
     private float? MaxOfAllSources()
@@ -598,7 +646,11 @@ public class FanControlViewModel : ViewModelBase
     private float? ResolveLegacySource(string source)
     {
         var match = _tempSources.FirstOrDefault(kv => LegacyMatches(source, kv.Key));
-        return match.Value != null ? ReadTemperature(match.Value) : null;
+        if (match.Value != null) return ReadSensorWithCpuFallback(match.Value);
+
+        // Saved CPU-labelled sources still work via the proxy even when no
+        // matching sensor exists at all.
+        return source.Contains("CPU", StringComparison.OrdinalIgnoreCase) ? ReadIgpuSocProxy() : null;
     }
 
     private static bool LegacyMatches(string source, string label)

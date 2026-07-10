@@ -171,18 +171,42 @@ public partial class SettingsWindow : Window
     /// </summary>
     private static void ApplyWidgetThemePreset(ThemeConfig theme)
     {
-        bool light = theme.IsWidgetThemeLight;
-        theme.BackgroundColor = light ? "#F4F6FA" : Models.Constants.DefaultThemeBackground;
-        theme.ForegroundColor = light ? "#1E293B" : Models.Constants.DefaultThemeForeground;
-        theme.TrackColor      = light ? "#D9DEE7" : Models.Constants.DefaultThemeTrack;
-        theme.Clock.ClockFaceColor  = light ? "#FFFFFF" : "#1A1A1A";
-        theme.Clock.HourHandColor   = light ? "#1E293B" : "#FFFFFF";
-        theme.Clock.MinuteHandColor = light ? "#1E293B" : "#FFFFFF";
-        theme.Clock.MarkerColor     = light ? "#475569" : "#FFFFFF";
-        theme.Clock.DigitalColor    = light ? "#1E293B" : "#FFFFFF";
-        theme.Clock.DateColor       = light ? "#475569" : "#AAAAAA";
-        // The weather screen has its own theme switch — keep it in sync.
-        theme.Weather.WeatherTheme  = light ? "Light" : "Dark";
+        theme.ApplyWidgetColorPreset(theme.IsWidgetThemeLight);
+    }
+
+    /// <summary>
+    /// Persists a per-screen theme override (client-approved feature: each rotating
+    /// screen can be Dark, Light, or follow the widget theme). The main window
+    /// applies the colours live as the rotation reaches each screen.
+    /// </summary>
+    private void CmbScreenTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
+    {
+        if (_isInitializing) return;
+        if (sender is not System.Windows.Controls.ComboBox combo || combo.Tag is not string screenKey) return;
+
+        var theme = _themeService.CurrentTheme;
+        theme.ScreenThemes ??= new Dictionary<string, string>();
+        theme.ScreenThemes[screenKey] = combo.SelectedIndex switch
+        {
+            1 => "Dark",
+            2 => "Light",
+            _ => "Auto"
+        };
+        _themeService.SaveTheme();
+    }
+
+    /// <summary>Sets a per-screen theme combo from the saved config.</summary>
+    private void LoadScreenThemeCombo(System.Windows.Controls.ComboBox combo)
+    {
+        var theme = _themeService.CurrentTheme;
+        string key = (string)combo.Tag;
+        string value = theme.ScreenThemes != null && theme.ScreenThemes.TryGetValue(key, out var v) ? v : "Auto";
+        combo.SelectedIndex = value.ToLowerInvariant() switch
+        {
+            "dark"  => 1,
+            "light" => 2,
+            _       => 0
+        };
     }
 
     /// <summary>
@@ -320,6 +344,12 @@ public partial class SettingsWindow : Window
             "system" => 3,
             _        => 0
         };
+        LoadScreenThemeCombo(CmbScreenThemeGauges);
+        LoadScreenThemeCombo(CmbScreenThemeStorage);
+        LoadScreenThemeCombo(CmbScreenThemeClock);
+        LoadScreenThemeCombo(CmbScreenThemeWeather);
+        LoadScreenThemeCombo(CmbScreenThemeFans);
+        LoadScreenThemeCombo(CmbScreenThemeRgb);
         ApplyUiTheme();
 
         // Theme Colors
@@ -951,30 +981,33 @@ public partial class SettingsWindow : Window
 
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             
-            // Visual Preview (Mini Clock)
+            // Visual Preview (Mini Clock) — the preview follows the WIDGET theme,
+            // so the tiles show what the clock will actually look like on the 7"
+            // display (white face + dark hands when the widget theme is light).
+            bool widgetLight = _themeService.CurrentTheme.IsWidgetThemeLight;
             var previewBox = new Viewbox { Width = 60, Height = 60 };
             var previewClock = new PcStatsMonitor.Controls.BuiltInClockScreen();
             var prevCfg = new ClockConfig {
                 FaceName = face, ClockScale = 0.9,
-                HourHandColor = "#FFFFFF", MinuteHandColor = "#FFFFFF", SecondHandColor = "#3b82f6",
-                ClockFaceColor = "#1A1A1A",
+                HourHandColor   = widgetLight ? "#1E293B" : "#FFFFFF",
+                MinuteHandColor = widgetLight ? "#1E293B" : "#FFFFFF",
+                SecondHandColor = "#3b82f6",
+                ClockFaceColor  = widgetLight ? "#FFFFFF" : "#1A1A1A",
+                MarkerColor     = widgetLight ? "#475569" : "#FFFFFF",
                 ShowDigitalClock = false, ShowDate = false
             };
             previewClock.ApplyConfig(prevCfg, new ThemeConfig { BackgroundColor = "Transparent" });
             previewBox.Child = previewClock;
 
-            // The clock renders with its real dark face (it previews the always-dark
-            // 7" display). On light tiles it needs a dark "mini screen" backdrop, or
-            // the white hands/markers wash out and the face reads as a black dot.
+            // A dark-face preview on a light tile needs a dark "mini screen"
+            // backdrop; a light-face preview on a dark tile needs a light one.
             var previewHost = new Border
             {
                 CornerRadius = new CornerRadius(8),
                 Padding = new Thickness(4),
                 Margin = new Thickness(0, 0, 0, 5),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Background = lightTiles
-                    ? new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1C))
-                    : Brushes.Transparent,
+                Background = PreviewBackdrop(lightTiles, widgetLight),
                 Child = previewBox
             };
             stack.Children.Add(previewHost);
@@ -1006,6 +1039,17 @@ public partial class SettingsWindow : Window
         }
 
         ApplyClockControlValues(clk);
+    }
+
+    /// <summary>Backdrop behind the mini clock preview: contrasts the preview's
+    /// face against the tile so hands and markers stay readable.</summary>
+    private static Brush PreviewBackdrop(bool lightTiles, bool widgetLight)
+    {
+        if (lightTiles == widgetLight) return Brushes.Transparent;
+
+        return widgetLight
+            ? new SolidColorBrush(Color.FromRgb(0xED, 0xF0, 0xF5))
+            : new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1C));
     }
 
     /// <summary>Face-tile backdrop for the current theme and selection state.</summary>
