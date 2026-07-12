@@ -54,6 +54,10 @@ public class ThemeService : IThemeService
                 if (config != null)
                 {
                     CurrentTheme = config;
+                    // Seed the current mode's palette from the live colours — they
+                    // reflect whatever mode was active when saved. (Migrates configs
+                    // that predate the saved palettes.)
+                    config.CaptureUserPalette(config.IsWidgetThemeLight);
                     NotifyThemeUpdated();
                     return;
                 }

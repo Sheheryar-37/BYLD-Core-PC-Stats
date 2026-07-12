@@ -506,9 +506,12 @@ public partial class MainWindow : Window
                 {
                     screen.IsHitTestVisible = false;
 
-                    // Animate Opacity Out
+                    // Animate Opacity Out — then COLLAPSE (not Hidden): Hidden keeps
+                    // the screen's bindings, ticking clock, gauge animations and glow
+                    // blur effects running every frame off-screen, which was burning
+                    // CPU continuously (client round 9). Collapsed stops all of it.
                     var fadeOut = new System.Windows.Media.Animation.DoubleAnimation(0.0, duration) { EasingFunction = ease };
-                    fadeOut.Completed += (s, e) => { if (screen != targetScreen) screen.Visibility = Visibility.Hidden; };
+                    fadeOut.Completed += (s, e) => { if (screen != targetScreen) screen.Visibility = Visibility.Collapsed; };
                     screen.BeginAnimation(UIElement.OpacityProperty, fadeOut);
 
                     // Animate Slide Out to Left
@@ -533,7 +536,9 @@ public partial class MainWindow : Window
                 screen.Opacity = isActive ? 1.0 : 0.0;
                 if (transform != null) transform.X = 0;
                 screen.IsHitTestVisible = isActive;
-                screen.Visibility = isActive ? Visibility.Visible : Visibility.Hidden;
+                // Collapsed (not Hidden) so inactive screens stop rendering and
+                // stop running their animations/effects entirely.
+                screen.Visibility = isActive ? Visibility.Visible : Visibility.Collapsed;
             }
         }
     }

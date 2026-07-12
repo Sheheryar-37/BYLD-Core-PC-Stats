@@ -848,7 +848,12 @@ public class FanControlViewModel : ViewModelBase
         var selected = fan.SelectedCurve;
         fan.AvailableCurves.Clear();
         foreach (var name in names) fan.AvailableCurves.Add(name);
-        fan.SelectedCurve = names.Contains(selected) ? selected : "";
+
+        // Default to the first curve when nothing valid is selected — an empty
+        // Curve dropdown means the engine finds no curve and never drives the
+        // fan (client round 9: "no actual control of the fans").
+        fan.SelectedCurve = names.Contains(selected) ? selected
+                          : names.FirstOrDefault() ?? "";
     }
 }
 

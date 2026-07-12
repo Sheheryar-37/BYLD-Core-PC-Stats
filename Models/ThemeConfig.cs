@@ -1,6 +1,34 @@
 namespace PcStatsMonitor.Models;
 
 /// <summary>
+/// A snapshot of the user's chosen 7"-display colours for one theme mode
+/// (dark OR light), remembered so switching modes never destroys the other
+/// mode's customizations.
+/// </summary>
+public class PaletteSnapshot
+{
+    public string Background { get; set; } = Constants.DefaultThemeBackground;
+    public string Foreground { get; set; } = Constants.DefaultThemeForeground;
+    public string Track { get; set; } = Constants.DefaultThemeTrack;
+    public string ClockFace { get; set; } = "#1A1A1A";
+    public string ClockHour { get; set; } = "#FFFFFF";
+    public string ClockMinute { get; set; } = "#FFFFFF";
+    public string ClockMarker { get; set; } = "#FFFFFF";
+    public string ClockDigital { get; set; } = "#FFFFFF";
+    public string ClockDate { get; set; } = "#AAAAAA";
+    public string WeatherTheme { get; set; } = "Dark";
+
+    /// <summary>The default LIGHT-mode palette — used to seed a fresh light palette.</summary>
+    public static PaletteSnapshot LightDefault() => new()
+    {
+        Background = "#F4F6FA", Foreground = "#1E293B", Track = "#D9DEE7",
+        ClockFace = "#FFFFFF", ClockHour = "#1E293B", ClockMinute = "#1E293B",
+        ClockMarker = "#475569", ClockDigital = "#1E293B", ClockDate = "#475569",
+        WeatherTheme = "Light"
+    };
+}
+
+/// <summary>
 /// Represents the full application configuration loaded from theme.json.
 /// Edit theme.json at runtime to change colors, timing, and hardware toggles.
 /// </summary>
@@ -144,18 +172,43 @@ public class ThemeConfig
     /// colours, weather theme) for light or dark onto this config. Shared by the
     /// widget-theme setting and the per-screen overrides.
     /// </summary>
+    /// <summary>
+    /// The user's own colour palettes, remembered PER MODE so switching between
+    /// light and dark never destroys the other mode's customizations (client
+    /// round 9: dark forgot its colours on light→dark, and light forgot its own).
+    /// </summary>
+    public PaletteSnapshot SavedDarkPalette { get; set; } = new();
+    public PaletteSnapshot SavedLightPalette { get; set; } = PaletteSnapshot.LightDefault();
+
+    /// <summary>Copies the currently-applied colours into the palette for the given
+    /// mode. Called whenever the user edits colours (mode = the current display mode).</summary>
+    public void CaptureUserPalette(bool light)
+    {
+        var snapshot = new PaletteSnapshot
+        {
+            Background = BackgroundColor, Foreground = ForegroundColor, Track = TrackColor,
+            ClockFace = Clock.ClockFaceColor, ClockHour = Clock.HourHandColor,
+            ClockMinute = Clock.MinuteHandColor, ClockMarker = Clock.MarkerColor,
+            ClockDigital = Clock.DigitalColor, ClockDate = Clock.DateColor,
+            WeatherTheme = Weather.WeatherTheme
+        };
+        if (light) SavedLightPalette = snapshot;
+        else SavedDarkPalette = snapshot;
+    }
+
+    /// <summary>
+    /// Applies the widget colour preset by RESTORING the saved palette for that
+    /// mode. Both modes keep their own palette, so light↔dark round-trips are
+    /// fully lossless in both directions.
+    /// </summary>
     public void ApplyWidgetColorPreset(bool light)
     {
-        BackgroundColor = light ? "#F4F6FA" : Constants.DefaultThemeBackground;
-        ForegroundColor = light ? "#1E293B" : Constants.DefaultThemeForeground;
-        TrackColor      = light ? "#D9DEE7" : Constants.DefaultThemeTrack;
-        Clock.ClockFaceColor  = light ? "#FFFFFF" : "#1A1A1A";
-        Clock.HourHandColor   = light ? "#1E293B" : "#FFFFFF";
-        Clock.MinuteHandColor = light ? "#1E293B" : "#FFFFFF";
-        Clock.MarkerColor     = light ? "#475569" : "#FFFFFF";
-        Clock.DigitalColor    = light ? "#1E293B" : "#FFFFFF";
-        Clock.DateColor       = light ? "#475569" : "#AAAAAA";
-        Weather.WeatherTheme  = light ? "Light" : "Dark";
+        var p = (light ? SavedLightPalette : SavedDarkPalette) ?? new PaletteSnapshot();
+        BackgroundColor = p.Background; ForegroundColor = p.Foreground; TrackColor = p.Track;
+        Clock.ClockFaceColor = p.ClockFace; Clock.HourHandColor = p.ClockHour;
+        Clock.MinuteHandColor = p.ClockMinute; Clock.MarkerColor = p.ClockMarker;
+        Clock.DigitalColor = p.ClockDigital; Clock.DateColor = p.ClockDate;
+        Weather.WeatherTheme = p.WeatherTheme;
     }
 
     /// <summary>Reads the Windows "app mode" (light/dark) the user set in Windows Settings.</summary>

@@ -50,11 +50,11 @@ public partial class RgbControlView : UserControl
             {
                 var newColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.SelectedHex);
                 var endColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.GradientEndHex);
-                
-                // Set these before SelectedColor so ApplyColor uses the correct gradient values
-                zone.GradientEndColor = endColor;
-                zone.IsGradient = picker.IsGradient;
-                zone.SelectedColor = newColor; // This triggers ApplyColor
+
+                // Set silently, then force ONE write — a deliberate user pick must
+                // reach the hardware even if it matches the current colour.
+                zone.SetColorsSilently(newColor, picker.IsGradient, endColor);
+                zone.ReapplyColor();
             }
         }
     }

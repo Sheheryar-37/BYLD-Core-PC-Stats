@@ -555,6 +555,10 @@ public partial class SettingsWindow : Window
         theme.AlertColor = BtnAlertColor.Tag?.ToString() ?? theme.AlertColor;
         theme.StorageAccentColor = BtnStorageAccentColor.Tag?.ToString() ?? theme.StorageAccentColor;
 
+        // Remember the palette for the CURRENT display mode, so each mode keeps
+        // its own customizations across light↔dark switches.
+        theme.CaptureUserPalette(theme.IsWidgetThemeLight);
+
         theme.IsCpuEnabled = ChkCpu.IsChecked ?? true;
         theme.IsGpuEnabled = ChkGpu.IsChecked ?? true;
         theme.IsMemoryEnabled = ChkMemory.IsChecked ?? true;
@@ -1177,6 +1181,10 @@ public partial class SettingsWindow : Window
         clk.GlowColor                  = BtnClockGlowColor.Tag?.ToString() ?? clk.GlowColor;
         clk.GlowWidth                  = SldClockGlowWidth.Value;
         clk.ContinuousMotion           = ChkClockMotion.IsChecked ?? false;
+
+        // Clock colours are part of the palette — remember them for the current
+        // display mode so both light and dark keep their own clock colours.
+        theme.CaptureUserPalette(theme.IsWidgetThemeLight);
     }
 
     private void BtnClockColor_Click(object sender, RoutedEventArgs e)

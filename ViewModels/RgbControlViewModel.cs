@@ -111,10 +111,10 @@ public class RgbZoneViewModel : ViewModelBase
         _isGradient = false;
     }
 
-    private void ApplyColor()
+    private void ApplyColor(bool force = false)
     {
         if (HardwareControlService.IsDemoMode) return;
-        
+
         if (IsGradient && LedCount > 1)
         {
             var colors = new OpenRGB.NET.Color[LedCount];
@@ -126,21 +126,22 @@ public class RgbZoneViewModel : ViewModelBase
                 byte b = (byte)(SelectedColor.B + ratio * (GradientEndColor.B - SelectedColor.B));
                 colors[i] = new OpenRGB.NET.Color(r, g, b);
             }
-            _hardwareService.UpdateRgbZoneColors(_deviceId, _zoneId, colors);
+            _hardwareService.UpdateRgbZoneColors(_deviceId, _zoneId, colors, force);
         }
         else
         {
             var orgbColor = new OpenRGB.NET.Color(SelectedColor.R, SelectedColor.G, SelectedColor.B);
-            _hardwareService.UpdateRgbZoneColor(_deviceId, _zoneId, orgbColor);
+            _hardwareService.UpdateRgbZoneColor(_deviceId, _zoneId, orgbColor, force);
         }
 
         // Persist the change
         RgbSettingsPersistence.SaveCurrentState();
     }
 
-    /// <summary>Re-sends the currently selected colours to the hardware,
-    /// even when the colour properties did not change.</summary>
-    public void ReapplyColor() => ApplyColor();
+    /// <summary>Re-sends the currently selected colours to the hardware, forcing
+    /// the write through the duplicate guard — this is a deliberate user action
+    /// (apply-to-all / colour pick), not the automatic binding cascade.</summary>
+    public void ReapplyColor() => ApplyColor(force: true);
 
     /// <summary>
     /// Updates the colour properties WITHOUT triggering a hardware write, so a

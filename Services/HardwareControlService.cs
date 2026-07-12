@@ -514,22 +514,28 @@ public class HardwareControlService : IDisposable
     }
 
     // ── Duplicate-write suppression ─────────────────────────────────────────
-    // Identical writes fired in rapid succession (auto-refresh restore colliding
-    // with a user action, multiple bindings settling) hammer the DRAM SMBus and
-    // have hard-frozen a client machine. Identical payloads within this window
-    // are skipped; different payloads always go through.
-    private static readonly TimeSpan DuplicateWriteWindow = TimeSpan.FromSeconds(1);
+    // Guards against the automatic binding cascade (auto-refresh restore colliding
+    // with settling bindings) that once hammered the DRAM SMBus. Kept SHORT so it
+    // never blocks a deliberate re-apply, and user-initiated actions (apply-all,
+    // colour picks, mode changes) pass force=true to bypass it entirely — the
+    // 1-second window used to swallow the client's second apply-to-all.
+    private static readonly TimeSpan DuplicateWriteWindow = TimeSpan.FromMilliseconds(250);
     private readonly Dictionary<string, (string payload, DateTime at)> _lastRgbWrites = new();
 
-    /// <summary>True when the identical payload was already sent to this target within the window.</summary>
-    private bool IsDuplicateRgbWrite(string target, string payload)
+    /// <summary>True when a duplicate write should be suppressed. Always records
+    /// the payload so the next automatic duplicate is caught; never suppresses
+    /// when <paramref name="force"/> (a user-initiated action) is set.</summary>
+    private bool IsDuplicateRgbWrite(string target, string payload, bool force)
     {
-        bool duplicate = _lastRgbWrites.TryGetValue(target, out var last) &&
-                         last.payload == payload &&
-                         DateTime.UtcNow - last.at < DuplicateWriteWindow;
-        if (!duplicate)
+        lock (_lastRgbWrites)
+        {
+            bool duplicate = !force &&
+                             _lastRgbWrites.TryGetValue(target, out var last) &&
+                             last.payload == payload &&
+                             DateTime.UtcNow - last.at < DuplicateWriteWindow;
             _lastRgbWrites[target] = (payload, DateTime.UtcNow);
-        return duplicate;
+            return duplicate;
+        }
     }
 
     private static string ActiveModeName(OpenRGB.NET.Device device)
@@ -538,10 +544,10 @@ public class HardwareControlService : IDisposable
         return valid ? device.Modes[device.ActiveModeIndex].Name : "?";
     }
 
-    public void UpdateRgbZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color)
+    public void UpdateRgbZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color, bool force = false)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
-        if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", Hex(color)))
+        if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", Hex(color), force))
         {
             Log($"[RGB→] deduped identical zone write dev={deviceId} zone={zoneId} {Hex(color)}");
             return;
@@ -576,10 +582,10 @@ public class HardwareControlService : IDisposable
         }
     }
 
-    public void UpdateRgbZoneColors(int deviceId, int zoneId, OpenRGB.NET.Color[] colors)
+    public void UpdateRgbZoneColors(int deviceId, int zoneId, OpenRGB.NET.Color[] colors, bool force = false)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
-        if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", $"{Hex(colors[0])}→{Hex(colors[^1])}×{colors.Length}"))
+        if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", $"{Hex(colors[0])}→{Hex(colors[^1])}×{colors.Length}", force))
         {
             Log($"[RGB→] deduped identical gradient write dev={deviceId} zone={zoneId}");
             return;
@@ -606,7 +612,7 @@ public class HardwareControlService : IDisposable
 
     public void RequestRgbEffect(int deviceId, string effectName)
     {
-        RequestRgbEffect(deviceId, effectName, null);
+        RequestRgbEffect(deviceId, effectName, null, force: true);
     }
 
     /// <summary>
@@ -616,10 +622,10 @@ public class HardwareControlService : IDisposable
     /// stale stored mode colour (ENE defaults to red, which is what showed up on
     /// the client's Trident Z Neo during apply-to-all).
     /// </summary>
-    public void RequestRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
+    public void RequestRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color, bool force = false)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
-        if (IsDuplicateRgbWrite($"mode:{deviceId}", $"{effectName}|{(color == null ? "" : Hex(color.Value))}"))
+        if (IsDuplicateRgbWrite($"mode:{deviceId}", $"{effectName}|{(color == null ? "" : Hex(color.Value))}", force))
         {
             Log($"[RGB→] deduped identical mode switch dev={deviceId} '{effectName}'");
             return;
