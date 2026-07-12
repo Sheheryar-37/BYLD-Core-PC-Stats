@@ -323,8 +323,8 @@
                                         </Grid>
                                     </StackPanel>
                                     
-                                    <!-- Accent square at bottom center (follows the theme accent) -->
-                                    <Rectangle Width="50" Height="50" Fill="{Binding DataContext.Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,0" />
+                                    <!-- Accent square at bottom center (user-selectable; defaults to the theme accent) -->
+                                    <Rectangle Width="50" Height="50" Fill="{Binding DataContext.Theme.StorageAccentBrush, RelativeSource={RelativeSource AncestorType=Window}}" HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,0" />
 
                                     <!-- Right Arrow — fixed light on the always-dark card -->
                                     <Path Fill="#CCCCCC" Data="M 0,0 L 9,6 L 0,15 Z" HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,15,0" />

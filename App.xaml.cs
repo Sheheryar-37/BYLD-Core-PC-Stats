@@ -20,8 +20,12 @@ public partial class App : Application
 
     public App()
     {
+        // Information level: per-tick Debug chatter wrote ~15 log lines/second
+        // (disk I/O + string formatting every poll) and contributed to the
+        // client's "PC runs hard" report. Warnings, errors and the [RGB→]/[FAN]
+        // forensic entries (hardware.log) are unaffected.
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Debug()
+            .MinimumLevel.Information()
             .WriteTo.File(Models.Constants.LogFilePath, rollingInterval: RollingInterval.Day)
             .CreateLogger();
 

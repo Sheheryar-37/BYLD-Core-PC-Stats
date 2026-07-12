@@ -600,6 +600,7 @@ public partial class MainWindow : Window
         string ClockDigital, string ClockDate, string WeatherTheme);
 
     private ScreenColorBase? _baseColors;
+    private ScreenColorBase? _transientColors;
     private bool _screenColorsOverridden;
     private UIElement? _activeThemedScreen;
 
@@ -608,6 +609,7 @@ public partial class MainWindow : Window
     private void OnThemeServiceChanged(ThemeConfig config)
     {
         _baseColors = null;
+        _transientColors = null;
         _screenColorsOverridden = false;
 
         if (_activeThemedScreen != null)
@@ -632,6 +634,7 @@ public partial class MainWindow : Window
         bool light = config.IsScreenThemeLight(key);
         _baseColors ??= CaptureBaseColors(config);
         config.ApplyWidgetColorPreset(light);
+        _transientColors = CaptureBaseColors(config);
         _screenColorsOverridden = true;
         RefreshThemeVisuals(config, light);
     }
@@ -640,6 +643,20 @@ public partial class MainWindow : Window
     {
         if (!_screenColorsOverridden || _baseColors == null)
         {
+            RefreshCodeConfiguredScreens(config);
+            return;
+        }
+
+        // Settings may have just written NEW colours (e.g. the widget-theme
+        // preset when switching back to dark). If the config no longer matches
+        // the transient values this override wrote, those new colours are the
+        // user's intent — accept them as the new base instead of clobbering
+        // them with the stale snapshot (client round 8, item 6).
+        if (_transientColors != null && CaptureBaseColors(config) != _transientColors)
+        {
+            _baseColors = null;
+            _transientColors = null;
+            _screenColorsOverridden = false;
             RefreshCodeConfiguredScreens(config);
             return;
         }
@@ -656,6 +673,7 @@ public partial class MainWindow : Window
         config.Clock.DateColor       = b.ClockDate;
         config.Weather.WeatherTheme  = b.WeatherTheme;
         _screenColorsOverridden = false;
+        _transientColors = null;
         RefreshThemeVisuals(config, logoLightOverride: null);
     }
 

@@ -363,6 +363,9 @@ public partial class SettingsWindow : Window
         BtnTrackColor.Tag = theme.TrackColor;
         BtnAlertColor.Background = new BrushConverter().ConvertFromString(theme.AlertColor) as SolidColorBrush;
         BtnAlertColor.Tag = theme.AlertColor;
+        string storageAccent = string.IsNullOrWhiteSpace(theme.StorageAccentColor) ? theme.AccentColor : theme.StorageAccentColor;
+        BtnStorageAccentColor.Background = new BrushConverter().ConvertFromString(storageAccent) as SolidColorBrush;
+        BtnStorageAccentColor.Tag = storageAccent;
 
         // Toggles
         ChkCpu.IsChecked = theme.IsCpuEnabled;
@@ -550,6 +553,7 @@ public partial class SettingsWindow : Window
         theme.AccentColor = BtnAccentColor.Tag?.ToString() ?? theme.AccentColor;
         theme.TrackColor = BtnTrackColor.Tag?.ToString() ?? theme.TrackColor;
         theme.AlertColor = BtnAlertColor.Tag?.ToString() ?? theme.AlertColor;
+        theme.StorageAccentColor = BtnStorageAccentColor.Tag?.ToString() ?? theme.StorageAccentColor;
 
         theme.IsCpuEnabled = ChkCpu.IsChecked ?? true;
         theme.IsGpuEnabled = ChkGpu.IsChecked ?? true;
@@ -632,6 +636,9 @@ public partial class SettingsWindow : Window
                 btn.Tag = hex;
                 btn.Background = new BrushConverter().ConvertFromString(hex) as SolidColorBrush;
                 UpdateThemeObject();
+                // The clock face previews render on the actual rotating-screen
+                // background — refresh them when theme colours change.
+                LoadClockSettings();
             }
         }
     }
@@ -968,7 +975,7 @@ public partial class SettingsWindow : Window
             bool lightTiles = _themeService.CurrentTheme.IsUiThemeLight;
             var card = new Border
             {
-                Width = 100, Height = 100, CornerRadius = new CornerRadius(10),
+                Width = 122, Height = 122, CornerRadius = new CornerRadius(10),
                 Margin = new Thickness(0, 0, 10, 0),
                 Background = TileBackground(lightTiles, isSelected),
                 BorderBrush = isSelected
@@ -981,33 +988,38 @@ public partial class SettingsWindow : Window
 
             var stack = new StackPanel { VerticalAlignment = VerticalAlignment.Center };
             
-            // Visual Preview (Mini Clock) — the preview follows the WIDGET theme,
-            // so the tiles show what the clock will actually look like on the 7"
-            // display (white face + dark hands when the widget theme is light).
-            bool widgetLight = _themeService.CurrentTheme.IsWidgetThemeLight;
-            var previewBox = new Viewbox { Width = 60, Height = 60 };
-            var previewClock = new PcStatsMonitor.Controls.BuiltInClockScreen();
+            // Visual Preview (Mini Clock) — mirrors the REAL rotating clock: the
+            // user's own hand/face colours on the actual screen background, so
+            // changing colours or the rotating background updates the previews.
             var prevCfg = new ClockConfig {
-                FaceName = face, ClockScale = 0.9,
-                HourHandColor   = widgetLight ? "#1E293B" : "#FFFFFF",
-                MinuteHandColor = widgetLight ? "#1E293B" : "#FFFFFF",
-                SecondHandColor = "#3b82f6",
-                ClockFaceColor  = widgetLight ? "#FFFFFF" : "#1A1A1A",
-                MarkerColor     = widgetLight ? "#475569" : "#FFFFFF",
-                ShowDigitalClock = false, ShowDate = false
+                FaceName = face, ClockScale = 1.0,
+                HourHandColor = clk.HourHandColor, MinuteHandColor = clk.MinuteHandColor,
+                SecondHandColor = clk.SecondHandColor, ClockFaceColor = clk.ClockFaceColor,
+                MarkerColor = clk.MarkerColor, ShowOuterRing = clk.ShowOuterRing,
+                ShowGlow = false, ShowDigitalClock = false, ShowDate = false
+            };
+            var previewClock = new PcStatsMonitor.Controls.BuiltInClockScreen
+            {
+                HorizontalAlignment = HorizontalAlignment.Left,
+                VerticalAlignment = VerticalAlignment.Top,
+                // The control renders its full 480×854 screen layout; the face
+                // occupies a ~300×300 region centred in the analog row. Shift it
+                // so the crop below shows ONLY the face — this is why previews
+                // used to render as tiny clocks lost in empty space.
+                Margin = new Thickness(-90, -317, 0, 0)
             };
             previewClock.ApplyConfig(prevCfg, new ThemeConfig { BackgroundColor = "Transparent" });
-            previewBox.Child = previewClock;
 
-            // A dark-face preview on a light tile needs a dark "mini screen"
-            // backdrop; a light-face preview on a dark tile needs a light one.
+            var clockCrop = new Grid { Width = 300, Height = 300, ClipToBounds = true };
+            clockCrop.Children.Add(previewClock);
+            var previewBox = new Viewbox { Width = 84, Height = 84, Child = clockCrop };
+
             var previewHost = new Border
             {
                 CornerRadius = new CornerRadius(8),
-                Padding = new Thickness(4),
                 Margin = new Thickness(0, 0, 0, 5),
                 HorizontalAlignment = HorizontalAlignment.Center,
-                Background = PreviewBackdrop(lightTiles, widgetLight),
+                Background = EffectiveClockScreenBackground(),
                 Child = previewBox
             };
             stack.Children.Add(previewHost);
@@ -1041,15 +1053,26 @@ public partial class SettingsWindow : Window
         ApplyClockControlValues(clk);
     }
 
-    /// <summary>Backdrop behind the mini clock preview: contrasts the preview's
-    /// face against the tile so hands and markers stay readable.</summary>
-    private static Brush PreviewBackdrop(bool lightTiles, bool widgetLight)
+    /// <summary>
+    /// The background the rotating Clock screen actually renders with: the shared
+    /// theme background, or the widget preset when a per-screen override is set.
+    /// Used behind the face previews so they match the real display.
+    /// </summary>
+    private Brush EffectiveClockScreenBackground()
     {
-        if (lightTiles == widgetLight) return Brushes.Transparent;
+        var theme = _themeService.CurrentTheme;
+        string hex = theme.HasScreenThemeOverride("Clock")
+            ? (theme.IsScreenThemeLight("Clock") ? "#F4F6FA" : Models.Constants.DefaultThemeBackground)
+            : theme.BackgroundColor;
 
-        return widgetLight
-            ? new SolidColorBrush(Color.FromRgb(0xED, 0xF0, 0xF5))
-            : new SolidColorBrush(Color.FromRgb(0x14, 0x14, 0x1C));
+        try
+        {
+            return new SolidColorBrush((Color)ColorConverter.ConvertFromString(hex));
+        }
+        catch
+        {
+            return Brushes.Black;
+        }
     }
 
     /// <summary>Face-tile backdrop for the current theme and selection state.</summary>

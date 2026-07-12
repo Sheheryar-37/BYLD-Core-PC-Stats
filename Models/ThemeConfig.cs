@@ -17,6 +17,28 @@ public class ThemeConfig
     [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush ForegroundColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(ForegroundColor)); } catch { return System.Windows.Media.Brushes.White; } } }
     [System.Text.Json.Serialization.JsonIgnore] public System.Windows.Media.SolidColorBrush BackgroundColorBrush { get { try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(BackgroundColor)); } catch { return System.Windows.Media.Brushes.Black; } } }
 
+    /// <summary>Accent colour for the storage screen's SSD card square. Empty = follow <see cref="AccentColor"/>.</summary>
+    public string StorageAccentColor { get; set; } = "";
+
+    /// <summary>Resolved brush for the SSD card accent square.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public System.Windows.Media.SolidColorBrush StorageAccentBrush
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(StorageAccentColor)) return AccentColorBrush;
+            try
+            {
+                return new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(StorageAccentColor));
+            }
+            catch
+            {
+                return AccentColorBrush;
+            }
+        }
+    }
+
     /// <summary>Card surface for widget screens, following the resolved widget theme.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public System.Windows.Media.SolidColorBrush WidgetCardBrush => IsWidgetThemeLight

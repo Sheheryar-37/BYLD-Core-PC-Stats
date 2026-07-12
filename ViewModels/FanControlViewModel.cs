@@ -415,8 +415,10 @@ public class FanControlViewModel : ViewModelBase
     {
         if (fan.Sensor == null) return;
 
-        // Update the parent hardware to refresh the sensor values
-        fan.Sensor.Hardware.Update();
+        // No Hardware.Update() here: HardwareMonitorService refreshes every
+        // hardware item on the shared Computer once per second already —
+        // updating again per fan per tick doubled the sensor I/O for nothing
+        // (client round 8: "PC runs hard with the app open").
         if (fan.Sensor.Value.HasValue)
             ApplySensorReading(fan);
         if (fan.RpmSensor?.Value is { } rpm)
@@ -636,10 +638,11 @@ public class FanControlViewModel : ViewModelBase
         return Math.Max(a.Value, b.Value);
     }
 
-    /// <summary>Reads a temperature, treating 0 as unavailable (dead MSR reads).</summary>
+    /// <summary>Reads a temperature, treating 0 as unavailable (dead MSR reads).
+    /// The sensor values are kept fresh by HardwareMonitorService's 1 s loop on
+    /// the shared Computer — no extra Hardware.Update() per read.</summary>
     private static float? ReadTemperature(ISensor sensor)
     {
-        sensor.Hardware.Update();
         return sensor.Value is > 0 ? sensor.Value : null;
     }
 

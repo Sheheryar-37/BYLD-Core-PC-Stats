@@ -56,14 +56,19 @@ namespace PcStatsMonitor.Controls
             bool isLight = mode == "Light";
 
             // Colors
-            var bgBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(240, 240, 240) : System.Windows.Media.Color.FromRgb(18, 18, 18));
-            var cardBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Colors.White : System.Windows.Media.Color.FromRgb(30, 30, 30));
+            // The weather screen does NOT paint its own page background — it
+            // inherits the shared rotating-screen background from the main
+            // window so all screens always match (client round 8).
+            // var bgBrush = new System.Windows.Media.SolidColorBrush(isLight ? ... : ...);
+            // Cards are gray in light mode for separation against the light page.
+            var cardBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(0xEC, 0xEF, 0xF3) : System.Windows.Media.Color.FromRgb(30, 30, 30));
             var textBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(20, 20, 20) : System.Windows.Media.Colors.White);
             var subTextBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(40, 40, 40) : System.Windows.Media.Color.FromRgb(136, 136, 136));
             var graphBrush = new System.Windows.Media.SolidColorBrush(isLight ? System.Windows.Media.Color.FromRgb(120, 120, 120) : System.Windows.Media.Color.FromRgb(68, 68, 68));
 
             this.Foreground = textBrush;
-            WeatherBg.Background = bgBrush;
+            // WeatherBg.Background stays Transparent — the shared window
+            // background shows through (this screen must not paint its own page).
             HeroCard.Background = cardBrush;
             GraphTooltip.Background = System.Windows.Media.Brushes.White; // Always white per inspiration bubble
 

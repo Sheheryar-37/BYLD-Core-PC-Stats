@@ -24,11 +24,14 @@
                             <ContentPresenter x:Name="Presenter" Content="{TemplateBinding Content}"/>
                         </Border>
                         <ControlTemplate.Triggers>
+                            <!-- BrandBlue reads on both the light and dark weather
+                                 themes — hardcoded White made the active tab
+                                 invisible in light mode (client round 8). -->
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Presenter" Property="TextBlock.Foreground" Value="White"/>
+                                <Setter TargetName="Presenter" Property="TextBlock.Foreground" Value="#3b82f6"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Presenter" Property="TextBlock.Foreground" Value="LightGray"/>
+                                <Setter TargetName="Presenter" Property="TextBlock.Foreground" Value="#60A5FA"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -38,8 +41,9 @@
     </UserControl.Resources>
 
     <Grid x:Name="RootWeatherGrid" Width="480" Height="854">
-        <!-- Main Background and Theme Support -->
-        <Border x:Name="WeatherBg" Background="#121212">
+        <!-- Transparent: the weather screen inherits the shared rotating-screen
+             background from the main window, exactly like every other screen. -->
+        <Border x:Name="WeatherBg" Background="Transparent">
             <!-- Reduced top margin (140) and bottom margin (10) to make room for graph -->
             <Grid>
                 <Grid.RowDefinitions>
