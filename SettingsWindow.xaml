@@ -569,6 +569,19 @@
                                     </Button>
                                 </Grid>
 
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Storage Card Color" VerticalAlignment="Center"/>
+                                    <Button x:Name="BtnStorageCardColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}"
+                                            ToolTip="The overall colour of the SSD cards on the storage screen. Leave unset for the default metallic look.">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+
                                 <Grid Margin="0,0,0,0">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="Alert (Warnings) Color" VerticalAlignment="Center"/>

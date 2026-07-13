@@ -179,6 +179,12 @@ public class FanItemViewModel : ViewModelBase
     /// <summary>Optional paired RPM (tach) sensor from the same hardware as the control.</summary>
     public ISensor? RpmSensor { get; set; }
 
+    /// <summary>The last speed % the curve engine actually wrote to this fan, and
+    /// when — used to rate-limit and deadband writes so the GPU driver isn't
+    /// hammered every tick (client round 9: "Fan Control severely throttles my PC").</summary>
+    public float LastCurveTarget { get; set; } = float.NaN;
+    public DateTime LastCurveWriteUtc { get; set; } = DateTime.MinValue;
+
     private string _demoName = "Fan";
     public string Name => Sensor?.Name ?? _demoName;
     public string Identifier => Sensor?.Identifier.ToString() ?? "demo_fan";
@@ -454,6 +460,13 @@ public class FanControlViewModel : ViewModelBase
         curve.CurrentRpm = fan?.CurrentRpm ?? 0;
     }
 
+    // Writing a fan control is a driver call; on some GPUs (client's RX 9070)
+    // it forces a manual power state that throttles the whole PC. So the curve
+    // engine only writes when the target has moved meaningfully (deadband), and
+    // never more often than this interval — instead of every 1.3 s.
+    private const float CurveWriteDeadbandPercent = 4f;
+    private static readonly TimeSpan MinCurveWriteInterval = TimeSpan.FromSeconds(5);
+
     private void ApplyCurveToFan(FanItemViewModel fan)
     {
         if (fan.IsManual || fan.Sensor is not { SensorType: SensorType.Control }) return;
@@ -465,10 +478,26 @@ public class FanControlViewModel : ViewModelBase
         if (temp == null) return;
 
         float target = curve.EvaluateSpeed(temp.Value);
-        if (Math.Abs(target - fan.SpeedPercentage) < 1f) return;
+        if (!ShouldWriteCurveTarget(fan, target)) return;
 
+        fan.LastCurveTarget = target;
+        fan.LastCurveWriteUtc = DateTime.UtcNow;
         _hardwareService.SetFanSpeed(fan.Sensor, target,
             $"curve '{curve.Name}', {curve.TemperatureSource} = {temp.Value:F0}°C");
+    }
+
+    /// <summary>
+    /// True only when the curve target has moved past the deadband since the last
+    /// write, or the minimum interval has elapsed. Compares against the last
+    /// WRITTEN target (not the live reading, which never catches up on GPUs that
+    /// ignore the command) — that comparison was what caused per-tick hammering.
+    /// </summary>
+    private static bool ShouldWriteCurveTarget(FanItemViewModel fan, float target)
+    {
+        if (float.IsNaN(fan.LastCurveTarget)) return true;
+        if (Math.Abs(target - fan.LastCurveTarget) >= CurveWriteDeadbandPercent) return true;
+        return DateTime.UtcNow - fan.LastCurveWriteUtc >= MinCurveWriteInterval
+               && Math.Abs(target - fan.LastCurveTarget) >= 1f;
     }
 
     /// <summary>

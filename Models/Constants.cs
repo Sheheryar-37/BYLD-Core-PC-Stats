@@ -22,7 +22,7 @@ public static class Constants
     public const string DefaultLogoPath = "Assets/logo.png";
 
     // Application Defaults
-    public const string DefaultThemeBackground = "#060606";
+    public const string DefaultThemeBackground = "#000000";
     public const string DefaultThemeForeground = "#FFFFFF";
     public const string DefaultThemeAccent = "#3b82f6";
     public const string DefaultThemeTrack = "#0B0B0B";

@@ -276,15 +276,10 @@
                                     </LinearGradientBrush>
                                 </Border.BorderBrush>
 
-                                <!-- Matte Gradient Background (Lighting from Top-Left to Bottom-Right) -->
+                                <!-- Card fill: user-selectable (Colors → Storage Card Color);
+                                     defaults to the matte metallic gradient when unset. -->
                                 <Border.Background>
-                                    <!-- Angled from top-left (0,0) to bottom-right (1,1) -->
-                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                        <GradientStop Color="#1A1A1A" Offset="0"/>
-                                        <GradientStop Color="#121212" Offset="0.2"/>
-                                        <GradientStop Color="#080808" Offset="0.8"/>
-                                        <GradientStop Color="#050505" Offset="1"/>
-                                    </LinearGradientBrush>
+                                    <Binding Path="DataContext.Theme.StorageCardBrush" RelativeSource="{RelativeSource AncestorType=Window}"/>
                                 </Border.Background>
 
                                 <Border.Effect>

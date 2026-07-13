@@ -366,6 +366,9 @@ public partial class SettingsWindow : Window
         string storageAccent = string.IsNullOrWhiteSpace(theme.StorageAccentColor) ? theme.AccentColor : theme.StorageAccentColor;
         BtnStorageAccentColor.Background = new BrushConverter().ConvertFromString(storageAccent) as SolidColorBrush;
         BtnStorageAccentColor.Tag = storageAccent;
+        string storageCard = string.IsNullOrWhiteSpace(theme.StorageCardColor) ? "#121212" : theme.StorageCardColor;
+        BtnStorageCardColor.Background = new BrushConverter().ConvertFromString(storageCard) as SolidColorBrush;
+        BtnStorageCardColor.Tag = storageCard;
 
         // Toggles
         ChkCpu.IsChecked = theme.IsCpuEnabled;
@@ -554,6 +557,7 @@ public partial class SettingsWindow : Window
         theme.TrackColor = BtnTrackColor.Tag?.ToString() ?? theme.TrackColor;
         theme.AlertColor = BtnAlertColor.Tag?.ToString() ?? theme.AlertColor;
         theme.StorageAccentColor = BtnStorageAccentColor.Tag?.ToString() ?? theme.StorageAccentColor;
+        theme.StorageCardColor = BtnStorageCardColor.Tag?.ToString() ?? theme.StorageCardColor;
 
         // Remember the palette for the CURRENT display mode, so each mode keeps
         // its own customizations across light↔dark switches.

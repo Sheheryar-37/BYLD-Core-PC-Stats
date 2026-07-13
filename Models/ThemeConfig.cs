@@ -48,6 +48,42 @@ public class ThemeConfig
     /// <summary>Accent colour for the storage screen's SSD card square. Empty = follow <see cref="AccentColor"/>.</summary>
     public string StorageAccentColor { get; set; } = "";
 
+    /// <summary>Overall SSD card colour. Empty = the default metallic gradient.</summary>
+    public string StorageCardColor { get; set; } = "";
+
+    /// <summary>The SSD card fill: a solid user colour when set, else the default metallic gradient.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public System.Windows.Media.Brush StorageCardBrush
+    {
+        get
+        {
+            if (!string.IsNullOrWhiteSpace(StorageCardColor))
+                return TrySolid(StorageCardColor, System.Windows.Media.Color.FromRgb(0x12, 0x12, 0x12));
+            return DefaultSsdGradient();
+        }
+    }
+
+    private static System.Windows.Media.Brush TrySolid(string hex, System.Windows.Media.Color fallback)
+    {
+        try { return new System.Windows.Media.SolidColorBrush((System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(hex)); }
+        catch { return new System.Windows.Media.SolidColorBrush(fallback); }
+    }
+
+    private static System.Windows.Media.Brush DefaultSsdGradient()
+    {
+        var b = new System.Windows.Media.LinearGradientBrush
+        {
+            StartPoint = new System.Windows.Point(0, 0),
+            EndPoint = new System.Windows.Point(1, 1)
+        };
+        b.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x1A, 0x1A, 0x1A), 0));
+        b.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x12, 0x12, 0x12), 0.2));
+        b.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x08, 0x08, 0x08), 0.8));
+        b.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x05, 0x05, 0x05), 1));
+        b.Freeze();
+        return b;
+    }
+
     /// <summary>Resolved brush for the SSD card accent square.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public System.Windows.Media.SolidColorBrush StorageAccentBrush

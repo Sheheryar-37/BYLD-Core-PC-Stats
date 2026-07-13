@@ -179,12 +179,33 @@ public class RgbDeviceViewModel : ViewModelBase
             if (SetProperty(ref _selectedMode, value) && value != null)
             {
                 if (!HardwareControlService.IsDemoMode)
-                {
-                    _hardwareService.RequestRgbEffect(DeviceId, value);
-                }
+                    SendModeToHardware(value);
                 // Persist mode change
                 RgbSettingsPersistence.SaveCurrentState();
             }
+        }
+    }
+
+    /// <summary>
+    /// Sends a mode change to the hardware, carrying the current zone colour for
+    /// colour-capable modes. Without the colour, a mode-only switch to e.g. ENE
+    /// DRAM "Static" leaves each identical stick showing its own STORED colour —
+    /// so two RAM sticks disagreed, one going dark (client round 9, item 8).
+    /// </summary>
+    private void SendModeToHardware(string modeName)
+    {
+        bool colorMode = modeName.Equals("Static", StringComparison.OrdinalIgnoreCase) ||
+                         modeName.Equals("Direct", StringComparison.OrdinalIgnoreCase);
+        var firstZone = Zones.FirstOrDefault();
+
+        if (colorMode && firstZone != null)
+        {
+            var c = firstZone.SelectedColor;
+            _hardwareService.RequestRgbEffect(DeviceId, modeName, new OpenRGB.NET.Color(c.R, c.G, c.B));
+        }
+        else
+        {
+            _hardwareService.RequestRgbEffect(DeviceId, modeName);
         }
     }
 

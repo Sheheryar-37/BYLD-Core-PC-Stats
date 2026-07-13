@@ -13,8 +13,8 @@
         </Storyboard>
     </Window.Resources>
 
-    <!-- Dark glassmorphism card -->
-    <Border CornerRadius="16" Background="#E0101020" BorderBrush="#33FFFFFF" BorderThickness="1">
+    <!-- Full-black loading background (client request) with the branding card on top -->
+    <Border CornerRadius="16" Background="#000000" BorderBrush="#22FFFFFF" BorderThickness="1">
         <Border.Effect>
             <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.6" Color="#000000"/>
         </Border.Effect>
