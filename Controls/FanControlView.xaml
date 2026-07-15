@@ -237,6 +237,19 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Advanced: force fan control override -->
+                <Border Background="{DynamicResource CardFill}" BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Force fan control (advanced)" Foreground="{DynamicResource PageText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <ToggleButton Grid.Column="1" IsChecked="{Binding ForceControlOverride, Mode=TwoWay}" Style="{StaticResource ToggleSwitchStyle}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Foreground="#E6A23C" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Text="⚠ Only enable this if your GPU/motherboard fans are not responding and you have enabled a manufacturer driver workaround (e.g. AMD manual fan tuning). Forcing control on unsupported hardware can increase system load."/>
+                    </StackPanel>
+                </Border>
+
                 <!-- CONTROLS HEADER -->
                 <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
                     <TextBlock Text="Controls" Foreground="{DynamicResource PageText}" FontWeight="Bold" FontSize="14"/>

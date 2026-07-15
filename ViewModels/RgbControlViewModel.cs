@@ -201,7 +201,10 @@ public class RgbDeviceViewModel : ViewModelBase
         if (colorMode && firstZone != null)
         {
             var c = firstZone.SelectedColor;
-            _hardwareService.RequestRgbEffect(DeviceId, modeName, new OpenRGB.NET.Color(c.R, c.G, c.B));
+            // force: a per-device mode change is a deliberate user action and must
+            // bypass the duplicate guard, or switching back to a mode the device is
+            // already nominally in does nothing (client round 11, item 5).
+            _hardwareService.RequestRgbEffect(DeviceId, modeName, new OpenRGB.NET.Color(c.R, c.G, c.B), force: true);
         }
         else
         {
@@ -221,7 +224,7 @@ public class RgbDeviceViewModel : ViewModelBase
         if (!HardwareControlService.IsDemoMode)
         {
             var orgb = new OpenRGB.NET.Color(color.R, color.G, color.B);
-            _hardwareService.RequestRgbEffect(DeviceId, modeName, orgb);
+            _hardwareService.RequestRgbEffect(DeviceId, modeName, orgb, force: true);
         }
 
         _selectedMode = modeName;

@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="BYLD Core" Width="320" Height="260"
         WindowStartupLocation="CenterScreen" WindowStyle="None"
-        AllowsTransparency="True" Background="Transparent"
+        Background="#000000"
         ResizeMode="NoResize" ShowInTaskbar="False" Topmost="True">
     <Window.Resources>
         <!-- Status text fade-in -->
@@ -13,11 +13,9 @@
         </Storyboard>
     </Window.Resources>
 
-    <!-- Full-black loading background (client request) with the branding card on top -->
-    <Border CornerRadius="16" Background="#000000" BorderBrush="#22FFFFFF" BorderThickness="1">
-        <Border.Effect>
-            <DropShadowEffect BlurRadius="30" ShadowDepth="0" Opacity="0.6" Color="#000000"/>
-        </Border.Effect>
+    <!-- Full-black loading background, edge to edge (client request) with the
+         branding centred. No rounded corners/border so it fills the 7" exactly. -->
+    <Border Background="#000000">
         <Grid>
             <!-- Viewbox scales the branding with the window, so the maximized
                  splash on the 7" secondary display renders large and readable. -->

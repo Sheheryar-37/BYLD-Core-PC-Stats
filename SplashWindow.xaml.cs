@@ -75,22 +75,18 @@ public partial class SplashWindow : Window
         var screen = System.Windows.Forms.Screen.AllScreens.FirstOrDefault(s => !s.Primary);
         if (screen == null) return null;
 
+        // Match the MAIN window's placement exactly (WorkingArea + Maximize) so
+        // the loading screen is the same size and position as the rotating screen
+        // that replaces it. The window is opaque now, so Maximize fills correctly
+        // (it left gaps only while the window was transparent).
         var splash = new SplashWindow { WindowStartupLocation = WindowStartupLocation.Manual };
-        PositionOnScreen(splash, screen);
+        double scale = GetPrimaryDpiScale();
+        splash.Left   = screen.WorkingArea.Left   / scale;
+        splash.Top    = screen.WorkingArea.Top    / scale;
+        splash.Width  = screen.WorkingArea.Width  / scale;
+        splash.Height = screen.WorkingArea.Height / scale;
         splash.Loaded += (s, e) => splash.WindowState = WindowState.Maximized;
         return splash;
-    }
-
-    /// <summary>
-    /// Places the window inside the given display's bounds so that maximizing
-    /// afterwards fills that display. Device pixels are converted to DIPs
-    /// using the primary monitor's DPI scale.
-    /// </summary>
-    private static void PositionOnScreen(SplashWindow splash, System.Windows.Forms.Screen screen)
-    {
-        double scale = GetPrimaryDpiScale();
-        splash.Left = (screen.Bounds.Left + screen.Bounds.Width / 2.0) / scale - splash.Width / 2;
-        splash.Top  = (screen.Bounds.Top + screen.Bounds.Height / 2.0) / scale - splash.Height / 2;
     }
 
     private static double GetPrimaryDpiScale()

@@ -185,6 +185,15 @@ public class FanItemViewModel : ViewModelBase
     public float LastCurveTarget { get; set; } = float.NaN;
     public DateTime LastCurveWriteUtc { get; set; } = DateTime.MinValue;
 
+    /// <summary>Consecutive writes where the control read back ~0 despite a &gt;0
+    /// command — the hardware is ignoring us (client's RX 9070). After enough of
+    /// these the engine stops writing to spare the driver (which throttles the PC).</summary>
+    public int UnresponsiveWrites { get; set; }
+
+    /// <summary>True once the fan is confirmed to ignore control writes; the engine
+    /// stops driving it and the card is released to its own automatic control.</summary>
+    public bool ControlDisabled { get; set; }
+
     private string _demoName = "Fan";
     public string Name => Sensor?.Name ?? _demoName;
     public string Identifier => Sensor?.Identifier.ToString() ?? "demo_fan";
@@ -356,9 +365,42 @@ public class FanControlViewModel : ViewModelBase
     /// </summary>
     public ICommand DeleteCurveCommand { get; }
 
-    public FanControlViewModel(HardwareControlService hardwareService)
+    private readonly IThemeService? _themeService;
+
+    /// <summary>
+    /// Advanced override: when ON, the engine keeps sending fan-control commands
+    /// even to hardware that appears to ignore them, instead of auto-releasing to
+    /// the card's own control. For users who have enabled a driver-side workaround
+    /// (e.g. the RX 9070 manual-tuning steps) so the writes actually take effect.
+    /// </summary>
+    public bool ForceControlOverride
+    {
+        get => _themeService?.CurrentTheme.ForceFanControlOverride ?? false;
+        set
+        {
+            if (_themeService == null || value == ForceControlOverride) return;
+            _themeService.CurrentTheme.ForceFanControlOverride = value;
+            _themeService.SaveTheme();
+            OnPropertyChanged();
+            if (value) ReenableDisabledFans();
+        }
+    }
+
+    /// <summary>Re-arms fans that were auto-disabled, so the override takes effect immediately.</summary>
+    private void ReenableDisabledFans()
+    {
+        foreach (var fan in Fans)
+        {
+            fan.ControlDisabled = false;
+            fan.UnresponsiveWrites = 0;
+        }
+        DetectionStatusMessage = "";
+    }
+
+    public FanControlViewModel(HardwareControlService hardwareService, IThemeService? themeService = null)
     {
         _hardwareService = hardwareService;
+        _themeService = themeService;
         RefreshFansCommand = new RelayCommand(_ => LoadFans());
         AddCurveCommand = new RelayCommand(_ => AddNewCurve());
         DeleteCurveCommand = new RelayCommand(param => DeleteCurve(param as CurveItemViewModel));
@@ -467,9 +509,13 @@ public class FanControlViewModel : ViewModelBase
     private const float CurveWriteDeadbandPercent = 4f;
     private static readonly TimeSpan MinCurveWriteInterval = TimeSpan.FromSeconds(5);
 
+    // After this many writes that the hardware clearly ignored, stop driving the
+    // fan — repeatedly poking a control the GPU rejects is what throttled the PC.
+    private const int UnresponsiveWriteLimit = 4;
+
     private void ApplyCurveToFan(FanItemViewModel fan)
     {
-        if (fan.IsManual || fan.Sensor is not { SensorType: SensorType.Control }) return;
+        if (fan.IsManual || fan.ControlDisabled || fan.Sensor is not { SensorType: SensorType.Control }) return;
 
         var curve = Curves.FirstOrDefault(c => c.Name == fan.SelectedCurve);
         if (curve == null) return;
@@ -480,10 +526,45 @@ public class FanControlViewModel : ViewModelBase
         float target = curve.EvaluateSpeed(temp.Value);
         if (!ShouldWriteCurveTarget(fan, target)) return;
 
+        TrackResponsiveness(fan, target);
+        if (fan.ControlDisabled) return;
+
         fan.LastCurveTarget = target;
         fan.LastCurveWriteUtc = DateTime.UtcNow;
         _hardwareService.SetFanSpeed(fan.Sensor, target,
             $"curve '{curve.Name}', {curve.TemperatureSource} = {temp.Value:F0}°C");
+    }
+
+    /// <summary>
+    /// Detects a fan whose control writes are ignored — the control sensor reads
+    /// back ~0 despite a &gt;0 command we already issued. Some GPUs (client's RX
+    /// 9070) reject software fan control, and every rejected write is an
+    /// expensive driver call that throttles the PC. After the limit the fan is
+    /// released to automatic control and the engine stops writing to it.
+    /// </summary>
+    private void TrackResponsiveness(FanItemViewModel fan, float target)
+    {
+        // Override on: keep driving the fan regardless (the user has a driver-side
+        // workaround that makes writes take effect). Never auto-disable.
+        if (ForceControlOverride) return;
+
+        // Only judge after a previous >0 command has had time to take effect.
+        bool commandedButIgnored = fan.LastCurveTarget > 5f &&
+                                   (fan.Sensor!.Value ?? 0) < 2f &&
+                                   (fan.RpmSensor?.Value ?? 0) < 1f;
+        if (!commandedButIgnored)
+        {
+            fan.UnresponsiveWrites = 0;
+            return;
+        }
+
+        if (++fan.UnresponsiveWrites < UnresponsiveWriteLimit) return;
+
+        fan.ControlDisabled = true;
+        _hardwareService.SetFanAuto(fan.Sensor!);
+        DetectionStatusMessage = $"'{fan.Name}' does not accept software fan control on this hardware — " +
+            "released to the card's automatic control to keep the system responsive.";
+        ShowHvciWarning = true;
     }
 
     /// <summary>

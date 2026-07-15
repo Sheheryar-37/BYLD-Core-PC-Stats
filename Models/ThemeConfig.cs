@@ -51,6 +51,10 @@ public class ThemeConfig
     /// <summary>Overall SSD card colour. Empty = the default metallic gradient.</summary>
     public string StorageCardColor { get; set; } = "";
 
+    /// <summary>Advanced: keep sending fan-control commands even to hardware that
+    /// appears to ignore them (for users with a driver-side workaround enabled).</summary>
+    public bool ForceFanControlOverride { get; set; } = false;
+
     /// <summary>The SSD card fill: a solid user colour when set, else the default metallic gradient.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public System.Windows.Media.Brush StorageCardBrush

@@ -155,9 +155,17 @@ public interface IHardwareMonitorService
     private void UpdateMetrics()
     {
         var metrics = new HardwareMetrics();
-        
+        bool networkEnabled = _themeService.CurrentTheme.IsNetworkEnabled;
+
         foreach (var hardware in _computer.Hardware)
         {
+            // The network gauge is off for most users, yet LibreHardwareMonitor
+            // enumerates 30+ interfaces (every WiFi filter, QoS scheduler, WFP MAC
+            // filter) and updating them all every second was a real, continuous
+            // CPU cost (client round 11). Skip them entirely when not shown.
+            if (!networkEnabled && hardware.HardwareType == HardwareType.Network)
+                continue;
+
             try { hardware.Update(); }
             catch (Exception ex) { LogUpdateFailureOnce(hardware.Name, ex); }
 

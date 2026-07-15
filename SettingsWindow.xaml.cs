@@ -60,7 +60,7 @@ public partial class SettingsWindow : Window
         // LibreHardwareMonitor's Ring0 state is process-global and a second Computer
         // (or disposing one) corrupts the others.
         _hwControl = hwControl;
-        FanViewModel = new PcStatsMonitor.ViewModels.FanControlViewModel(_hwControl);
+        FanViewModel = new PcStatsMonitor.ViewModels.FanControlViewModel(_hwControl, themeService);
         RgbViewModel = new PcStatsMonitor.ViewModels.RgbControlViewModel(_hwControl);
         
 
