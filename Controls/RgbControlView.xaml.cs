@@ -51,6 +51,12 @@ public partial class RgbControlView : UserControl
                 var newColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.SelectedHex);
                 var endColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.GradientEndHex);
 
+                // Switch the device into a colour-capable mode first — the same step
+                // apply-to-all uses — so a second pick shows even when the device is
+                // sitting in an effect mode (ENE DRAM in Rainbow ignores direct LED
+                // writes, which is why the client's second colour never took).
+                zone.Owner?.EnsureColorCapableMode(newColor);
+
                 // Set silently, then force ONE write — a deliberate user pick must
                 // reach the hardware even if it matches the current colour.
                 zone.SetColorsSilently(newColor, picker.IsGradient, endColor);

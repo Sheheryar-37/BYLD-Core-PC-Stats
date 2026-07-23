@@ -48,6 +48,10 @@ public class RgbZoneViewModel : ViewModelBase
     public string Name { get; }
     public uint LedCount { get; }
 
+    /// <summary>The device this zone belongs to, so a per-zone colour pick can
+    /// switch the whole device into a colour-capable mode (mode is device-level).</summary>
+    public RgbDeviceViewModel? Owner { get; set; }
+
     private System.Windows.Media.Color _selectedColor;
     public System.Windows.Media.Color SelectedColor
     {
@@ -217,6 +221,23 @@ public class RgbDeviceViewModel : ViewModelBase
     /// modes that carry mode-specific colours (e.g. ENE DRAM "Static"). Used by
     /// apply-to-all so the device doesn't light up with its stale stored colour.
     /// </summary>
+    /// <summary>
+    /// Switches the device into a colour-capable mode (preferring "Static", else
+    /// "Direct") and sends the colour WITH the switch, so a following per-LED write
+    /// actually displays. Devices sitting in a hardware effect (Rainbow, Breathing…)
+    /// ignore or black out on direct LED writes — ENE DRAM does. "Static" is
+    /// preferred because the hardware stores it, while "Direct" needs continuous
+    /// refresh and drops back to black on ENE DRAM once writes stop. No-op when the
+    /// device offers neither mode.
+    /// </summary>
+    public void EnsureColorCapableMode(System.Windows.Media.Color color)
+    {
+        var colorMode = Modes.FirstOrDefault(m => m == "Static")
+                     ?? Modes.FirstOrDefault(m => m == "Direct");
+        if (colorMode != null)
+            ApplyModeWithColor(colorMode, color);
+    }
+
     public void ApplyModeWithColor(string modeName, System.Windows.Media.Color color)
     {
         if (!Modes.Contains(modeName)) return;
@@ -241,7 +262,7 @@ public class RgbDeviceViewModel : ViewModelBase
 
         for (int i = 0; i < device.Zones.Length; i++)
         {
-            Zones.Add(new RgbZoneViewModel(device.Zones[i], deviceId, i, hardwareService));
+            Zones.Add(new RgbZoneViewModel(device.Zones[i], deviceId, i, hardwareService) { Owner = this });
         }
 
         foreach (var mode in device.Modes)
@@ -362,17 +383,9 @@ public class RgbControlViewModel : ViewModelBase
     private static void ApplyColorToDevice(RgbDeviceViewModel device,
         System.Windows.Media.Color color, bool isGradient, System.Windows.Media.Color endColor)
     {
-        // Devices sitting in a hardware effect (Rainbow, Breathing…) ignore or
-        // black out on direct LED writes (ENE DRAM does) — switch the device to
-        // a colour-capable mode first. Prefer "Static" over "Direct": Static is
-        // stored by the hardware itself, while Direct needs continuous refresh
-        // and drops back to black on devices like ENE DRAM once writes stop.
-        // The colour is sent WITH the mode change — mode-specific-colour devices
-        // otherwise light up with their stale stored colour (usually red).
-        var colorMode = device.Modes.FirstOrDefault(m => m == "Static")
-                     ?? device.Modes.FirstOrDefault(m => m == "Direct");
-        if (colorMode != null)
-            device.ApplyModeWithColor(colorMode, color);
+        // Switch the device to a colour-capable mode first (shared with the
+        // per-zone picker), then write each zone once.
+        device.EnsureColorCapableMode(color);
 
         foreach (var zone in device.Zones)
         {

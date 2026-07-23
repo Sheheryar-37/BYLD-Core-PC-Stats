@@ -61,10 +61,10 @@ public class HardwareControlService : IDisposable
         };
         try
         {
-            // Ring0 health is verified (and reclaimed if needed) at app startup by
-            // KernelDriverService.VerifyRing0WithProbe, BEFORE this instance opens.
+            // PawnIO availability is checked at app startup by
+            // PawnIoDriverService.EnsureAvailable, BEFORE this instance opens.
             // Never Close/reopen the Computer here at runtime: LibreHardwareMonitor's
-            // Ring0 state is process-global and other instances would be corrupted.
+            // driver state is process-global and other instances would be corrupted.
             _computer.Open();
             Log("LibreHardwareMonitor Computer opened successfully.");
         }
@@ -126,30 +126,29 @@ public class HardwareControlService : IDisposable
             Log($"[HW] Sub-hardware count: {hardware.SubHardware.Length}");
             hardware.Update();
             
-            // Log ALL sensor types on this hardware for complete visibility
+            // Log only fan/control sensors. Dumping every temp/voltage wrote ~675 lines
+            // at startup once the Super I/O (37 sensors) came online — pure I/O that
+            // added to the "throttle on open" report — while only fans matter here.
             foreach (var sensor in hardware.Sensors)
             {
-                string tag = (sensor.SensorType == SensorType.Fan || sensor.SensorType == SensorType.Control) ? "★ FAN/CTRL" : "  sensor";
-                Log($"  [{tag}] {sensor.SensorType}: \"{sensor.Name}\" = {sensor.Value} (ID: {sensor.Identifier})");
-                
-                if (sensor.SensorType == SensorType.Fan || sensor.SensorType == SensorType.Control)
-                {
-                    fanSensors.Add(sensor);
-                }
+                if (sensor.SensorType != SensorType.Fan && sensor.SensorType != SensorType.Control)
+                    continue;
+                Log($"  [★ FAN/CTRL] {sensor.SensorType}: \"{sensor.Name}\" = {sensor.Value} (ID: {sensor.Identifier})");
+                fanSensors.Add(sensor);
             }
             
             if (hardware.HardwareType == HardwareType.Motherboard && hardware.SubHardware.Length == 0)
             {
-                // No Super I/O access has two very different causes: the WinRing0
-                // driver failed to load (fixable), or the I/O chip is genuinely
-                // unsupported by LibreHardwareMonitor. Report the right one.
-                FanStatus = KernelDriverService.DriverLoadFailed
+                // No Super I/O access has two very different causes: PawnIO is not
+                // installed (fixable), or the I/O chip is genuinely unsupported by
+                // LibreHardwareMonitor. Report the right one.
+                FanStatus = PawnIoDriverService.DriverUnavailable
                     ? FanDetectionStatus.DriverBlocked
                     : FanDetectionStatus.SuperIoUnsupported;
                 Log($"  ⚠ MOTHERBOARD HAS NO SUB-HARDWARE — Super I/O chip is NOT accessible.");
                 Log($"  ⚠ This means case fans (CPU_FAN, SYS_FAN, etc.) cannot be read.");
-                Log(KernelDriverService.DriverLoadFailed
-                    ? "  ⚠ Cause: the WinRing0 kernel driver failed to load this session."
+                Log(PawnIoDriverService.DriverUnavailable
+                    ? "  ⚠ Cause: the PawnIO driver is not installed this session."
                     : "  ⚠ Most likely cause: The I/O chip is not supported by LibreHardwareMonitor yet.");
             }
             
@@ -162,13 +161,10 @@ public class HardwareControlService : IDisposable
                 subHardware.Update();
                 foreach (var sensor in subHardware.Sensors)
                 {
-                    string tag = (sensor.SensorType == SensorType.Fan || sensor.SensorType == SensorType.Control) ? "★ FAN/CTRL" : "  sensor";
-                    Log($"    [{tag}] {sensor.SensorType}: \"{sensor.Name}\" = {sensor.Value} (ID: {sensor.Identifier})");
-                    
-                    if (sensor.SensorType == SensorType.Fan || sensor.SensorType == SensorType.Control)
-                    {
-                        fanSensors.Add(sensor);
-                    }
+                    if (sensor.SensorType != SensorType.Fan && sensor.SensorType != SensorType.Control)
+                        continue;
+                    Log($"    [★ FAN/CTRL] {sensor.SensorType}: \"{sensor.Name}\" = {sensor.Value} (ID: {sensor.Identifier})");
+                    fanSensors.Add(sensor);
                 }
             }
         }
@@ -178,7 +174,7 @@ public class HardwareControlService : IDisposable
         
         if (FanStatus == FanDetectionStatus.Unknown)
         {
-            if (KernelDriverService.DriverLoadFailed)
+            if (PawnIoDriverService.DriverUnavailable)
                 FanStatus = FanDetectionStatus.DriverBlocked;
             else if (fanSensors.Count > 0)
                 FanStatus = FanDetectionStatus.Success;

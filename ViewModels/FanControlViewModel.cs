@@ -657,7 +657,8 @@ public class FanControlViewModel : ViewModelBase
     private readonly Dictionary<string, ISensor> _tempSources = new();
 
     /// <summary>Synthetic CPU source backed by the AMD iGPU SoC sensor — the same
-    /// proxy the 7" gauges use when WinRing0 is blocked and Tctl reads zero.</summary>
+    /// proxy the 7" gauges use when the MSR CPU temperature is unavailable
+    /// (PawnIO not installed) and Tctl reads zero.</summary>
     private const string CpuProxySource = "CPU Temperature (via iGPU proxy)";
 
     private string[] GetAvailableSourceOptions()
@@ -678,9 +679,9 @@ public class FanControlViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// When no CPU temperature sensor delivers a real value (WinRing0 blocked on
-    /// Windows 11 22H2+), offer the iGPU SoC proxy as the FIRST source so new
-    /// curves default to something that actually works.
+    /// When no CPU temperature sensor delivers a real value (e.g. PawnIO not
+    /// installed, so the MSR Tctl/Tdie reads zero), offer the iGPU SoC proxy as
+    /// the FIRST source so new curves default to something that actually works.
     /// </summary>
     private void AddCpuProxyIfNeeded(List<string> options)
     {
@@ -721,9 +722,9 @@ public class FanControlViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Reads a sensor; when a CPU temperature sensor is dead (permanent zero on
-    /// WinRing0-blocked machines), transparently falls back to the iGPU SoC proxy
-    /// so existing curves bound to "Core (Tctl/Tdie)" keep driving fans.
+    /// Reads a sensor; when a CPU temperature sensor is dead (permanent zero when
+    /// the MSR path is unavailable, e.g. PawnIO not installed), transparently falls
+    /// back to the iGPU SoC proxy so curves bound to "Core (Tctl/Tdie)" keep driving fans.
     /// </summary>
     private float? ReadSensorWithCpuFallback(ISensor sensor)
     {
@@ -887,16 +888,15 @@ public class FanControlViewModel : ViewModelBase
             Curves.Add(liveCurve1);
         }
 
-        var sensors = _hardwareService.GetFanSensors();
+        var sensors = FilterOutGpuFanIfBoardFansPresent(_hardwareService.GetFanSensors());
         ShowHvciWarning = _hardwareService.FanStatus != FanDetectionStatus.Success;
 
         switch (_hardwareService.FanStatus)
         {
             case FanDetectionStatus.DriverBlocked:
-                DetectionStatusMessage = "The hardware driver (WinRing0x64.sys) needed to read your motherboard's fan headers could not be loaded this session.\n\n" +
-                                         "1. Close other hardware tools (OpenRGB, RGB or monitoring utilities) and restart BYLD Core.\n" +
-                                         "2. If it persists, restart your PC and launch BYLD Core before any other hardware tool.\n" +
-                                         "3. Also check Windows Security → Protection History and allow any blocked driver entries.";
+                DetectionStatusMessage = "The PawnIO hardware driver needed to read your motherboard's fan headers is not installed.\n\n" +
+                                         "1. Install PawnIO (Microsoft-signed) from https://pawnio.eu/ and restart BYLD Core.\n" +
+                                         "2. PawnIO installs in a few seconds and does not require disabling any Windows security features.";
                 break;
             case FanDetectionStatus.SuperIoUnsupported:
                 DetectionStatusMessage = "Your motherboard's I/O chip is not yet supported for direct case fan monitoring. GPU fan controls (if available) will still work. This is a hardware compatibility limitation, not a configuration issue.";
@@ -917,6 +917,28 @@ public class FanControlViewModel : ViewModelBase
 
         SyncFanCurveLists();
     }
+
+    /// <summary>
+    /// When the motherboard Super I/O exposes real fan controls, drops the discrete
+    /// GPU fan from the list. AMD cards like the RX 9070 reject every software fan
+    /// write, and each rejected driver call thrashes the whole system — the card
+    /// manages its own fan, so once real board fans are available we stop touching it.
+    /// </summary>
+    private static List<ISensor> FilterOutGpuFanIfBoardFansPresent(List<ISensor> sensors)
+    {
+        bool hasBoardFan = sensors.Any(s => IsMotherboardFan(s));
+        if (!hasBoardFan) return sensors;
+        return sensors.Where(s => !IsDiscreteGpuFan(s)).ToList();
+    }
+
+    private static bool IsMotherboardFan(ISensor s) =>
+        s.Hardware.HardwareType == HardwareType.Motherboard ||
+        s.Hardware.HardwareType == HardwareType.SuperIO;
+
+    private static bool IsDiscreteGpuFan(ISensor s) =>
+        s.Hardware.HardwareType == HardwareType.GpuAmd ||
+        s.Hardware.HardwareType == HardwareType.GpuNvidia ||
+        s.Hardware.HardwareType == HardwareType.GpuIntel;
 
     private List<FanItemViewModel> PairFanSensors(List<ISensor> sensors)
     {

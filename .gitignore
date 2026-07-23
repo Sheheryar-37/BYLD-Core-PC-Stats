@@ -33,3 +33,11 @@ logs/
 
 # Local publish output
 publish/
+
+# WPF-generated temporary project files (regenerated every build)
+*_wpftmp.csproj
+
+# Bundled third-party driver installer — obtain the official signed binary from
+# https://pawnio.eu/ (repo: namazso/PawnIO.Setup) and place it at the repo root
+# before publishing. Not committed.
+PawnIO_setup.exe

@@ -69,12 +69,78 @@ public partial class App : Application
                 CrashLogger.LogCrash(args.Exception, "UnobservedTaskException");
             args.SetObserved();
         };
+
+        // Diagnostic: log each DISTINCT exception the moment it is thrown, even if it
+        // is caught downstream. This surfaces the swallowed exceptions behind Joe's
+        // "froze and closed itself" (no crash log = a caught exception or a hang).
+        AppDomain.CurrentDomain.FirstChanceException += (s, args) => LogFirstChance(args.Exception);
+    }
+
+    private readonly HashSet<string> _seenFirstChance = new();
+
+    /// <summary>Logs each distinct first-chance exception once (deduped by type+message) so
+    /// a pre-crash exception is captured without flooding the log on repeat throws.</summary>
+    private void LogFirstChance(Exception ex)
+    {
+        if (ex is System.Net.Sockets.SocketException || ex is OperationCanceledException)
+            return;
+
+        string signature = ex.GetType().FullName + "|" + ex.Message;
+        lock (_seenFirstChance)
+        {
+            if (!_seenFirstChance.Add(signature)) return;
+        }
+
+        try { Log.Warning(ex, "[FirstChance] {Type}: {Message}", ex.GetType().Name, ex.Message); }
+        catch { /* diagnostics must never throw */ }
+    }
+
+    private long _lastUiBeatTicks;
+
+    /// <summary>
+    /// Detects a frozen UI thread. A background thread watches a heartbeat the UI thread
+    /// updates every second; if the gap exceeds 5s the app is hung, which is logged so a
+    /// freeze (which leaves no crash log) is at least recorded with its duration.
+    /// </summary>
+    private void StartUiWatchdog()
+    {
+        System.Threading.Interlocked.Exchange(ref _lastUiBeatTicks, DateTime.UtcNow.Ticks);
+        var beat = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(1) };
+        beat.Tick += (s, e) => System.Threading.Interlocked.Exchange(ref _lastUiBeatTicks, DateTime.UtcNow.Ticks);
+        beat.Start();
+
+        var watchdog = new System.Threading.Thread(WatchdogLoop) { IsBackground = true, Name = "UiWatchdog" };
+        watchdog.Start();
+    }
+
+    private void WatchdogLoop()
+    {
+        bool warned = false;
+        while (true)
+        {
+            System.Threading.Thread.Sleep(2000);
+            long ticks = System.Threading.Interlocked.Read(ref _lastUiBeatTicks);
+            var gap = DateTime.UtcNow - new DateTime(ticks, DateTimeKind.Utc);
+            warned = ReportWatchdogGap(gap, warned);
+        }
+    }
+
+    private static bool ReportWatchdogGap(TimeSpan gap, bool warned)
+    {
+        if (gap <= TimeSpan.FromSeconds(5))
+            return false;
+
+        if (!warned)
+            try { Log.Warning("[Watchdog] UI thread unresponsive for {Seconds:F1}s — the app may be frozen.", gap.TotalSeconds); }
+            catch { }
+        return true;
     }
 
     protected override async void OnStartup(StartupEventArgs e)
     {
         // ── Show Splash Screen immediately (plus one on the secondary display) ──
         _splash = new SplashWindow();
+        SizePrimarySplashToApp(_splash);
         _splash.Show();
         _splashSecondary = SplashWindow.TryCreateForSecondaryDisplay();
         _splashSecondary?.Show();
@@ -98,21 +164,19 @@ public partial class App : Application
             // but the warning explains why it's empty.
         }
 
-        // Install the WinRing0x64 kernel driver BEFORE the host starts so that
-        // LibreHardwareMonitor can read CPU temperature and clock via MSR on first run.
+        // Ensure the PawnIO driver is present BEFORE the host starts so that
+        // LibreHardwareMonitor can read CPU temperature/clock (MSR) and the
+        // motherboard Super I/O (case fans, VRM/chipset temps) on first run.
+        // Since LHM 0.9.5-pre454 those reads go through PawnIO, not WinRing0.
         var startupLogger = _host.Services.GetRequiredService<Microsoft.Extensions.Logging.ILogger<App>>();
-        SetSplashStatus("Installing hardware drivers...");
+        SetSplashStatus("Checking hardware driver...");
         try
         {
-            KernelDriverService.EnsureInstalled(startupLogger);
-            // Functional Ring0 check with a throwaway probe, BEFORE any long-lived
-            // Computer instance opens — reclaiming after they exist corrupts
-            // LibreHardwareMonitor's shared static driver state.
-            KernelDriverService.VerifyRing0WithProbe(startupLogger);
+            PawnIoDriverService.EnsureAvailable(startupLogger);
         }
         catch (Exception kernelEx)
         {
-            startupLogger.LogWarning(kernelEx, "Skipping KernelDriverService installation because the IDE terminal lacks elevation.");
+            startupLogger.LogWarning(kernelEx, "Skipping PawnIO driver check because the process lacks elevation.");
         }
 
         // ── License Verification is now securely handled within MainWindow ──
@@ -200,8 +264,31 @@ public partial class App : Application
             CloseSplashAndReveal();
         };
         safetyTimer.Start();
-        
+
+        StartUiWatchdog(); // monitor for UI-thread freezes now that startup is done
+
         base.OnStartup(e);
+    }
+
+    /// <summary>
+    /// Sizes the primary-monitor splash to the same footprint the main window uses on a
+    /// single/primary display (Theme.WindowWidth x WindowHeight), so the loading screen
+    /// matches the app that replaces it. CenterScreen keeps it centred. The 7" secondary
+    /// splash is handled separately (it fills that display).
+    /// </summary>
+    private void SizePrimarySplashToApp(SplashWindow splash)
+    {
+        try
+        {
+            var theme = _host.Services.GetRequiredService<IThemeService>().CurrentTheme;
+            if (theme.WindowWidth > 0) splash.Width = theme.WindowWidth;
+            if (theme.WindowHeight > 0) splash.Height = theme.WindowHeight;
+            splash.UseNaturalBrandingSize(); // don't upscale the logo to the larger footprint
+        }
+        catch
+        {
+            // Keep the default splash size if the theme is unavailable this early in startup.
+        }
     }
 
     /// <summary>Mirrors a loading status message to both splash screens.</summary>

@@ -9,11 +9,11 @@ namespace PcStatsMonitor.Services;
 /// Reads CPU and GPU sensors via Windows WMI — no kernel driver required.
 ///
 /// WHY THIS EXISTS:
-///   Core Temp uses a properly EV-signed kernel driver that Windows allows.
-///   LibreHardwareMonitor's WinRing0x64.sys is on Microsoft's Vulnerable Driver
-///   Blocklist (CVE-2020-14979) and is silently blocked on Windows 11 22H2+ —
-///   even with admin rights. This service uses WMI/ACPI as a fallback, the
-///   same interfaces that Windows Task Manager and Windows Security Center use.
+///   LibreHardwareMonitor reads CPU MSRs through a ring-0 driver (PawnIO). When
+///   that path is unavailable — PawnIO not installed, or a locked-down laptop
+///   where MSR access is denied — CPU temperature reads 0. This service uses
+///   WMI/ACPI as a last-resort fallback, the same interfaces that Windows Task
+///   Manager and Windows Security Center use.
 /// </summary>
 public static class WmiSensorService
 {
@@ -31,7 +31,7 @@ public static class WmiSensorService
 
     /// <summary>
     /// Reads CPU temperature from ACPI Thermal Zones via WMI root\WMI.
-    /// Works on HP/Dell/Lenovo laptops where WinRing0 MSR access is blocked.
+    /// Works on HP/Dell/Lenovo laptops where ring-0 MSR access is blocked.
     /// Unsupported WMI classes are remembered and never queried again.
     /// </summary>
     public static float? GetCpuTemperatureCelsius(ILogger? logger = null)

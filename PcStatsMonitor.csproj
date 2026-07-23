@@ -49,10 +49,14 @@
     <ProjectReference Include="PcStatsMonitor.PluginApi\PcStatsMonitor.PluginApi.csproj" />
   </ItemGroup>
 
-  <!-- Ensure WinRing0x64.sys is correctly copied to Build and Publish directories -->
-  <ItemGroup>
-    <None Remove="WinRing0x64.sys" />
-    <Content Include="WinRing0x64.sys">
+  <!-- Bundle the PawnIO installer so the app can silently install the signed
+       driver on first run (see Services/PawnIoDriverService.cs). Download the
+       official PawnIO_setup.exe from https://pawnio.eu/ (repo: namazso/PawnIO.Setup)
+       and place it at the repo root. The Condition keeps the build working when the
+       binary is not present locally; ship a build only with it in place. -->
+  <ItemGroup Condition="Exists('PawnIO_setup.exe')">
+    <None Remove="PawnIO_setup.exe" />
+    <Content Include="PawnIO_setup.exe">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>

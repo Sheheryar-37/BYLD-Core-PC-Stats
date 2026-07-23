@@ -32,7 +32,7 @@ public interface IHardwareMonitorService
         private const int WmiGpuQueryInterval = 5; // Query WMI GPU load every 5 seconds (5 × 1000ms)
         private float _cachedWmiGpuLoad = 0f;
 
-        // ── AMD iGPU SoC temp: used as CPU temp proxy when WinRing0 is blocked by HVCI ──
+        // ── AMD iGPU SoC temp: used as CPU temp proxy when PawnIO/MSR temp is unavailable ──
         private float _cachedIgpuSocTemp = 0f;
 
         // ── Discrete GPU fan/temp: used as motherboard fallback when Super I/O is blocked ──
@@ -52,7 +52,7 @@ public interface IHardwareMonitorService
 
         // Share the process-wide Computer owned by HardwareControlService — a second
         // Computer instance loses GPU fan/control sensors (AMD ADL is process-global)
-        // and risks corrupting LHM's shared Ring0 state.
+        // and risks corrupting LHM's shared ring-0 driver state.
         _computer = hardwareControl.Computer;
 
         // Allow 2 seconds for initial polling to complete before taking a diagnostic snapshot.

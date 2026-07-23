@@ -38,30 +38,50 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 ; Run 'dotnet publish -c Release -r win-x64 --self-contained' before compiling this script
 Source: "d:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\publish\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; PawnIO installer — bundled DIRECTLY from the repo root, independent of the .NET
+; publish output. Place the official PawnIO_setup.exe (https://pawnio.eu/) at the
+; repo root. The app runs this on first launch to install the signed driver;
+; skipifsourcedoesntexist keeps the compile working if the file is absent.
+Source: "d:\Github Repos\PC-Stats-Monitor\PawnIO_setup.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
+
 ; OpenRGB bundled server — portable binaries in Tools folder
 ; Download from https://openrgb.org/releases.html (Windows portable ZIP)
-Source: "d:\Github Repos\PC-Stats-Monitor\Tools\OpenRGB Windows 64-bit\*"; DestDir: "{app}\OpenRGB"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+; onlyifdoesntexist: OpenRGB ships its OWN WinRing0 kernel driver. Once loaded it
+; locks OpenRGB\WinRing0x64.sys, so replacing it on an upgrade fails with
+; "Access is denied". These files are static across our builds, so we keep the
+; existing copy rather than fighting the lock.
+Source: "d:\Github Repos\PC-Stats-Monitor\Tools\OpenRGB Windows 64-bit\*"; DestDir: "{app}\OpenRGB"; Flags: recursesubdirs createallsubdirs skipifsourcedoesntexist onlyifdoesntexist
+
+[InstallDelete]
+; Remove the old root-level WinRing0x64.sys shipped by pre-PawnIO builds. It is no
+; longer used (LibreHardwareMonitor reads hardware through PawnIO now), and leaving
+; it behind is dead weight.
+Type: files; Name: "{app}\WinRing0x64.sys"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
 Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
 
 [Run]
-; NOTE: OpenRGB must NOT be started here. If the installer launches it first,
-; OpenRGB loads its own WinRing0 kernel driver and BYLD Core's sensor driver
-; can no longer initialize (err 183). The app manages the OpenRGB server
-; itself, after the sensor driver is verified.
+; Install the PawnIO driver silently BEFORE the app first launches. PawnIO is the
+; Microsoft-signed, sandboxed driver LibreHardwareMonitor uses to read CPU MSRs
+; and the motherboard Super I/O. The app also self-installs it on first run
+; (Services/PawnIoDriverService.cs), so this step is a no-op if PawnIO is present.
+Filename: "{app}\PawnIO_setup.exe"; Parameters: "-install -silent"; Flags: runhidden waituntilterminated; Check: PawnIoSetupNeeded; StatusMsg: "Installing PawnIO hardware driver..."
+; NOTE: OpenRGB is NOT started here — the app manages the OpenRGB server itself.
 ; Launch main application
 Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec; WorkingDir: "{app}"
 
 [UninstallRun]
-; Kill the app and OpenRGB, then unload the WinRing0 kernel driver.
-; While the driver is loaded, Windows locks WinRing0x64.sys and the file
-; (and its folder) survives uninstall.
+; Kill the app and OpenRGB, then stop OpenRGB's WinRing0 kernel service so its
+; .sys unlocks and the OpenRGB folder can be removed. PawnIO is a shared, signed
+; driver used by other tools (LibreHardwareMonitor, Fan Control, OpenRGB) and is
+; intentionally left installed.
 Filename: "taskkill.exe"; Parameters: "/F /IM PcStatsMonitor.exe"; Flags: runhidden; RunOnceId: "KillApp"
 Filename: "taskkill.exe"; Parameters: "/F /IM OpenRGB.exe"; Flags: runhidden; RunOnceId: "KillOpenRGB"
 Filename: "sc.exe"; Parameters: "stop WinRing0_1_2_0"; Flags: runhidden; RunOnceId: "StopWinRing0"
-Filename: "sc.exe"; Parameters: "delete WinRing0_1_2_0"; Flags: runhidden; RunOnceId: "DeleteWinRing0"
+; Remove the logon scheduled task the app registers (auto-start with highest privileges).
+Filename: "schtasks.exe"; Parameters: "/Delete /TN ""BYLDCore_PCStatsMonitor_Startup"" /F"; Flags: runhidden; RunOnceId: "DeleteStartupTask"
 
 [UninstallDelete]
 ; Files created at runtime (not in the install log) that would otherwise
@@ -81,5 +101,46 @@ Type: dirifempty; Name: "{autopf}\{#MyAppPublisher}"
 function InitializeUninstall(): Boolean;
 begin
   Result := True;
+end;
+
+// Install PawnIO only when the bundled setup is present AND PawnIO is not already
+// registered — so an upgrade on a machine that already has PawnIO skips the reinstall.
+function PawnIoSetupNeeded: Boolean;
+begin
+  Result := FileExists(ExpandConstant('{app}\PawnIO_setup.exe')) and
+            not RegKeyExists(HKLM, 'SYSTEM\CurrentControlSet\Services\PawnIO');
+end;
+
+// On uninstall, also remove PawnIO — the driver this app installs, via its own
+// installer CLI (PawnIO_setup.exe -uninstall -silent). The setup is still present
+// in {app} at this step (files are removed afterwards). PawnIO is a SHARED driver
+// (LibreHardwareMonitor, Fan Control and OpenRGB can use it); delete this procedure
+// if you would rather leave it for those tools.
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if CurUninstallStep <> usUninstall then Exit;
+
+  if FileExists(ExpandConstant('{app}\PawnIO_setup.exe')) then
+    Exec(ExpandConstant('{app}\PawnIO_setup.exe'), '-uninstall -silent', '',
+      SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
+// Runs right before files are copied. Closes the running app and OpenRGB so their
+// executables — and OpenRGB's loaded WinRing0 kernel driver — are not locked while
+// Setup replaces them. Without this, an upgrade over a running install fails with
+// "Access is denied" on PcStatsMonitor.exe or OpenRGB\WinRing0x64.sys.
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+var
+  ResultCode: Integer;
+begin
+  Exec('taskkill.exe', '/F /IM PcStatsMonitor.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Exec('taskkill.exe', '/F /IM OpenRGB.exe', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  // Stop the WinRing0 kernel service so the kernel unloads the driver and releases
+  // its .sys file (OpenRGB registers WinRing0 under this default name).
+  Exec('sc.exe', 'stop WinRing0_1_2_0', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  Sleep(1500);
+  Result := '';
 end;
 

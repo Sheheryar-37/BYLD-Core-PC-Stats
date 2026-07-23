@@ -19,7 +19,7 @@
         <Grid>
             <!-- Viewbox scales the branding with the window, so the maximized
                  splash on the 7" secondary display renders large and readable. -->
-            <Viewbox Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="34">
+            <Viewbox x:Name="BrandingViewbox" Stretch="Uniform" VerticalAlignment="Center" HorizontalAlignment="Center" Margin="34">
             <StackPanel VerticalAlignment="Center" HorizontalAlignment="Center">
                 <!-- Logo -->
                 <Grid HorizontalAlignment="Center" Margin="0,0,0,16">

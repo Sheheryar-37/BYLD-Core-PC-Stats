@@ -22,6 +22,17 @@ public partial class SplashWindow : Window
     /// </summary>
     private const double MinDisplaySeconds = 2.0;
 
+    /// <summary>
+    /// Keeps the branding at its natural size instead of scaling it up to fill the
+    /// window. Used for the primary-monitor splash, which is sized to the app window
+    /// footprint — without this the small logo upscales and looks pixelated. The 7"
+    /// secondary splash keeps the default Uniform stretch so its branding fills the screen.
+    /// </summary>
+    public void UseNaturalBrandingSize()
+    {
+        BrandingViewbox.StretchDirection = System.Windows.Controls.StretchDirection.DownOnly;
+    }
+
     public SplashWindow()
     {
         InitializeComponent();
@@ -75,24 +86,33 @@ public partial class SplashWindow : Window
         var screen = System.Windows.Forms.Screen.AllScreens.FirstOrDefault(s => !s.Primary);
         if (screen == null) return null;
 
-        // Match the MAIN window's placement exactly (WorkingArea + Maximize) so
-        // the loading screen is the same size and position as the rotating screen
-        // that replaces it. The window is opaque now, so Maximize fills correctly
-        // (it left gaps only while the window was transparent).
+        // Position AND maximise inside the Loaded handler — not before Show — so it
+        // matches the main window's proven placement (MainWindow.SnapToInternalMonitor).
+        // Doing it earlier read the primary monitor's DPI and maximised from an
+        // unplaced position, which left the 7" splash short of the edges on load.
         var splash = new SplashWindow { WindowStartupLocation = WindowStartupLocation.Manual };
-        double scale = GetPrimaryDpiScale();
-        splash.Left   = screen.WorkingArea.Left   / scale;
-        splash.Top    = screen.WorkingArea.Top    / scale;
-        splash.Width  = screen.WorkingArea.Width  / scale;
-        splash.Height = screen.WorkingArea.Height / scale;
-        splash.Loaded += (s, e) => splash.WindowState = WindowState.Maximized;
+        splash.Loaded += (s, e) => splash.FillScreen(screen);
         return splash;
     }
 
-    private static double GetPrimaryDpiScale()
+    /// <summary>
+    /// Fills the given screen exactly, using the per-monitor DPI read from THIS
+    /// window's own presentation source (as the main window does). Placing the
+    /// window on the target monitor first, then maximising, makes WPF choose the
+    /// correct monitor and cover it edge to edge.
+    /// </summary>
+    private void FillScreen(System.Windows.Forms.Screen screen)
     {
-        using var graphics = System.Drawing.Graphics.FromHwnd(IntPtr.Zero);
-        return graphics.DpiX / 96.0;
+        var source = PresentationSource.FromVisual(this);
+        double dpiX = source?.CompositionTarget?.TransformToDevice.M11 ?? 1.0;
+        double dpiY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
+
+        WindowState = WindowState.Normal;
+        Left   = screen.WorkingArea.Left   / dpiX;
+        Top    = screen.WorkingArea.Top    / dpiY;
+        Width  = screen.WorkingArea.Width  / dpiX;
+        Height = screen.WorkingArea.Height / dpiY;
+        WindowState = WindowState.Maximized;
     }
 
     /// <summary>

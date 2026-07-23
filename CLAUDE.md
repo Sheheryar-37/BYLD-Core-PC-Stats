@@ -22,7 +22,7 @@ This file provides guidance to Claude Code when working with this repository.
 - `Controls/` — custom WPF user controls (fan control, RGB control views)
 - `ViewModels/` — MVVM view models
 - `Models/` — data models
-- `Services/` — core services (`HardwareControlService`, `KernelDriverService`, `MouseHookService`, etc.)
+- `Services/` — core services (`HardwareControlService`, `PawnIoDriverService`, `MouseHookService`, etc.)
 - `Converters/` — WPF value converters
 - `PcStatsMonitor.PluginApi/` — plugin API project
 - `Tools/LicenseGenerator/` — license key generator utility
@@ -43,8 +43,8 @@ This file provides guidance to Claude Code when working with this repository.
 
 ## Build, Security & Deployment Workflows
 
-- **Privileges:** The app requires Administrator rights to interact with hardware drivers (`WinRing0x64.sys`).
-- **Driver setup:** Handled by `Services/KernelDriverService.cs`. If Windows Security (Smart App Control) blocks execution, it dynamically detaches the splash screen (`Topmost=false`) to show the user a UAC/Security MessageBox.
+- **Privileges:** The app requires Administrator rights to install/verify the hardware sensor driver and to read CPU MSRs and the motherboard Super I/O.
+- **Driver setup:** Handled by `Services/PawnIoDriverService.cs`. LibreHardwareMonitor reads CPU temperature/clock and the motherboard Super I/O through **PawnIO** — a Microsoft-signed, sandboxed driver (it replaced the blocklisted WinRing0 in LHM 0.9.5-pre454). On first run the app silently installs the bundled `PawnIO_setup.exe`; if it is missing it points the user to https://pawnio.eu/. The official `PawnIO_setup.exe` must be placed at the repo root before publishing (it is git-ignored, not committed).
 - **Signing / build process:**
   1. `dotnet publish` to the `publish` folder.
   2. Run `Sign-Installer.ps1` to self-sign all unsigned `.dll` and `.exe` files to bypass Smart App Control.

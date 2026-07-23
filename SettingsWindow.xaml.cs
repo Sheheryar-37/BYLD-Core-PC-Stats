@@ -454,9 +454,9 @@ public partial class SettingsWindow : Window
             TxtMachineId.Text = licenseSvc.GetMachineId();
             bool isLicenseValid = false;
 
-            if (System.IO.File.Exists("license.key"))
+            if (System.IO.File.Exists(LicenseService.LicenseFilePath))
             {
-                TxtLicenseKey.Text = System.IO.File.ReadAllText("license.key");
+                TxtLicenseKey.Text = System.IO.File.ReadAllText(LicenseService.LicenseFilePath);
                 if (licenseSvc.CheckLicense(out string errorMessage))
                 {
                     TxtLicenseStatus.Text = "Status: License Activated and Valid";
@@ -1448,7 +1448,7 @@ public partial class SettingsWindow : Window
             return;
         }
 
-        System.IO.File.WriteAllText("license.key", rawKey);
+        LicenseService.SaveLicenseKey(rawKey);
         
         var licenseSvc = new LicenseService();
         if (licenseSvc.CheckLicense(out string errorMessage))

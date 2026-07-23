@@ -12,14 +12,56 @@ namespace PcStatsMonitor.Services
 
     public class LicenseService
     {
-        private const string LicenseFile = "license.key";
+        private const string LicenseFileName = "license.key";
         private const string PublicKeyXml = "<RSAKeyValue><Modulus>z3kSxekPCZRQE83ZGsRY5ozEqmaiHaqZslppeBuw+f2Tj+x4sjgVQRp1iQCFME4k074FD0eOAgjcka2eUCvjYs0lmF41RyHlbqhQB0aJQ1NpC0v3+stqphSF00l5edy34t9EnMLHzrF1QoyFYCI76wtJR7yoG1V+rPWPnjFFqOhaQZwjKfPm3/7sv1NwGq37n3xP0CLzxcyqJwnOriekH31k8cfNywGqa4cX4i1aQ5W95bIVTM+AmqtNf7QdLeCfIQKr0MZOhI3Y+7u+lC5JZo6ds1cESlOrjgCUW0W7Eg/BZyHQ4tL8kScmJ92dpmgUPdlAPuFwJgFlvet7+L68mQ==</Modulus><Exponent>AQAB</Exponent></RSAKeyValue>";
+
+        /// <summary>
+        /// Durable, absolute path to the license file. Stored under ProgramData so it
+        /// survives app reinstalls, upgrades and folder cleanups — the previous relative
+        /// "license.key" resolved to the install folder, which is wiped on uninstall, so a
+        /// valid licence was lost on every reinstall. A license.key left next to the exe by
+        /// an older build is read once and migrated forward.
+        /// </summary>
+        public static string LicenseFilePath { get; } = ResolveLicensePath();
+
+        private static string ResolveLicensePath()
+        {
+            string dir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData), "BYLD Core");
+            string durable = Path.Combine(dir, LicenseFileName);
+            if (File.Exists(durable)) return durable;
+
+            string legacy = Path.Combine(AppContext.BaseDirectory, LicenseFileName);
+            if (File.Exists(legacy) && TryMigrate(legacy, durable, dir)) return durable;
+            return File.Exists(legacy) ? legacy : durable;
+        }
+
+        private static bool TryMigrate(string legacy, string durable, string dir)
+        {
+            try
+            {
+                Directory.CreateDirectory(dir);
+                File.Copy(legacy, durable, overwrite: false);
+                return true;
+            }
+            catch
+            {
+                return false; // ProgramData not writable — keep using the legacy path
+            }
+        }
+
+        /// <summary>Persists a raw license key string to the durable license path.</summary>
+        public static void SaveLicenseKey(string rawKey)
+        {
+            Directory.CreateDirectory(Path.GetDirectoryName(LicenseFilePath)!);
+            File.WriteAllText(LicenseFilePath, rawKey);
+        }
 
         public bool CheckLicense(out string errorMessage)
         {
             errorMessage = "";
-            
-            if (!File.Exists(LicenseFile))
+
+            if (!File.Exists(LicenseFilePath))
             {
                 errorMessage = "License key not found. Please register your software through Settings.";
                 return false;
@@ -27,7 +69,7 @@ namespace PcStatsMonitor.Services
 
             try
             {
-                string key = File.ReadAllText(LicenseFile).Trim();
+                string key = File.ReadAllText(LicenseFilePath).Trim();
                 return ValidateKey(key, out errorMessage);
             }
             catch (Exception)

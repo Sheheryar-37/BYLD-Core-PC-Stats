@@ -613,6 +613,20 @@ public partial class MainWindow : Window
     /// snapshot (the saved colours may have changed) and re-theme the visible screen.</summary>
     private void OnThemeServiceChanged(ThemeConfig config)
     {
+        try
+        {
+            ApplyThemeChange(config);
+        }
+        catch (Exception ex)
+        {
+            // A throw mid-switch leaves the screen half-themed (client round 12: light
+            // stuck / widgets "merged"). Log it rather than letting it bubble or freeze.
+            Serilog.Log.Error(ex, "[Theme] Failed to apply theme change — screen may be partially themed.");
+        }
+    }
+
+    private void ApplyThemeChange(ThemeConfig config)
+    {
         _baseColors = null;
         _transientColors = null;
         _screenColorsOverridden = false;

@@ -21,12 +21,12 @@
 ## 🛠️ Requirements
 - **OS**: Windows 11 (Supports Windows 10)
 - **Runtime**: .NET 9.0 (Windows Desktop Runtime)
-- **Permissions**: Requires Administrator rights for hardware sensor access (via WinRing0).
+- **Permissions**: Requires Administrator rights for hardware sensor access (via the PawnIO driver).
 
 ## 🔨 Build Instructions
 1. Open `PcStatsMonitor.sln` in Visual Studio 2022+ or VS Code.
 2. Build the solution (targets .NET 9.0).
-3. Ensure `WinRing0x64.sys` is present in the output directory.
+3. Place the official `PawnIO_setup.exe` (from https://pawnio.eu/) at the repo root so it is bundled into the output; the app installs it silently on first run.
 
 ---
 © 2026 BYLD PC Stats Monitor Project.
