@@ -27,7 +27,9 @@ public partial class MainWindow : Window
     public MainWindow(MainViewModel viewModel, IThemeService themeService,
         Services.HardwareControlService hwControl, Microsoft.Extensions.Logging.ILogger<MainWindow> logger)
     {
+        Services.StartupTrace.Write("MainWindow ctor - begin");
         InitializeComponent();
+        Services.StartupTrace.Write("MainWindow ctor - InitializeComponent done");
         DataContext = viewModel;
         _themeService = themeService;
         _hwControl = hwControl;
@@ -46,6 +48,7 @@ public partial class MainWindow : Window
         
         _mouseHook = new MouseHookService();
 
+        Services.StartupTrace.Write("MainWindow ctor - checking license");
         LicenseService licenseSvc = new LicenseService();
         if (!licenseSvc.CheckLicense(out string errorMessage))
         {
@@ -145,7 +148,13 @@ public partial class MainWindow : Window
             }
         };
 
-        Loaded += (s, e) => SnapToInternalMonitor();
+        Loaded += (s, e) =>
+        {
+            Services.StartupTrace.Write("MainWindow Loaded - snapping to monitor");
+            SnapToInternalMonitor();
+            Services.StartupTrace.Write("MainWindow Loaded - snap done");
+        };
+        Services.StartupTrace.Write("MainWindow ctor - complete");
     }
 
     protected override void OnClosed(EventArgs e)
@@ -319,7 +328,27 @@ public partial class MainWindow : Window
         }
     }
 
+    /// <summary>Guards against re-entry: applying a screen's theme re-raises the Theme
+    /// bindings, which can lead straight back here. Unguarded, that pair recursed until the
+    /// stack overflowed and the process vanished with no crash log (round 13 regression).</summary>
+    private bool _evaluatingScreens;
+
     private void EvaluateScreenVisibility(bool animate = true)
+    {
+        if (_evaluatingScreens) return;
+
+        _evaluatingScreens = true;
+        try
+        {
+            EvaluateScreenVisibilityCore(animate);
+        }
+        finally
+        {
+            _evaluatingScreens = false;
+        }
+    }
+
+    private void EvaluateScreenVisibilityCore(bool animate)
     {
         if (UnlicensedGrid.Visibility == Visibility.Visible) return;
         
@@ -646,7 +675,7 @@ public partial class MainWindow : Window
 
         if (key == null || !config.HasScreenThemeOverride(key))
         {
-            RestoreBaseColorsIfOverridden(config);
+            FollowWidgetTheme(config);
             return;
         }
 
@@ -655,6 +684,34 @@ public partial class MainWindow : Window
         config.ApplyWidgetColorPreset(light);
         _transientColors = CaptureBaseColors(config);
         _screenColorsOverridden = true;
+        RefreshThemeVisuals(config, light);
+    }
+
+    /// <summary>
+    /// Applies the resolved widget theme to a screen with NO explicit Dark/Light override —
+    /// i.e. one set to "Following Settings". Restoring the stale colour snapshot here left
+    /// the 7" on the PREVIOUS mode's palette while everything else re-themed, which is the
+    /// light background with dark accents the client saw after pressing Save (round 13,
+    /// item 5). ApplyWidgetColorPreset restores that mode's OWN saved palette, so the
+    /// user's custom colours survive the switch in both directions.
+    /// </summary>
+    private void FollowWidgetTheme(ThemeConfig config)
+    {
+        bool light = config.IsWidgetThemeLight;
+        var before = CaptureBaseColors(config);
+        config.ApplyWidgetColorPreset(light);
+
+        _baseColors = null;
+        _transientColors = null;
+        _screenColorsOverridden = false;
+
+        // This runs on EVERY screen evaluation, and RefreshThemeVisuals re-raises the
+        // Theme bindings — which can lead back into EvaluateScreenVisibility. When the
+        // palette did not actually change (the steady state on every rotation) there is
+        // nothing to re-raise, so skip it: that removes the feedback loop at its source
+        // rather than relying on the re-entrancy guard alone.
+        if (CaptureBaseColors(config) == before) return;
+
         RefreshThemeVisuals(config, light);
     }
 

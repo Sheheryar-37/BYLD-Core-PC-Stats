@@ -13,6 +13,8 @@ public static class UserActionLogger
 
     public static void LogAction(string actionDescription)
     {
+        if (!AppLogging.Enabled) return;
+
         try
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;

@@ -27,6 +27,11 @@ public static class WmiSensorService
     private static bool _acpiThermalUnsupported;
     private static bool _perfThermalUnsupported;
 
+    // A wedged WMI provider — MSAcpi_ThermalZoneTemperature is the notorious one — can
+    // block a Get() indefinitely and freeze the polling thread (that hung the app on a
+    // Lenovo laptop). Cap every thermal query so it fails fast and falls through instead.
+    private static readonly EnumerationOptions WmiOptions = new() { Timeout = TimeSpan.FromSeconds(2) };
+
     // ── CPU Temperature ─────────────────────────────────────────────────────
 
     /// <summary>
@@ -41,8 +46,9 @@ public static class WmiSensorService
         try
         {
             using var searcher = new ManagementObjectSearcher(
-                @"root\WMI",
-                "SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature");
+                new ManagementScope(@"root\WMI"),
+                new ObjectQuery("SELECT CurrentTemperature FROM MSAcpi_ThermalZoneTemperature"),
+                WmiOptions);
 
             float best = float.MinValue;
             bool found = false;
@@ -74,7 +80,9 @@ public static class WmiSensorService
         try
         {
             using var searcher2 = new ManagementObjectSearcher(
-                "SELECT Temperature FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation");
+                new ManagementScope(@"root\CIMV2"),
+                new ObjectQuery("SELECT Temperature FROM Win32_PerfFormattedData_Counters_ThermalZoneInformation"),
+                WmiOptions);
 
             float best2 = float.MinValue;
             bool found2 = false;

@@ -367,6 +367,43 @@ public class FanControlViewModel : ViewModelBase
 
     private readonly IThemeService? _themeService;
 
+    private bool _appControlsFans;
+
+    /// <summary>
+    /// Master switch. ON: the app drives the fans from their curves. OFF: every fan this
+    /// app took over is handed straight back to the motherboard's own control.
+    ///
+    /// Deliberately NOT persisted — it resets to false on every launch and on exit, so a
+    /// crash, restart or stopped app can never leave the machine's cooling stranded under
+    /// software control (the client's fans were left stopped at 30%). The user opts in
+    /// each session.
+    /// </summary>
+    public bool AppControlsFans
+    {
+        get => _appControlsFans;
+        set
+        {
+            if (_appControlsFans == value) return;
+            _appControlsFans = value;
+            OnPropertyChanged();
+            OnAppControlsFansChanged(value);
+        }
+    }
+
+    private void OnAppControlsFansChanged(bool enabled)
+    {
+        if (!enabled)
+        {
+            _hardwareService.RestoreAllFansToAuto();
+            return;
+        }
+
+        // Turning control ON applies the curves immediately rather than waiting for the
+        // write deadband/interval to elapse.
+        foreach (var fan in Fans)
+            fan.LastCurveWriteUtc = DateTime.MinValue;
+    }
+
     /// <summary>
     /// Advanced override: when ON, the engine keeps sending fan-control commands
     /// even to hardware that appears to ignore them, instead of auto-releasing to
@@ -488,8 +525,11 @@ public class FanControlViewModel : ViewModelBase
     /// </summary>
     private void EvaluateCurves()
     {
-        foreach (var fan in Fans)
-            ApplyCurveToFan(fan);
+        // Fans are only driven while the user has handed control to the app; otherwise
+        // they stay on the motherboard's own curve. Readouts keep updating either way.
+        if (AppControlsFans)
+            foreach (var fan in Fans)
+                ApplyCurveToFan(fan);
 
         foreach (var curve in Curves)
             UpdateCurveReadout(curve);
@@ -916,6 +956,25 @@ public class FanControlViewModel : ViewModelBase
             Fans.Add(item);
 
         SyncFanCurveLists();
+        ReleaseAllFansToBios();
+    }
+
+    /// <summary>
+    /// Hands every detected fan back to the motherboard at startup. AppControlsFans always
+    /// begins false, so the hardware must match that. This also cleans up after a hard
+    /// crash: a control left in software mode stays pinned at the last written value even
+    /// though the app that set it is gone, which is how the client's fans ended up stopped.
+    /// </summary>
+    private void ReleaseAllFansToBios()
+    {
+        foreach (var fan in Fans)
+            ReleaseFanToBios(fan);
+    }
+
+    private void ReleaseFanToBios(FanItemViewModel fan)
+    {
+        if (fan.Sensor is { SensorType: SensorType.Control })
+            _hardwareService.SetFanAuto(fan.Sensor);
     }
 
     /// <summary>
@@ -981,11 +1040,13 @@ public class FanControlViewModel : ViewModelBase
         fan.AvailableCurves.Clear();
         foreach (var name in names) fan.AvailableCurves.Add(name);
 
-        // Default to the first curve when nothing valid is selected — an empty
-        // Curve dropdown means the engine finds no curve and never drives the
-        // fan (client round 9: "no actual control of the fans").
-        fan.SelectedCurve = names.Contains(selected) ? selected
-                          : names.FirstOrDefault() ?? "";
+        // NEVER auto-assign a curve. Assigning one hands that fan from the motherboard
+        // to this app, and auto-assigning seized all eight headers — including the
+        // water pump — and drove them to the default curve's 30% floor at idle, which
+        // is below their spin-up threshold: the client's PC went silent with the fans
+        // stopped (round 13, item 3). A fan stays on BIOS control until the user picks
+        // a curve for it.
+        fan.SelectedCurve = names.Contains(selected) ? selected : "";
     }
 }
 

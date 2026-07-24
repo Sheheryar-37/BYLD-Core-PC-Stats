@@ -424,6 +424,19 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
+                                            <TextBlock Text="Diagnostic Logging" FontSize="12"/>
+                                            <TextBlock Text="Writes hardware, sensor and display logs to disk. Keep this off for best performance; turn it on only when asked for logs. Crash reports are always saved." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="TglLogging" Grid.Column="1" Style="{StaticResource AppearanceToggleStyle}"
+                                                      VerticalAlignment="Center" IsChecked="False" Click="LoggingToggle_Click"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
                                             <TextBlock Text="Widget Theme (7&quot; display)" FontSize="12"/>
                                             <TextBlock Text="Colors for the clock and widgets on the case screen. 'Follow settings theme' matches the Settings Theme above." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         </StackPanel>

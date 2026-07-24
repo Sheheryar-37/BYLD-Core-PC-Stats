@@ -123,6 +123,20 @@ public partial class SettingsWindow : Window
         ApplyUiTheme();
     }
 
+    /// <summary>
+    /// Turns diagnostic logging on/off and remembers the choice for the next launch.
+    /// Takes effect immediately — no restart needed.
+    /// </summary>
+    private void LoggingToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+
+        var theme = _themeService.CurrentTheme;
+        theme.LoggingEnabled = TglLogging.IsChecked == true;
+        _themeService.SaveTheme();
+        AppLogging.SetEnabled(theme.LoggingEnabled);
+    }
+
     /// <summary>Persists the settings-window theme (Dark / Light / System) and re-skins the window.</summary>
     private void CmbUiTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
@@ -219,6 +233,12 @@ public partial class SettingsWindow : Window
         var theme = _themeService.CurrentTheme;
         bool light = theme.IsUiThemeLight; // resolves "System" against the Windows app theme
         bool glass = theme.LiquidGlassEnabled;
+
+        // Confirmation popups and the colour picker follow the UI theme instead of
+        // always rendering dark.
+        PcStatsMonitor.Controls.CustomMessageBox.UseLightTheme = light;
+        PcStatsMonitor.Controls.GlassMessageBox.UseLightTheme = light;
+        ColorPickerWindow.UseLightTheme = light;
 
         Background = NewBrush(WindowBackgroundHex(light, glass));
         SetThemeBrush("TextBrush",          light ? "#1E293B" : "#E0E0E0");
@@ -337,6 +357,7 @@ public partial class SettingsWindow : Window
             _        => 0
         };
         TglLiquidGlass.IsChecked = theme.LiquidGlassEnabled;
+        TglLogging.IsChecked = theme.LoggingEnabled;
         CmbWidgetTheme.SelectedIndex = theme.WidgetTheme?.ToLowerInvariant() switch
         {
             "light"  => 1,

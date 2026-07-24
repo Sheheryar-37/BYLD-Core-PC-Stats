@@ -17,6 +17,8 @@ public static class SensorStartupLogger
 
     public static void LogHardwareSnapshot(Computer computer, ILogger? logger = null, string eventName = "STARTUP")
     {
+        if (!AppLogging.Enabled) return;
+
         try
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;

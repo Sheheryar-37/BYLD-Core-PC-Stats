@@ -55,7 +55,7 @@
         </Style>
     </Window.Resources>
     
-    <Border Background="#D9111111" CornerRadius="15" BorderBrush="#33FFFFFF" BorderThickness="1">
+    <Border x:Name="RootBorder" Background="#D9111111" CornerRadius="15" BorderBrush="#33FFFFFF" BorderThickness="1">
         <Grid Margin="20">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>

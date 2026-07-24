@@ -55,6 +55,13 @@ public class ThemeConfig
     /// appears to ignore them (for users with a driver-side workaround enabled).</summary>
     public bool ForceFanControlOverride { get; set; } = false;
 
+    /// <summary>
+    /// Diagnostic logging on/off (hardware, sensor, display, action and app logs).
+    /// Persisted so it survives restarts; OFF on first run because logging writes to
+    /// disk continuously. Crash logs are always written regardless.
+    /// </summary>
+    public bool LoggingEnabled { get; set; } = false;
+
     /// <summary>The SSD card fill: a solid user colour when set, else the default metallic gradient.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public System.Windows.Media.Brush StorageCardBrush

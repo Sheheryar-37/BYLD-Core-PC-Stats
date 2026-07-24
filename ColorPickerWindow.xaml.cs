@@ -31,10 +31,68 @@ public partial class ColorPickerWindow : Window
     private double _wheelSaturation = 0;
     private double _wheelBrightness = 100;
 
+    /// <summary>
+    /// Whether the picker renders light. Set from SettingsWindow.ApplyUiTheme so the
+    /// dialog follows the UI theme instead of always rendering dark.
+    /// </summary>
+    public static bool UseLightTheme { get; set; }
+
+    /// <summary>
+    /// Re-skins the picker for the light UI. The colours here are declared inline on ~24
+    /// elements, so rather than rewriting them all we recolour the greyscale text and
+    /// inputs once the visual tree exists. Accent colours (BrandBlue, the swatches and the
+    /// colour wheel itself) are deliberately left alone.
+    /// </summary>
+    private void ApplyLightTheme()
+    {
+        RootBorder.Background  = new SolidColorBrush(HexColor("#F7F8FA"));
+        RootBorder.BorderBrush = new SolidColorBrush(HexColor("#22000000"));
+        Loaded += (_, _) => RetintTree(RootBorder);
+    }
+
+    private static void RetintTree(DependencyObject node)
+    {
+        int count = VisualTreeHelper.GetChildrenCount(node);
+        for (int i = 0; i < count; i++)
+        {
+            var child = VisualTreeHelper.GetChild(node, i);
+            RetintNode(child);
+            RetintTree(child);
+        }
+    }
+
+    private static void RetintNode(DependencyObject node)
+    {
+        if (node is TextBox box)
+        {
+            box.Background = new SolidColorBrush(HexColor("#FFFFFF"));
+            box.Foreground = new SolidColorBrush(HexColor("#1F2937"));
+            return;
+        }
+
+        if (node is TextBlock text && IsLightGreyscale(text.Foreground))
+            text.Foreground = new SolidColorBrush(HexColor("#374151"));
+        else if (node is ContentControl control && IsLightGreyscale(control.Foreground))
+            control.Foreground = new SolidColorBrush(HexColor("#374151"));
+    }
+
+    /// <summary>True for near-greyscale light brushes — text written for a dark backdrop.
+    /// Hued accents (BrandBlue, red) are excluded so they survive the switch.</summary>
+    private static bool IsLightGreyscale(Brush? brush)
+    {
+        if (brush is not SolidColorBrush solid) return false;
+        var c = solid.Color;
+        bool greyscale = Math.Abs(c.R - c.G) < 24 && Math.Abs(c.G - c.B) < 24;
+        return greyscale && (c.R + c.G + c.B) / 3 > 120;
+    }
+
+    private static Color HexColor(string hex) => (Color)ColorConverter.ConvertFromString(hex);
+
     public ColorPickerWindow(string initialHex, bool isGradient = false, string endHex = "#FFFFFF")
     {
         InitializeComponent();
-        
+        if (UseLightTheme) ApplyLightTheme();
+
         IsGradient = isGradient;
         SelectedHex = initialHex;
         GradientEndHex = endHex;

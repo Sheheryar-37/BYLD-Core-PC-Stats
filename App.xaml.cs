@@ -24,10 +24,20 @@ public partial class App : Application
         // (disk I/O + string formatting every poll) and contributed to the
         // client's "PC runs hard" report. Warnings, errors and the [RGB→]/[FAN]
         // forensic entries (hardware.log) are unaffected.
+        // ControlledBy: logging is gated by the user's Logging toggle (off on first run)
+        // and can be switched at runtime without rebuilding the logger.
+        // flushToDiskInterval: Serilog buffers writes, so a hard crash discarded the very
+        // entries that explain it — the client's freeze left no trace at all. Flush every
+        // second so diagnostics survive the crash they describe.
         Log.Logger = new LoggerConfiguration()
-            .MinimumLevel.Information()
-            .WriteTo.File(Models.Constants.LogFilePath, rollingInterval: RollingInterval.Day)
+            .MinimumLevel.ControlledBy(AppLogging.LevelSwitch)
+            .WriteTo.File(Models.Constants.LogFilePath, rollingInterval: RollingInterval.Day,
+                flushToDiskInterval: TimeSpan.FromSeconds(1))
             .CreateLogger();
+
+        // Honour the pre-start logging override (BYLD_LOG=1 or a "logging.on" file) from
+        // the very first line, so a launch-time crash is captured before Settings loads.
+        if (AppLogging.OverrideActive()) AppLogging.SetEnabled(true);
 
         _host = Host.CreateDefaultBuilder()
             .UseSerilog()
@@ -47,15 +57,18 @@ public partial class App : Application
             .Build();
 
         // Register Global Exception Handlers
-        this.DispatcherUnhandledException += (s, args) => 
-        { 
-            CrashLogger.LogCrash(args.Exception, "DispatcherUnhandledException"); 
+        this.DispatcherUnhandledException += (s, args) =>
+        {
+            CrashLogger.LogCrash(args.Exception, "DispatcherUnhandledException");
             args.Handled = true; // Prevent app from exiting immediately so logs can flush
         };
-        AppDomain.CurrentDomain.UnhandledException += (s, args) => 
-        { 
+        AppDomain.CurrentDomain.UnhandledException += (s, args) =>
+        {
             if (args.ExceptionObject is Exception ex)
-                CrashLogger.LogCrash(ex, "AppDomain UnhandledException"); 
+                CrashLogger.LogCrash(ex, "AppDomain UnhandledException");
+            // The process is going down: give the fans back to the motherboard first,
+            // or they stay pinned at the last value we wrote.
+            TryRestoreFansToAuto();
         };
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, args) =>
         {
@@ -74,6 +87,16 @@ public partial class App : Application
         // is caught downstream. This surfaces the swallowed exceptions behind Joe's
         // "froze and closed itself" (no crash log = a caught exception or a hang).
         AppDomain.CurrentDomain.FirstChanceException += (s, args) => LogFirstChance(args.Exception);
+    }
+
+    /// <summary>
+    /// Returns every fan the app took over to the motherboard's own control. Safe to call
+    /// from a crash handler — it must never throw while the process is already failing.
+    /// </summary>
+    private void TryRestoreFansToAuto()
+    {
+        try { _host.Services.GetRequiredService<HardwareControlService>().RestoreAllFansToAuto(); }
+        catch (Exception ex) { Log.Warning(ex, "[FAN] Could not restore fans to automatic control."); }
     }
 
     private readonly HashSet<string> _seenFirstChance = new();
@@ -138,6 +161,9 @@ public partial class App : Application
 
     protected override async void OnStartup(StartupEventArgs e)
     {
+        StartupTrace.BeginSession();
+        StartupTrace.Write("OnStartup - begin");
+
         // ── Show Splash Screen immediately (plus one on the secondary display) ──
         _splash = new SplashWindow();
         SizePrimarySplashToApp(_splash);
@@ -164,6 +190,10 @@ public partial class App : Application
             // but the warning explains why it's empty.
         }
 
+        // Apply the user's saved Logging preference (the pre-start override still wins).
+        try { AppLogging.SetEnabled(_host.Services.GetRequiredService<IThemeService>().CurrentTheme.LoggingEnabled || AppLogging.OverrideActive()); }
+        catch { /* first run / theme unavailable: logging stays off unless overridden */ }
+
         // Ensure the PawnIO driver is present BEFORE the host starts so that
         // LibreHardwareMonitor can read CPU temperature/clock (MSR) and the
         // motherboard Super I/O (case fans, VRM/chipset temps) on first run.
@@ -183,9 +213,12 @@ public partial class App : Application
         startupLogger.LogInformation("[Startup] Passing execution to MainWindow for initialization...");
 
         SetSplashStatus("Starting hardware monitoring...");
+        StartupTrace.Write("host StartAsync - begin");
         await _host.StartAsync();
+        StartupTrace.Write("host StartAsync - done");
 
         DisplayDiagnosticLogger.LogDisplays("STARTUP");
+        StartupTrace.Write("display snapshot - done");
 
         _notifyIcon = new System.Windows.Forms.NotifyIcon();
         try
@@ -214,12 +247,15 @@ public partial class App : Application
         _notifyIcon.ContextMenuStrip = contextMenu;
 
         SetSplashStatus("Loading interface...");
+        StartupTrace.Write("notify icon - done; constructing MainWindow");
         var mainWindow = _host.Services.GetRequiredService<MainWindow>();
+        StartupTrace.Write("MainWindow constructed");
 
         // ── Keep MainWindow invisible until hardware data is ready ──
         // This prevents the user from seeing empty gauges after the splash closes.
         mainWindow.Opacity = 0;
         mainWindow.Show();
+        StartupTrace.Write("MainWindow shown");
 
         SetSplashStatus("Waiting for sensor data...");
 
@@ -267,6 +303,7 @@ public partial class App : Application
 
         StartUiWatchdog(); // monitor for UI-thread freezes now that startup is done
 
+        StartupTrace.Write("OnStartup - complete");
         base.OnStartup(e);
     }
 
@@ -283,7 +320,7 @@ public partial class App : Application
             var theme = _host.Services.GetRequiredService<IThemeService>().CurrentTheme;
             if (theme.WindowWidth > 0) splash.Width = theme.WindowWidth;
             if (theme.WindowHeight > 0) splash.Height = theme.WindowHeight;
-            splash.UseNaturalBrandingSize(); // don't upscale the logo to the larger footprint
+            splash.ScaleBrandingToWindow(0.55, 0.35); // balanced against the footprint, still crisp
         }
         catch
         {
@@ -319,6 +356,11 @@ public partial class App : Application
     protected override async void OnExit(ExitEventArgs e)
     {
         DisplayDiagnosticLogger.LogDisplays("EXIT");
+
+        // Hand every fan we drove back to the motherboard BEFORE anything else. A control
+        // left in software mode stays pinned at the last written value, so exiting used to
+        // leave the client's fans stopped at 30%.
+        TryRestoreFansToAuto();
 
         if (_notifyIcon != null)
         {

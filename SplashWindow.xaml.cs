@@ -23,14 +23,16 @@ public partial class SplashWindow : Window
     private const double MinDisplaySeconds = 2.0;
 
     /// <summary>
-    /// Keeps the branding at its natural size instead of scaling it up to fill the
-    /// window. Used for the primary-monitor splash, which is sized to the app window
-    /// footprint — without this the small logo upscales and looks pixelated. The 7"
-    /// secondary splash keeps the default Uniform stretch so its branding fills the screen.
+    /// Scales the branding to a fixed share of the window instead of filling it.
+    /// Filling a tall window upscaled the 56px logo until it looked pixelated; leaving
+    /// it at natural size left a large window with tiny text. Capping it keeps the
+    /// proportions balanced and the artwork crisp. The 7" secondary splash keeps the
+    /// default Uniform stretch so its branding fills that screen.
     /// </summary>
-    public void UseNaturalBrandingSize()
+    public void ScaleBrandingToWindow(double widthFraction, double heightFraction)
     {
-        BrandingViewbox.StretchDirection = System.Windows.Controls.StretchDirection.DownOnly;
+        BrandingViewbox.MaxWidth  = Width * widthFraction;
+        BrandingViewbox.MaxHeight = Height * heightFraction;
     }
 
     public SplashWindow()

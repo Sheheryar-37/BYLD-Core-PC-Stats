@@ -149,6 +149,29 @@ public interface IHardwareMonitorService
         // The shared Computer is owned and closed by HardwareControlService.Dispose().
     }
 
+    private void UpdateHardwareTree(IHardware hardware)
+    {
+        try { hardware.Update(); }
+        catch (Exception ex) { LogUpdateFailureOnce(hardware.Name, ex); }
+
+        // Also update any sub-hardware (common on modern CPUs with chiplets)
+        foreach (var sub in hardware.SubHardware)
+            UpdateSubHardware(sub);
+    }
+
+    private void UpdateSubHardware(IHardware sub)
+    {
+        try { sub.Update(); }
+        catch (Exception ex) { LogUpdateFailureOnce(sub.Name, ex); }
+    }
+
+    private void ReadHardwareTree(IHardware hardware, HardwareMetrics metrics)
+    {
+        ReadHardware(hardware, metrics);
+        foreach (var sub in hardware.SubHardware)
+            ReadHardware(sub, metrics);
+    }
+
     /// <summary>
     /// Iterates through all detected hardware components and triggers sensor reads.
     /// </summary>
@@ -166,21 +189,12 @@ public interface IHardwareMonitorService
             if (!networkEnabled && hardware.HardwareType == HardwareType.Network)
                 continue;
 
-            try { hardware.Update(); }
-            catch (Exception ex) { LogUpdateFailureOnce(hardware.Name, ex); }
-
-            // Also update any sub-hardware (common on modern CPUs with chiplets)
-            foreach (var sub in hardware.SubHardware)
-            {
-                try { sub.Update(); }
-                catch (Exception ex) { LogUpdateFailureOnce(sub.Name, ex); }
-            }
-
-            ReadHardware(hardware, metrics);
-
-            // Also read sub-hardware sensors
-            foreach (var sub in hardware.SubHardware)
-                ReadHardware(sub, metrics);
+            // Always refresh before reading. Skipping the CPU update on alternate ticks
+            // (a discarded optimization) left its sensors at 0, which forced the slow WMI
+            // temp/clock fallback every other second — and that WMI query HANGS on some
+            // machines, freezing startup before the first metrics ever published.
+            UpdateHardwareTree(hardware);
+            ReadHardwareTree(hardware, metrics);
         }
 
         // ── Post-loop fallback: use AMD iGPU SoC temp as CPU temp proxy ──────────────

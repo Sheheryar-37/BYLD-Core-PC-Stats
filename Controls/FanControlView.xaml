@@ -237,6 +237,19 @@
                     </StackPanel>
                 </Border>
 
+                <!-- Master switch: hand fan control to the app (resets to OFF every launch) -->
+                <Border Background="{DynamicResource CardFill}" BorderBrush="#4D3B82F6" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <TextBlock Text="Let BYLD Core control my fans" Foreground="{DynamicResource PageText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <ToggleButton Grid.Column="1" IsChecked="{Binding AppControlsFans, Mode=TwoWay}" Style="{StaticResource ToggleSwitchStyle}" VerticalAlignment="Center"/>
+                        </Grid>
+                        <TextBlock Foreground="{DynamicResource PageDimText}" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
+                                   Text="OFF: your motherboard/BIOS controls the fans exactly as before. ON: the curves below drive them. For safety this always starts OFF and returns your fans to the motherboard whenever the app closes."/>
+                    </StackPanel>
+                </Border>
+
                 <!-- Advanced: force fan control override -->
                 <Border Background="{DynamicResource CardFill}" BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
                     <StackPanel>

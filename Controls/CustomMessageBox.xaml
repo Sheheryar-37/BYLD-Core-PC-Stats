@@ -6,7 +6,7 @@
         WindowStartupLocation="CenterOwner" ResizeMode="NoResize"
         MouseLeftButtonDown="Window_MouseLeftButtonDown">
     
-    <Border CornerRadius="8" Background="#F0181818" BorderThickness="1" BorderBrush="#3b82f6" Margin="10">
+    <Border x:Name="RootBorder" CornerRadius="8" Background="#F0181818" BorderThickness="1" BorderBrush="#3b82f6" Margin="10">
         <Border.Effect>
             <DropShadowEffect BlurRadius="20" ShadowDepth="5" Opacity="0.5" />
         </Border.Effect>

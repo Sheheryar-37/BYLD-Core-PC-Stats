@@ -12,6 +12,8 @@ public static class DisplayDiagnosticLogger
 
     public static void LogDisplays(string triggerEvent)
     {
+        if (!AppLogging.Enabled) return;
+
         try
         {
             var baseDir = AppDomain.CurrentDomain.BaseDirectory;

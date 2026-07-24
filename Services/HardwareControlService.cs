@@ -27,6 +27,8 @@ public class HardwareControlService : IDisposable
 
     private void Log(string message)
     {
+        if (!AppLogging.Enabled) return;
+
         try
         {
             string logDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
@@ -85,37 +87,11 @@ public class HardwareControlService : IDisposable
         Log("DEEP FAN SCAN — Starting comprehensive fan detection...");
         Log($"Total hardware items in Computer: {_computer.Hardware.Count}");
         
-        // Check HVCI/VBS status
-        try
-        {
-            using var searcher = new System.Management.ManagementObjectSearcher(@"root\CIMv2", "SELECT * FROM Win32_DeviceGuard");
-            foreach (System.Management.ManagementObject obj in searcher.Get())
-            {
-                var vbsState = obj["VirtualizationBasedSecurityStatus"]?.ToString() ?? "Unknown";
-                Log($"[HVCI] VirtualizationBasedSecurityStatus = {vbsState} (0=Off, 1=Enabled, 2=Active)");
-            }
-        }
-        catch (Exception ex) 
-        { 
-            Log($"[HVCI] Could not query DeviceGuard: {ex.Message}");
-        }
-        
-        // Try reading HVCI from registry
-        try
-        {
-            var key = Microsoft.Win32.Registry.LocalMachine.OpenSubKey(@"SYSTEM\CurrentControlSet\Control\DeviceGuard\Scenarios\HypervisorEnforcedCodeIntegrity");
-            if (key != null)
-            {
-                var enabled = key.GetValue("Enabled")?.ToString() ?? "not found";
-                Log($"[HVCI] Registry HVCI Enabled = {enabled} (1=Blocked, 0=Off)");
-            }
-            else
-            {
-                Log("[HVCI] Registry key not found — HVCI likely disabled or not configured.");
-            }
-        }
-        catch (Exception ex) { Log($"[HVCI] Registry check failed: {ex.Message}"); }
-        
+        // The HVCI/VBS probe that used to run here is gone: it only mattered while the
+        // app used WinRing0, which Windows blocks under Memory Integrity. PawnIO is
+        // Microsoft-signed and loads regardless, and the Win32_DeviceGuard query threw
+        // "Invalid class" on the client's machine on every scan.
+
         foreach (var hardware in _computer.Hardware)
         {
             Log($"────────────────────────────────────────");
@@ -226,6 +202,7 @@ public class HardwareControlService : IDisposable
             {
                 // percentage is 0-100
                 controlSensor.Control.SetSoftware(percentage);
+                lock (_softwareControlled) _softwareControlled.Add(controlSensor);
                 Log($"[FAN] Set control '{controlSensor.Name}' to {percentage:F0}%{(reason == null ? "" : $" ({reason})")}");
             }
         }
@@ -244,6 +221,7 @@ public class HardwareControlService : IDisposable
             if (controlSensor.Control != null)
             {
                 controlSensor.Control.SetDefault();
+                lock (_softwareControlled) _softwareControlled.Remove(controlSensor);
                 Log($"[FAN] Set control '{controlSensor.Name}' to Auto");
             }
         }
@@ -251,6 +229,26 @@ public class HardwareControlService : IDisposable
         {
             Log($"[FAN] ERROR setting fan control '{controlSensor.Name}' to Auto: {ex.Message}\n{ex.StackTrace}");
         }
+    }
+
+    /// <summary>Every control this app switched to software mode, so they can be handed back.</summary>
+    private readonly HashSet<ISensor> _softwareControlled = new();
+
+    /// <summary>
+    /// Returns every fan this app took over to the motherboard's own control. MUST run
+    /// on shutdown: a control left in software mode stays pinned at the last value the
+    /// app wrote, so exiting used to leave the client's fans stopped at 30%.
+    /// </summary>
+    public void RestoreAllFansToAuto()
+    {
+        ISensor[] controlled;
+        lock (_softwareControlled)
+        {
+            controlled = _softwareControlled.ToArray();
+        }
+
+        foreach (var sensor in controlled)
+            SetFanAuto(sensor);
     }
 
     /// <summary>Serializes every use of the OpenRGB client (create/replace, reads,
