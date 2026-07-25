@@ -104,10 +104,14 @@ public partial class SplashWindow : Window
     }
 
     /// <summary>
-    /// Fills the given screen exactly, using the per-monitor DPI read from THIS
-    /// window's own presentation source (as the main window does). Placing the
-    /// window on the target monitor first, then maximising, makes WPF choose the
-    /// correct monitor and cover it edge to edge.
+    /// Covers the given screen exactly, matching the size the MAIN window ends up at so the
+    /// splash and the app that replaces it are identical in height and width.
+    ///
+    /// Sizes to the full monitor BOUNDS, not the working area. The main window is a
+    /// transparent borderless window whose Maximize covers the whole monitor (over the
+    /// taskbar) — 1200x2048 on the client's 7". This splash is opaque, so Maximize stopped
+    /// at the working area (1200x1952) and left it ~96px shorter. Setting the full bounds
+    /// explicitly (Topmost keeps it above the taskbar) makes the two match exactly.
     /// </summary>
     private void FillScreen(System.Windows.Forms.Screen screen)
     {
@@ -116,11 +120,10 @@ public partial class SplashWindow : Window
         double dpiY = source?.CompositionTarget?.TransformToDevice.M22 ?? 1.0;
 
         WindowState = WindowState.Normal;
-        Left   = screen.WorkingArea.Left   / dpiX;
-        Top    = screen.WorkingArea.Top    / dpiY;
-        Width  = screen.WorkingArea.Width  / dpiX;
-        Height = screen.WorkingArea.Height / dpiY;
-        WindowState = WindowState.Maximized;
+        Left   = screen.Bounds.Left   / dpiX;
+        Top    = screen.Bounds.Top    / dpiY;
+        Width  = screen.Bounds.Width  / dpiX;
+        Height = screen.Bounds.Height / dpiY;
     }
 
     /// <summary>
