@@ -51,6 +51,29 @@ public class ThemeConfig
     /// <summary>Overall SSD card colour. Empty = the default metallic gradient.</summary>
     public string StorageCardColor { get; set; } = "";
 
+    /// <summary>Colour of the spinning fan icons on the 7" System Cooling screen.
+    /// Empty = follow <see cref="AccentColor"/>.</summary>
+    public string FanAnimationColor { get; set; } = "";
+
+    /// <summary>Resolved brush for the fan icons — the user's colour when set, else the accent.</summary>
+    [System.Text.Json.Serialization.JsonIgnore]
+    public System.Windows.Media.SolidColorBrush FanAnimationBrush
+    {
+        get
+        {
+            if (string.IsNullOrWhiteSpace(FanAnimationColor)) return AccentColorBrush;
+            try
+            {
+                return new System.Windows.Media.SolidColorBrush(
+                    (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(FanAnimationColor));
+            }
+            catch
+            {
+                return AccentColorBrush;
+            }
+        }
+    }
+
     /// <summary>Advanced: keep sending fan-control commands even to hardware that
     /// appears to ignore them (for users with a driver-side workaround enabled).</summary>
     public bool ForceFanControlOverride { get; set; } = false;

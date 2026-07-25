@@ -23,16 +23,16 @@ public partial class SplashWindow : Window
     private const double MinDisplaySeconds = 2.0;
 
     /// <summary>
-    /// Scales the branding to a fixed share of the window instead of filling it.
-    /// Filling a tall window upscaled the 56px logo until it looked pixelated; leaving
-    /// it at natural size left a large window with tiny text. Capping it keeps the
-    /// proportions balanced and the artwork crisp. The 7" secondary splash keeps the
-    /// default Uniform stretch so its branding fills that screen.
+    /// Caps how large the branding may render. The window still covers the whole 7"
+    /// display (the client asked for edge-to-edge black), but letting the Viewbox scale a
+    /// 56px logo across a 1200x2048 panel made the loading screen look enormous compared
+    /// with previous builds (round 14, item 1). Capping keeps the artwork at a sensible
+    /// size and crisp, without shrinking the window itself.
     /// </summary>
-    public void ScaleBrandingToWindow(double widthFraction, double heightFraction)
+    public void CapBrandingSize(double maxWidth, double maxHeight)
     {
-        BrandingViewbox.MaxWidth  = Width * widthFraction;
-        BrandingViewbox.MaxHeight = Height * heightFraction;
+        BrandingViewbox.MaxWidth  = maxWidth;
+        BrandingViewbox.MaxHeight = maxHeight;
     }
 
     public SplashWindow()
@@ -93,7 +93,13 @@ public partial class SplashWindow : Window
         // Doing it earlier read the primary monitor's DPI and maximised from an
         // unplaced position, which left the 7" splash short of the edges on load.
         var splash = new SplashWindow { WindowStartupLocation = WindowStartupLocation.Manual };
-        splash.Loaded += (s, e) => splash.FillScreen(screen);
+        splash.Loaded += (s, e) =>
+        {
+            splash.FillScreen(screen);
+            // Cover the panel, but keep the branding near its designed size rather than
+            // scaling it across the whole 7" display.
+            splash.CapBrandingSize(300, 260);
+        };
         return splash;
     }
 

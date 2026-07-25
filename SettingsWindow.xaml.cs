@@ -387,6 +387,10 @@ public partial class SettingsWindow : Window
         string storageAccent = string.IsNullOrWhiteSpace(theme.StorageAccentColor) ? theme.AccentColor : theme.StorageAccentColor;
         BtnStorageAccentColor.Background = new BrushConverter().ConvertFromString(storageAccent) as SolidColorBrush;
         BtnStorageAccentColor.Tag = storageAccent;
+
+        string fanColor = string.IsNullOrWhiteSpace(theme.FanAnimationColor) ? theme.AccentColor : theme.FanAnimationColor;
+        BtnFanAnimationColor.Background = new BrushConverter().ConvertFromString(fanColor) as SolidColorBrush;
+        BtnFanAnimationColor.Tag = fanColor;
         string storageCard = string.IsNullOrWhiteSpace(theme.StorageCardColor) ? "#121212" : theme.StorageCardColor;
         BtnStorageCardColor.Background = new BrushConverter().ConvertFromString(storageCard) as SolidColorBrush;
         BtnStorageCardColor.Tag = storageCard;
@@ -578,6 +582,7 @@ public partial class SettingsWindow : Window
         theme.TrackColor = BtnTrackColor.Tag?.ToString() ?? theme.TrackColor;
         theme.AlertColor = BtnAlertColor.Tag?.ToString() ?? theme.AlertColor;
         theme.StorageAccentColor = BtnStorageAccentColor.Tag?.ToString() ?? theme.StorageAccentColor;
+        theme.FanAnimationColor = BtnFanAnimationColor.Tag?.ToString() ?? theme.FanAnimationColor;
         theme.StorageCardColor = BtnStorageCardColor.Tag?.ToString() ?? theme.StorageCardColor;
 
         // Remember the palette for the CURRENT display mode, so each mode keeps
@@ -1551,6 +1556,24 @@ public partial class SettingsWindow : Window
         if (profiles.Length > 0) CmbProfiles.SelectedIndex = 0;
     }
 
+    /// <summary>
+    /// Reloads the fan curves and RGB settings after a profile has restored those files.
+    /// LoadFans re-reads fan_curves.json; RestoreState re-reads rgb_settings.json and
+    /// re-applies the saved colours/modes to the hardware.
+    /// </summary>
+    private void ReloadFansAndRgbFromDisk()
+    {
+        try
+        {
+            FanViewModel.LoadFans();
+            PcStatsMonitor.ViewModels.RgbSettingsPersistence.RestoreState(RgbViewModel);
+        }
+        catch
+        {
+            // Best-effort: the theme still loaded even if a fan/RGB reload hiccups.
+        }
+    }
+
     private void BtnLoadProfile_Click(object sender, RoutedEventArgs e)
     {
         if (CmbProfiles.SelectedItem is string profileName)
@@ -1559,7 +1582,10 @@ public partial class SettingsWindow : Window
             {
                 // Refresh UI
                 LoadCurrentSettings();
-                PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, $"Layout profile '{profileName}' loaded.", "Success");
+                // The profile also restored the fan-curve and RGB files (in LoadProfile);
+                // reload both view-models so those settings take effect, not just the theme.
+                ReloadFansAndRgbFromDisk();
+                PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this, $"Profile '{profileName}' loaded.", "Success");
             }
             else
             {
@@ -1577,6 +1603,10 @@ public partial class SettingsWindow : Window
             return;
         }
 
+        // Flush the current fan curves and RGB colours to disk so the profile captures the
+        // live state, then save (SaveProfile bundles those files into the profile).
+        PcStatsMonitor.ViewModels.FanCurvePersistence.SaveCurves(FanViewModel.Curves);
+        PcStatsMonitor.ViewModels.RgbSettingsPersistence.SaveCurrentState();
         _themeService.SaveProfile(newName);
         LoadProfilesList();
         

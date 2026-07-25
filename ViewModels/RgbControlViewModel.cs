@@ -687,6 +687,9 @@ public static class RgbSettingsPersistence
     private static readonly string SettingsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings");
     private static readonly string SettingsFile = Path.Combine(SettingsDir, "rgb_settings.json");
 
+    /// <summary>Absolute path of the saved RGB settings file, so named profiles can bundle it.</summary>
+    public static string SettingsFilePath => SettingsFile;
+
     /// <summary>Reference to the active ViewModel for saving.</summary>
     private static RgbControlViewModel? _activeViewModel;
 

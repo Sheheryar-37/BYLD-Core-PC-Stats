@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using PcStatsMonitor.Models;
@@ -103,12 +104,12 @@ public class ThemeService : IThemeService
         try
         {
             var dir = GetProfilesDirectory();
-            var files = Directory.GetFiles(dir, "*.json");
-            for (int i = 0; i < files.Length; i++)
-            {
-                files[i] = Path.GetFileNameWithoutExtension(files[i]);
-            }
-            return files;
+            // Exclude the .fans.json / .rgb.json sidecars bundled with each profile —
+            // only the top-level "{name}.json" files are real profiles.
+            return Directory.GetFiles(dir, "*.json")
+                .Select(Path.GetFileNameWithoutExtension)
+                .Where(n => n != null && !n.EndsWith(".fans") && !n.EndsWith(".rgb"))
+                .ToArray()!;
         }
         catch (Exception ex)
         {
@@ -128,11 +129,30 @@ public class ThemeService : IThemeService
             var path = Path.Combine(GetProfilesDirectory(), $"{profileName}.json");
             var json = JsonSerializer.Serialize(CurrentTheme, new JsonSerializerOptions { WriteIndented = true });
             File.WriteAllText(path, json);
+
+            // Bundle the current fan curves and RGB settings into the profile, so a profile
+            // captures the whole look — theme, layout, fan curves and lighting (client
+            // round 14, item 12).
+            CopyFile(ViewModels.FanCurvePersistence.CurveFilePath, ProfileSidecar(profileName, "fans"));
+            CopyFile(ViewModels.RgbSettingsPersistence.SettingsFilePath, ProfileSidecar(profileName, "rgb"));
         }
         catch (Exception ex)
         {
             _logger.LogWarning(ex, $"Failed to save profile {profileName}");
         }
+    }
+
+    private string ProfileSidecar(string profileName, string kind) =>
+        Path.Combine(GetProfilesDirectory(), $"{profileName}.{kind}.json");
+
+    private static void CopyFile(string source, string dest)
+    {
+        if (File.Exists(source)) File.Copy(source, dest, overwrite: true);
+    }
+
+    private static void DeleteFile(string path)
+    {
+        if (File.Exists(path)) File.Delete(path);
     }
 
     public bool LoadProfile(string profileName)
@@ -147,6 +167,11 @@ public class ThemeService : IThemeService
                 var config = JsonSerializer.Deserialize<ThemeConfig>(json, opts);
                 if (config != null)
                 {
+                    // Restore the profile's fan curves and RGB settings over the live files
+                    // BEFORE the view-models reload them (SettingsWindow reloads after this).
+                    CopyFile(ProfileSidecar(profileName, "fans"), ViewModels.FanCurvePersistence.CurveFilePath);
+                    CopyFile(ProfileSidecar(profileName, "rgb"), ViewModels.RgbSettingsPersistence.SettingsFilePath);
+
                     CurrentTheme = config;
                     SaveTheme(true); // Persist as main theme
                     return true;
@@ -164,11 +189,9 @@ public class ThemeService : IThemeService
     {
         try
         {
-            var path = Path.Combine(GetProfilesDirectory(), $"{profileName}.json");
-            if (File.Exists(path))
-            {
-                File.Delete(path);
-            }
+            DeleteFile(Path.Combine(GetProfilesDirectory(), $"{profileName}.json"));
+            DeleteFile(ProfileSidecar(profileName, "fans"));
+            DeleteFile(ProfileSidecar(profileName, "rgb"));
         }
         catch (Exception ex)
         {

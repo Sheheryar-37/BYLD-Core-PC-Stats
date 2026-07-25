@@ -18,6 +18,7 @@
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVis" />
         <local:DictionaryValueConverter x:Key="DictValConv" />
+        <local:PathToImageSourceConverter x:Key="PathToImage" />
     </Window.Resources>
 
     <!-- 9:16 Scale Transform so it perfectly fits regardless of Window Width/Height -->
@@ -29,7 +30,7 @@
             </Grid.ColumnDefinitions>
 
             <!-- Custom Background Image Container (Z-Index behind Gauges) -->
-            <Image Source="{Binding Theme.BackgroundImagePath}" 
+            <Image Source="{Binding Theme.BackgroundImagePath, Converter={StaticResource PathToImage}}"
                    Opacity="{Binding Theme.BackgroundOpacity}" 
                    Stretch="UniformToFill" 
                    Grid.ColumnSpan="2" />
@@ -41,7 +42,7 @@
                 </Grid.RenderTransform>
                 <!-- Top Logo Area. Uses an OpacityMask to tint the logo (White in Dark mode, Black in Light mode) -->
                 <Grid x:Name="LogoGrid" Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
-                    <Image x:Name="LogoImage" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Image x:Name="LogoImage" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
                     <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImage, Path=ActualWidth}" Height="{Binding ElementName=LogoImage, Path=ActualHeight}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ElementName=LogoImage, Path=Source}" Stretch="Uniform"/>
@@ -229,7 +230,7 @@
                 </Grid.RenderTransform>
                 <!-- TOP LOGO Area (tinted to follow the widget theme, same as Gauges) -->
                 <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
-                    <Image x:Name="LogoImageSsd" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Image x:Name="LogoImageSsd" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
                     <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageSsd, Path=ActualWidth}" Height="{Binding ElementName=LogoImageSsd, Path=ActualHeight}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ElementName=LogoImageSsd, Path=Source}" Stretch="Uniform"/>
@@ -336,7 +337,7 @@
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
                 <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center">
-                    <Image x:Name="LogoImagePlugin" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Image x:Name="LogoImagePlugin" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
                     <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImagePlugin, Path=ActualWidth}" Height="{Binding ElementName=LogoImagePlugin, Path=ActualHeight}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ElementName=LogoImagePlugin, Path=Source}" Stretch="Uniform"/>
@@ -353,7 +354,7 @@
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
                 <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
-                    <Image x:Name="LogoImageClock" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Image x:Name="LogoImageClock" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
                     <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageClock, Path=ActualWidth}" Height="{Binding ElementName=LogoImageClock, Path=ActualHeight}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ElementName=LogoImageClock, Path=Source}" Stretch="Uniform"/>
@@ -369,7 +370,7 @@
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
                 <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
-                    <Image x:Name="LogoImageWeather" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Image x:Name="LogoImageWeather" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
                     <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageWeather, Path=ActualWidth}" Height="{Binding ElementName=LogoImageWeather, Path=ActualHeight}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ElementName=LogoImageWeather, Path=Source}" Stretch="Uniform"/>
@@ -394,7 +395,7 @@
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
                 <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
-                    <Image x:Name="LogoImageFans" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Image x:Name="LogoImageFans" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
                     <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageFans, Path=ActualWidth}" Height="{Binding ElementName=LogoImageFans, Path=ActualHeight}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ElementName=LogoImageFans, Path=Source}" Stretch="Uniform"/>
@@ -410,7 +411,7 @@
                     <TranslateTransform X="0"/>
                 </Grid.RenderTransform>
                 <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
-                    <Image x:Name="LogoImageRgb" Source="{Binding Theme.LogoPath}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Image x:Name="LogoImageRgb" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
                     <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageRgb, Path=ActualWidth}" Height="{Binding ElementName=LogoImageRgb, Path=ActualHeight}">
                         <Rectangle.OpacityMask>
                             <ImageBrush ImageSource="{Binding ElementName=LogoImageRgb, Path=Source}" Stretch="Uniform"/>

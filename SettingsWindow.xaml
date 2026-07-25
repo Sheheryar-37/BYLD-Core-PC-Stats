@@ -584,6 +584,19 @@
 
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Fan Animation Color" VerticalAlignment="Center"/>
+                                    <Button x:Name="BtnFanAnimationColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}"
+                                            ToolTip="The spinning fan icons on the 7&quot; System Cooling screen. Defaults to the accent color.">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="Storage Card Color" VerticalAlignment="Center"/>
                                     <Button x:Name="BtnStorageCardColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}"
                                             ToolTip="The overall colour of the SSD cards on the storage screen. Leave unset for the default metallic look.">
@@ -625,8 +638,8 @@
                                 <!-- PROFILES / SAVED LAYOUTS -->
                                 <Border Style="{StaticResource SectionBorderStyle}">
                                     <StackPanel>
-                                        <TextBlock Text="SAVED LAYOUTS" Style="{StaticResource SectionHeaderStyle}"/>
-                                        <TextBlock Text="Save and restore your favorite widget and screen setups." FontSize="10" Opacity="0.6" Margin="0,0,0,10" TextWrapping="Wrap"/>
+                                        <TextBlock Text="SAVED PROFILES" Style="{StaticResource SectionHeaderStyle}"/>
+                                        <TextBlock Text="Save and restore complete setups — theme, screen layout, fan curves and RGB lighting — as named profiles." FontSize="10" Opacity="0.6" Margin="0,0,0,10" TextWrapping="Wrap"/>
                                         
                                         <Grid Margin="0,0,0,10">
                                             <Grid.ColumnDefinitions>

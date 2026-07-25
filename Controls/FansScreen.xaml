@@ -10,51 +10,69 @@
         <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     </UserControl.Resources>
     
-    <Grid Margin="30,80,30,80">
+    <!-- Top margin clears the BYLD logo above this screen so the title isn't crowded. -->
+    <Grid Margin="26,170,26,70">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
-        <TextBlock Text="SYSTEM COOLING" Foreground="{Binding Theme.ForegroundColor, FallbackValue='#FFFFFF'}" FontSize="28" FontWeight="Heavy" HorizontalAlignment="Center" Margin="0,0,0,20"/>
+        <!-- Header: title + accent underline -->
+        <StackPanel HorizontalAlignment="Center" Margin="0,0,0,26">
+            <TextBlock Text="SYSTEM COOLING"
+                       Foreground="{Binding Theme.ForegroundColor, FallbackValue='#FFFFFF'}"
+                       FontSize="26" FontWeight="Heavy" HorizontalAlignment="Center"/>
+            <Border Height="3" Width="54" CornerRadius="2" Margin="0,8,0,0"
+                    Background="{Binding Theme.FanAnimationBrush, RelativeSource={RelativeSource AncestorType=Window}}"/>
+        </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
             <ItemsControl ItemsSource="{Binding ObservableFans}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <Border BorderBrush="{Binding DataContext.Theme.TrackColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#1A1A1A'}" BorderThickness="0,0,0,1" Margin="0,5,0,5" Padding="0,15,0,15">
+                        <!-- Glassmorphic fan card -->
+                        <Border Background="#0CFFFFFF"
+                                BorderBrush="#1AFFFFFF" BorderThickness="1" CornerRadius="14"
+                                Margin="0,0,0,12" Padding="16,14,18,14">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="Auto"/>
                                     <ColumnDefinition Width="*"/>
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
-                                
-                                <!-- Fan Spinning Animation -->
-                                <Path Grid.Column="0" Data="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12c0 1.4-.5 2.6-1.4 3.6L12 12zm0 0c3 0 5.5 2.5 5.5 5.5S15 23 12 23c-1.4 0-2.6-.5-3.6-1.4L12 12zm0 0c0 3-2.5 5.5-5.5 5.5S1 15 1 12c0-1.4.5-2.6 1.4-3.6L12 12zm0 0c-3 0-5.5-2.5-5.5-5.5S9 1 12 1c1.4 0 2.6.5 3.6 1.4L12 12z" 
-                                      Fill="{Binding DataContext.Theme.AccentColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#DCDCDC'}" 
-                                      Width="40" Height="40" Stretch="Uniform" RenderTransformOrigin="0.5,0.5" Margin="0,0,20,0">
-                                    <Path.RenderTransform>
-                                        <RotateTransform x:Name="FanRotation" Angle="0"/>
-                                    </Path.RenderTransform>
-                                    <Path.Triggers>
-                                        <EventTrigger RoutedEvent="Loaded">
-                                            <BeginStoryboard>
-                                                <Storyboard>
-                                                    <DoubleAnimation Storyboard.TargetName="FanRotation" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:0.8" RepeatBehavior="Forever"/>
-                                                </Storyboard>
-                                            </BeginStoryboard>
-                                        </EventTrigger>
-                                    </Path.Triggers>
-                                </Path>
 
-                                <!-- Fan Name -->
-                                <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                                
-                                <!-- Fan RPM -->
-                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
-                                    <TextBlock Text="{Binding Speed, StringFormat={}{0:0}}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Right"/>
-                                    <TextBlock Text="RPM" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" Opacity="0.5" FontSize="12" FontWeight="Bold" HorizontalAlignment="Right"/>
+                                <!-- Fan icon badge with spinning blades -->
+                                <Border Grid.Column="0" Width="52" Height="52" CornerRadius="26" Margin="0,0,16,0"
+                                        Background="#14FFFFFF" VerticalAlignment="Center">
+                                    <Path Data="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12c0 1.4-.5 2.6-1.4 3.6L12 12zm0 0c3 0 5.5 2.5 5.5 5.5S15 23 12 23c-1.4 0-2.6-.5-3.6-1.4L12 12zm0 0c0 3-2.5 5.5-5.5 5.5S1 15 1 12c0-1.4.5-2.6 1.4-3.6L12 12zm0 0c-3 0-5.5-2.5-5.5-5.5S9 1 12 1c1.4 0 2.6.5 3.6 1.4L12 12z"
+                                          Fill="{Binding DataContext.Theme.FanAnimationBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#3b82f6'}"
+                                          Width="28" Height="28" Stretch="Uniform" RenderTransformOrigin="0.5,0.5"
+                                          HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Path.RenderTransform>
+                                            <RotateTransform x:Name="FanRotation" Angle="0"/>
+                                        </Path.RenderTransform>
+                                        <Path.Triggers>
+                                            <EventTrigger RoutedEvent="Loaded">
+                                                <BeginStoryboard>
+                                                    <Storyboard>
+                                                        <DoubleAnimation Storyboard.TargetName="FanRotation" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:0.9" RepeatBehavior="Forever"/>
+                                                    </Storyboard>
+                                                </BeginStoryboard>
+                                            </EventTrigger>
+                                        </Path.Triggers>
+                                    </Path>
+                                </Border>
+
+                                <!-- Fan name + status -->
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+                                    <TextBlock Text="{Binding StatusText}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" Opacity="0.45" FontSize="11" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                </StackPanel>
+
+                                <!-- RPM -->
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right" Orientation="Horizontal">
+                                    <TextBlock Text="{Binding Speed, StringFormat={}{0:0}}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="26" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Text="RPM" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" Opacity="0.45" FontSize="11" FontWeight="Bold" VerticalAlignment="Bottom" Margin="4,0,0,4"/>
                                 </StackPanel>
                             </Grid>
                         </Border>

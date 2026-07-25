@@ -37,8 +37,20 @@ public class FanMetric : System.ComponentModel.INotifyPropertyChanged
     public double Speed
     {
         get => _speed;
-        set { _speed = value; OnPropertyChanged(); }
+        set
+        {
+            _speed = value;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(IsSpinning));
+            OnPropertyChanged(nameof(StatusText));
+        }
     }
+
+    /// <summary>True while the fan is turning — drives the icon animation on the 7" screen.</summary>
+    public bool IsSpinning => _speed > 0;
+
+    /// <summary>Short status shown under the fan name on the 7" System Cooling screen.</summary>
+    public string StatusText => _speed > 0 ? "Spinning" : "Idle";
 
     public event System.ComponentModel.PropertyChangedEventHandler? PropertyChanged;
     protected void OnPropertyChanged([System.Runtime.CompilerServices.CallerMemberName] string? propertyName = null)

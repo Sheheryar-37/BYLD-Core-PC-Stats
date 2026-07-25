@@ -260,6 +260,21 @@ public class FanItemViewModel : ViewModelBase
     /// </summary>
     public bool IsZeroRpm => CurrentRpm == 0;
 
+    /// <summary>
+    /// Explains a 0 RPM reading in terms of THIS fan's hardware. A graphics card idling
+    /// with its fans stopped is normal; a motherboard header reading zero means no
+    /// tachometer signal is reaching the board. The GPU wording used to be shown for every
+    /// fan, including the client's case-fan headers (round 14, item 5).
+    /// </summary>
+    public string ZeroRpmHint => IsGpuFan
+        ? "GPU is in zero-fan mode (normal at low temps)"
+        : "No RPM signal on this header — the fan may be unplugged, or wired to a fan hub/PSU rather than the motherboard.";
+
+    private bool IsGpuFan =>
+        Sensor?.Hardware.HardwareType is HardwareType.GpuAmd
+            or HardwareType.GpuNvidia
+            or HardwareType.GpuIntel;
+
     private string _selectedCurve = "";
     public string SelectedCurve { get => _selectedCurve; set => SetProperty(ref _selectedCurve, value); }
 
@@ -398,10 +413,31 @@ public class FanControlViewModel : ViewModelBase
             return;
         }
 
-        // Turning control ON applies the curves immediately rather than waiting for the
-        // write deadband/interval to elapse.
+        // Handing control to the app has to actually do something. Fans deliberately start
+        // with NO curve assigned so nothing is driven until the user opts in — but that
+        // left the engine with no curve to evaluate, so flipping this switch appeared to do
+        // nothing at all (client round 14, item 9). Turning it on IS the opt-in, so give
+        // any unassigned fan a curve now.
+        AssignDefaultCurveWhereMissing();
+
+        // Apply immediately rather than waiting for the write deadband/interval.
         foreach (var fan in Fans)
             fan.LastCurveWriteUtc = DateTime.MinValue;
+    }
+
+    private void AssignDefaultCurveWhereMissing()
+    {
+        var defaultCurve = Curves.FirstOrDefault()?.Name;
+        if (string.IsNullOrEmpty(defaultCurve)) return;
+
+        foreach (var fan in Fans)
+            AssignCurveIfMissing(fan, defaultCurve);
+    }
+
+    private static void AssignCurveIfMissing(FanItemViewModel fan, string curveName)
+    {
+        if (string.IsNullOrEmpty(fan.SelectedCurve))
+            fan.SelectedCurve = curveName;
     }
 
     /// <summary>
@@ -1059,6 +1095,9 @@ public static class FanCurvePersistence
 {
     private static readonly string SettingsDir = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "settings");
     private static readonly string CurveFile = Path.Combine(SettingsDir, "fan_curves.json");
+
+    /// <summary>Absolute path of the saved fan-curve file, so named profiles can bundle it.</summary>
+    public static string CurveFilePath => CurveFile;
 
     /// <summary>
     /// Saves all curves to disk as JSON.

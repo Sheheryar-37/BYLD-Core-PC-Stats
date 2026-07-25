@@ -44,7 +44,7 @@ public partial class MainWindow : Window
         // colours back right before the theme file is written. The subsequent
         // ThemeChanged re-applies the visible screen's override.
         _themeService.ThemeSaving += (s, e) =>
-            Dispatcher.Invoke(() => RestoreBaseColorsIfOverridden(_themeService.CurrentTheme));
+            Dispatcher.Invoke(() => RestoreCanonicalColorsBeforeSave(_themeService.CurrentTheme));
         
         _mouseHook = new MouseHookService();
 
@@ -633,9 +633,6 @@ public partial class MainWindow : Window
         string ClockFace, string ClockHour, string ClockMinute, string ClockMarker,
         string ClockDigital, string ClockDate, string WeatherTheme);
 
-    private ScreenColorBase? _baseColors;
-    private ScreenColorBase? _transientColors;
-    private bool _screenColorsOverridden;
     private UIElement? _activeThemedScreen;
 
     /// <summary>Handles theme changes coming from Settings: forget the old colour
@@ -656,101 +653,63 @@ public partial class MainWindow : Window
 
     private void ApplyThemeChange(ThemeConfig config)
     {
-        _baseColors = null;
-        _transientColors = null;
-        _screenColorsOverridden = false;
-
         if (_activeThemedScreen != null)
             ApplyScreenTheme(_activeThemedScreen, config);
         else
             RefreshCodeConfiguredScreens(config);
     }
 
-    /// <summary>Applies the per-screen theme override for the screen about to show.
-    /// Screens without an explicit override always render the user's saved colours.</summary>
+    /// <summary>
+    /// Applies the colours for the screen about to show: its own Dark/Light override when
+    /// it has one, otherwise the resolved widget theme ("Following Settings").
+    ///
+    /// The palette is always DERIVED from the current config — never restored from a
+    /// snapshot taken earlier. Snapshots went stale the moment the global theme changed and
+    /// were the cause of the display reverting to the previous mode (rounds 12, 13 and 14).
+    /// ApplyWidgetColorPreset restores that mode's OWN saved palette, so the user's custom
+    /// colours survive switching in both directions.
+    /// </summary>
     private void ApplyScreenTheme(UIElement targetScreen, ThemeConfig config)
     {
         _activeThemedScreen = targetScreen;
         string? key = ScreenKeyFor(targetScreen);
 
-        if (key == null || !config.HasScreenThemeOverride(key))
-        {
-            FollowWidgetTheme(config);
-            return;
-        }
+        bool light = key != null && config.HasScreenThemeOverride(key)
+            ? config.IsScreenThemeLight(key)
+            : config.IsWidgetThemeLight;
 
-        bool light = config.IsScreenThemeLight(key);
-        _baseColors ??= CaptureBaseColors(config);
-        config.ApplyWidgetColorPreset(light);
-        _transientColors = CaptureBaseColors(config);
-        _screenColorsOverridden = true;
-        RefreshThemeVisuals(config, light);
-    }
-
-    /// <summary>
-    /// Applies the resolved widget theme to a screen with NO explicit Dark/Light override —
-    /// i.e. one set to "Following Settings". Restoring the stale colour snapshot here left
-    /// the 7" on the PREVIOUS mode's palette while everything else re-themed, which is the
-    /// light background with dark accents the client saw after pressing Save (round 13,
-    /// item 5). ApplyWidgetColorPreset restores that mode's OWN saved palette, so the
-    /// user's custom colours survive the switch in both directions.
-    /// </summary>
-    private void FollowWidgetTheme(ThemeConfig config)
-    {
-        bool light = config.IsWidgetThemeLight;
         var before = CaptureBaseColors(config);
         config.ApplyWidgetColorPreset(light);
 
-        _baseColors = null;
-        _transientColors = null;
-        _screenColorsOverridden = false;
+        // The logo tint always follows the resolved theme, even when the palette itself is
+        // unchanged — otherwise the logo stayed white on the light theme. Setting just this
+        // brush cannot feed back into the screen-evaluation loop.
+        (DataContext as MainViewModel)?.SetLogoTheme(light);
 
-        // This runs on EVERY screen evaluation, and RefreshThemeVisuals re-raises the
-        // Theme bindings — which can lead back into EvaluateScreenVisibility. When the
-        // palette did not actually change (the steady state on every rotation) there is
-        // nothing to re-raise, so skip it: that removes the feedback loop at its source
-        // rather than relying on the re-entrancy guard alone.
+        // Nothing actually changed — don't re-raise the Theme bindings. That fed straight
+        // back into EvaluateScreenVisibility and recursed until the stack overflowed, and
+        // it is also pointless churn on every rotation.
         if (CaptureBaseColors(config) == before) return;
 
         RefreshThemeVisuals(config, light);
     }
 
-    private void RestoreBaseColorsIfOverridden(ThemeConfig config)
+    /// <summary>
+    /// Runs immediately before the theme is written to disk. A per-screen override swaps the
+    /// display colours IN MEMORY, so those transient colours must never be persisted — the
+    /// canonical palette for the current widget mode goes back first.
+    ///
+    /// This previously restored a SNAPSHOT captured before the override. That snapshot went
+    /// stale as soon as the global theme changed, and because SaveTheme serialises straight
+    /// after this call the stale colours were written to disk permanently — which is why
+    /// switching to dark and pressing Save reverted the display to light, and why the 7"
+    /// widgets could not be set back to dark (round 14, items 3 and 4). Deriving the palette
+    /// from the current mode cannot go stale.
+    /// </summary>
+    private void RestoreCanonicalColorsBeforeSave(ThemeConfig config)
     {
-        if (!_screenColorsOverridden || _baseColors == null)
-        {
-            RefreshCodeConfiguredScreens(config);
-            return;
-        }
-
-        // Settings may have just written NEW colours (e.g. the widget-theme
-        // preset when switching back to dark). If the config no longer matches
-        // the transient values this override wrote, those new colours are the
-        // user's intent — accept them as the new base instead of clobbering
-        // them with the stale snapshot (client round 8, item 6).
-        if (_transientColors != null && CaptureBaseColors(config) != _transientColors)
-        {
-            _baseColors = null;
-            _transientColors = null;
-            _screenColorsOverridden = false;
-            RefreshCodeConfiguredScreens(config);
-            return;
-        }
-
-        var b = _baseColors;
-        config.BackgroundColor      = b.Background;
-        config.ForegroundColor      = b.Foreground;
-        config.TrackColor           = b.Track;
-        config.Clock.ClockFaceColor  = b.ClockFace;
-        config.Clock.HourHandColor   = b.ClockHour;
-        config.Clock.MinuteHandColor = b.ClockMinute;
-        config.Clock.MarkerColor     = b.ClockMarker;
-        config.Clock.DigitalColor    = b.ClockDigital;
-        config.Clock.DateColor       = b.ClockDate;
-        config.Weather.WeatherTheme  = b.WeatherTheme;
-        _screenColorsOverridden = false;
-        _transientColors = null;
-        RefreshThemeVisuals(config, logoLightOverride: null);
+        config.ApplyWidgetColorPreset(config.IsWidgetThemeLight);
+        RefreshCodeConfiguredScreens(config);
     }
 
     private static ScreenColorBase CaptureBaseColors(ThemeConfig c) => new(
@@ -850,4 +809,57 @@ public class DictionaryValueConverter : System.Windows.Data.IMultiValueConverter
     {
         throw new NotImplementedException();
     }
+}
+
+/// <summary>
+/// Converts a logo/image path string into an <see cref="System.Windows.Media.ImageSource"/>.
+///
+/// Binding a raw string straight to Image.Source relies on WPF's built-in
+/// ImageSourceConverter, which throws "ImageSourceConverter cannot convert from
+/// System.String" for an empty path, a missing file, or an asset compiled as a WPF
+/// resource rather than a loose file — it fired on every launch in the client's logs and
+/// left the logo unrendered. This resolves resource paths via a pack URI and user-chosen
+/// paths via the file system, returning null instead of throwing when neither works.
+/// </summary>
+public class PathToImageSourceConverter : System.Windows.Data.IValueConverter
+{
+    public object? Convert(object value, Type targetType, object parameter,
+        System.Globalization.CultureInfo culture)
+    {
+        var path = value as string;
+        if (string.IsNullOrWhiteSpace(path)) return null;
+
+        return LoadFromFile(path) ?? LoadFromResource(path);
+    }
+
+    private static System.Windows.Media.ImageSource? LoadFromFile(string path)
+    {
+        try
+        {
+            return System.IO.File.Exists(path)
+                ? new System.Windows.Media.Imaging.BitmapImage(new Uri(System.IO.Path.GetFullPath(path)))
+                : null;
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private static System.Windows.Media.ImageSource? LoadFromResource(string path)
+    {
+        try
+        {
+            var relative = path.Replace('\\', '/').TrimStart('/');
+            return new System.Windows.Media.Imaging.BitmapImage(
+                new Uri($"pack://application:,,,/{relative}", UriKind.Absolute));
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter,
+        System.Globalization.CultureInfo culture) => throw new NotImplementedException();
 }

@@ -278,13 +278,11 @@ public class HardwareControlService : IDisposable
         {
             var rgbProcesses = System.Diagnostics.Process.GetProcessesByName("OpenRGB");
             Log($"[RGB] OpenRGB processes currently running: {rgbProcesses.Length}");
-            
+
             if (rgbProcesses.Length == 0)
             {
                 Log("[RGB] OpenRGB not running. Attempting to start it as Administrator...");
                 EnsureOpenRgbRunningAsAdmin();
-                // Wait a moment for the server to start
-                System.Threading.Thread.Sleep(3000);
             }
             else
             {
@@ -293,18 +291,22 @@ public class HardwareControlService : IDisposable
             }
         }
         catch (Exception ex) { Log($"[RGB] Could not check OpenRGB process: {ex.Message}"); }
-        
+
         try
         {
-            lock (_rgbClientLock)
+            // The OpenRGB server takes a variable time to accept connections after launch —
+            // it scans the SMBus first, which is slow on some boards. A single fixed wait +
+            // one attempt either stalled or failed outright (client round 14: "takes a very
+            // long time, sometimes doesn't connect"). Retry until it answers instead.
+            if (!ConnectWithRetries(ip, port))
             {
-                DisposeRgbClientQuietly();
-                _rgbClient = new OpenRGB.NET.OpenRgbClient(name: "PC Stats Monitor", ip: ip, port: port, timeoutMs: 5000);
-                _rgbClient.Connect();
-                _isConnectedToRgb = _rgbClient.Connected;
+                Log("[RGB] OpenRGB did not accept a connection after retries.");
+                Log("═══════════════════════════════════════════════════════════");
+                _isConnectedToRgb = false;
+                return false;
             }
             Log($"[RGB] Connection success: {_isConnectedToRgb}");
-            
+
             if (_isConnectedToRgb)
             {
                 try
@@ -334,6 +336,46 @@ public class HardwareControlService : IDisposable
             Log("═══════════════════════════════════════════════════════════");
             _isConnectedToRgb = false;
             return false;
+        }
+    }
+
+    /// <summary>
+    /// Tries to connect to OpenRGB repeatedly for up to ~20 seconds, so a server that is
+    /// still starting up or mid-SMBus-scan is waited out rather than failing on the first
+    /// try. Runs on the RGB connect task (off the UI thread), so the retries never freeze
+    /// the interface. Returns true as soon as a connection is established.
+    /// </summary>
+    private bool ConnectWithRetries(string ip, int port)
+    {
+        const int maxAttempts = 20;
+        for (int attempt = 1; attempt <= maxAttempts; attempt++)
+        {
+            if (TryConnectOnce(ip, port))
+                return true;
+
+            if (attempt < maxAttempts)
+                System.Threading.Thread.Sleep(1000);
+        }
+        return false;
+    }
+
+    private bool TryConnectOnce(string ip, int port)
+    {
+        lock (_rgbClientLock)
+        {
+            try
+            {
+                DisposeRgbClientQuietly();
+                _rgbClient = new OpenRGB.NET.OpenRgbClient(name: "PC Stats Monitor", ip: ip, port: port, timeoutMs: 2000);
+                _rgbClient.Connect();
+                _isConnectedToRgb = _rgbClient.Connected;
+                return _isConnectedToRgb;
+            }
+            catch
+            {
+                DisposeRgbClientQuietly();
+                return false;
+            }
         }
     }
 
@@ -565,7 +607,8 @@ public class HardwareControlService : IDisposable
                 ledCount = zone.LedCount;
                 deviceName = device.Name;
                 zoneName = zone.Name;
-                _rgbClient!.UpdateZoneLeds(deviceId, zoneId, Enumerable.Repeat(color, (int)ledCount).ToArray());
+                var leds = Enumerable.Repeat(color, (int)ledCount).ToArray();
+                WriteZoneLedsReliably(deviceId, zoneId, leds);
             }
             Log($"[RGB→] '{deviceName}' zone '{zoneName}': wrote {ledCount} LEDs = {Hex(color)} " +
                 $"(active mode: {ActiveModeName(device)})");
@@ -574,6 +617,20 @@ public class HardwareControlService : IDisposable
         {
             Log($"[RGB→] Zone write FAILED dev={deviceId} zone={zoneId} color={Hex(color)}: {ex.Message}");
         }
+    }
+
+    /// <summary>
+    /// Writes a zone's LEDs, then writes them once more after a short pause. ENE DRAM
+    /// (the client's RGB RAM) is driven over SMBus and drops occasional LEDs on a single
+    /// write — he saw a colour change leave the top LEDs on their previous colour. A second
+    /// identical write catches the LEDs the first one missed. Caller already holds the RGB
+    /// client lock, and this runs on the RGB queue worker, so the pause never touches the UI.
+    /// </summary>
+    private void WriteZoneLedsReliably(int deviceId, int zoneId, OpenRGB.NET.Color[] leds)
+    {
+        _rgbClient!.UpdateZoneLeds(deviceId, zoneId, leds);
+        System.Threading.Thread.Sleep(20);
+        _rgbClient!.UpdateZoneLeds(deviceId, zoneId, leds);
     }
 
     public void UpdateRgbZoneColors(int deviceId, int zoneId, OpenRGB.NET.Color[] colors, bool force = false)
@@ -594,7 +651,7 @@ public class HardwareControlService : IDisposable
         {
             lock (_rgbClientLock)
             {
-                _rgbClient!.UpdateZoneLeds(deviceId, zoneId, colors);
+                WriteZoneLedsReliably(deviceId, zoneId, colors);
             }
             Log($"[RGB→] dev={deviceId} zone={zoneId}: wrote {colors.Length} LEDs gradient {Hex(colors[0])} → {Hex(colors[^1])}");
         }
@@ -694,6 +751,38 @@ public class HardwareControlService : IDisposable
         if (_rgbClient != null && _rgbClient.Connected)
         {
             _rgbClient.Dispose();
+        }
+
+        // Shut down the OpenRGB server we launched, so the next run starts a FRESH one.
+        // A reused server accumulated SMBus state across sessions and came back with its
+        // controls dead on the second launch (client round 14, item 10). The app relaunches
+        // it on connect, which is the same clean state as a first run.
+        StopOpenRgbServer();
+    }
+
+    private void StopOpenRgbServer()
+    {
+        try
+        {
+            foreach (var proc in System.Diagnostics.Process.GetProcessesByName("OpenRGB"))
+                TryKillOpenRgb(proc);
+        }
+        catch
+        {
+            // Best-effort on shutdown — a lingering server is preferable to blocking exit.
+        }
+    }
+
+    private void TryKillOpenRgb(System.Diagnostics.Process proc)
+    {
+        try
+        {
+            proc.Kill();
+            proc.WaitForExit(2000);
+        }
+        catch
+        {
+            // Already gone or access denied — nothing to do.
         }
     }
 }

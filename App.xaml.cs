@@ -166,7 +166,6 @@ public partial class App : Application
 
         // ── Show Splash Screen immediately (plus one on the secondary display) ──
         _splash = new SplashWindow();
-        SizePrimarySplashToApp(_splash);
         _splash.Show();
         _splashSecondary = SplashWindow.TryCreateForSecondaryDisplay();
         _splashSecondary?.Show();
@@ -307,26 +306,10 @@ public partial class App : Application
         base.OnStartup(e);
     }
 
-    /// <summary>
-    /// Sizes the primary-monitor splash to the same footprint the main window uses on a
-    /// single/primary display (Theme.WindowWidth x WindowHeight), so the loading screen
-    /// matches the app that replaces it. CenterScreen keeps it centred. The 7" secondary
-    /// splash is handled separately (it fills that display).
-    /// </summary>
-    private void SizePrimarySplashToApp(SplashWindow splash)
-    {
-        try
-        {
-            var theme = _host.Services.GetRequiredService<IThemeService>().CurrentTheme;
-            if (theme.WindowWidth > 0) splash.Width = theme.WindowWidth;
-            if (theme.WindowHeight > 0) splash.Height = theme.WindowHeight;
-            splash.ScaleBrandingToWindow(0.55, 0.35); // balanced against the footprint, still crisp
-        }
-        catch
-        {
-            // Keep the default splash size if the theme is unavailable this early in startup.
-        }
-    }
+    // NOTE: the primary splash deliberately keeps its own compact 320x260 size from
+    // SplashWindow.xaml. Growing it to match the main window footprint made the loading
+    // screen far larger than before and the client asked for the original size back twice
+    // (round 13 item 2, round 14 item 1), so there is no resizing here on purpose.
 
     /// <summary>Mirrors a loading status message to both splash screens.</summary>
     private void SetSplashStatus(string message)

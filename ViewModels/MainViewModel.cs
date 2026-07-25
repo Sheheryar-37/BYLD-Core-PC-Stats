@@ -52,10 +52,20 @@ public class MainViewModel : ViewModelBase
         SetLogoBrush(Theme?.IsWidgetThemeLight ?? false);
     }
 
+    /// <summary>
+    /// Tints the 7" logo for the given mode: near-black on a light background, white on a
+    /// dark one. Public because the logo must follow the resolved screen theme even when
+    /// the rest of the palette is unchanged and the full binding refresh is skipped — the
+    /// logo stayed white on the light theme otherwise (client round 14, item 11).
+    /// Setting only this brush is safe: unlike a full Theme refresh it cannot feed back
+    /// into the screen-evaluation loop.
+    /// </summary>
+    public void SetLogoTheme(bool isLight) => SetLogoBrush(isLight);
+
     private void SetLogoBrush(bool isLight)
     {
         LogoBrush = isLight
-            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x1E, 0x29, 0x3B))
+            ? new System.Windows.Media.SolidColorBrush(System.Windows.Media.Color.FromRgb(0x11, 0x18, 0x27))
             : System.Windows.Media.Brushes.White;
     }
 

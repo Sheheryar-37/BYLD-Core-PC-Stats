@@ -356,7 +356,7 @@
                                     </StackPanel>
 
                                     <!-- Zero-fan mode hint -->
-                                    <TextBlock Text="GPU is in zero-fan mode (normal at low temps)"
+                                    <TextBlock Text="{Binding ZeroRpmHint}" TextWrapping="Wrap"
                                                Foreground="{DynamicResource DimText}" FontSize="8" FontStyle="Italic" Margin="0,0,0,4"
                                                Visibility="{Binding IsZeroRpm, Converter={StaticResource BooleanToVisibilityConverter}, FallbackValue=Collapsed}"/>
 
