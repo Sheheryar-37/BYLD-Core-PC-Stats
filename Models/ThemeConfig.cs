@@ -55,6 +55,11 @@ public class ThemeConfig
     /// Empty = follow <see cref="AccentColor"/>.</summary>
     public string FanAnimationColor { get; set; } = "";
 
+    /// <summary>Per-fan icon colour on the 7" System Cooling screen, chosen by the user and
+    /// keyed by fan name. A fan with no entry uses a distinct default from the built-in
+    /// palette, so fans are still easy to tell apart out of the box.</summary>
+    public Dictionary<string, string> FanColors { get; set; } = new();
+
     /// <summary>Resolved brush for the fan icons — the user's colour when set, else the accent.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public System.Windows.Media.SolidColorBrush FanAnimationBrush

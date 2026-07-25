@@ -137,6 +137,18 @@ public partial class FanControlView : UserControl
         }
     }
 
+    /// <summary>Opens the colour picker for a single fan and persists the chosen colour,
+    /// which the 7" System Cooling screen uses for that fan's spinning icon.</summary>
+    private void BtnFanColor_Click(object sender, RoutedEventArgs e)
+    {
+        if (sender is not Button btn || btn.Tag is not FanItemViewModel fan) return;
+        if (DataContext is not FanControlViewModel vm) return;
+
+        var picker = new ColorPickerWindow(fan.IconColorHex) { Owner = Window.GetWindow(this) };
+        if (picker.ShowDialog() == true)
+            vm.SetFanColor(fan, picker.SelectedHex);
+    }
+
 
     /// <summary>
     /// Resolves a MenuItem's DataContext by walking up to the ContextMenu's placement target.

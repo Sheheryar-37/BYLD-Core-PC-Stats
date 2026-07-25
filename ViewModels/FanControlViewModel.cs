@@ -194,6 +194,22 @@ public class FanItemViewModel : ViewModelBase
     /// stops driving it and the card is released to its own automatic control.</summary>
     public bool ControlDisabled { get; set; }
 
+    private string _iconColorHex = "#3B82F6";
+    /// <summary>Hex colour of this fan's icon on the 7" screen. Shown on the picker swatch
+    /// in Fan Control and persisted per fan (client round 15: pick a colour per fan).</summary>
+    public string IconColorHex
+    {
+        get => _iconColorHex;
+        set
+        {
+            if (SetProperty(ref _iconColorHex, value))
+                OnPropertyChanged(nameof(IconColorBrush));
+        }
+    }
+
+    /// <summary>The swatch brush for <see cref="IconColorHex"/>.</summary>
+    public System.Windows.Media.Brush IconColorBrush => Models.FanMetric.BrushFromHex(IconColorHex);
+
     private string _demoName = "Fan";
     public string Name => Sensor?.Name ?? _demoName;
     public string Identifier => Sensor?.Identifier.ToString() ?? "demo_fan";
@@ -988,11 +1004,33 @@ public class FanControlViewModel : ViewModelBase
 
         // Pair each Control (%) sensor with its RPM tach so one physical fan
         // shows as ONE card with both readings, instead of two half-cards.
+        int index = 0;
         foreach (var item in PairFanSensors(sensors))
+        {
+            item.IconColorHex = ResolveFanColorHex(item.Name, index++);
             Fans.Add(item);
+        }
 
         SyncFanCurveLists();
         ReleaseAllFansToBios();
+    }
+
+    /// <summary>Reads a fan's chosen icon colour (keyed by name) or a distinct palette default.</summary>
+    private string ResolveFanColorHex(string name, int index)
+    {
+        var colors = _themeService?.CurrentTheme.FanColors;
+        if (colors != null && colors.TryGetValue(name, out var hex) && !string.IsNullOrWhiteSpace(hex))
+            return hex;
+        return Models.FanMetric.PaletteHex(index);
+    }
+
+    /// <summary>Sets and persists a fan's 7"-screen icon colour, keyed by fan name.</summary>
+    public void SetFanColor(FanItemViewModel fan, string hex)
+    {
+        fan.IconColorHex = hex;
+        if (_themeService == null) return;
+        _themeService.CurrentTheme.FanColors[fan.Name] = hex;
+        _themeService.SaveTheme();
     }
 
     /// <summary>

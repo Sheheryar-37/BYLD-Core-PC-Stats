@@ -155,7 +155,11 @@ public partial class SettingsWindow : Window
             ApplyWidgetThemePreset(theme);
         _themeService.SaveTheme();
         ApplyUiTheme();
-        LoadClockSettings(); // clock face tiles are code-built with the theme baked in
+        // Refresh the colour swatches (and clock tab) to the applied palette. Without this
+        // the swatch buttons kept their OLD (light) values, and the next Save read them
+        // back through UpdateThemeObject and reverted the whole theme to light (client
+        // round 15, item 7 — the fix in round 14 missed this UI-theme path).
+        LoadCurrentSettings();
     }
 
     /// <summary>
@@ -388,9 +392,6 @@ public partial class SettingsWindow : Window
         BtnStorageAccentColor.Background = new BrushConverter().ConvertFromString(storageAccent) as SolidColorBrush;
         BtnStorageAccentColor.Tag = storageAccent;
 
-        string fanColor = string.IsNullOrWhiteSpace(theme.FanAnimationColor) ? theme.AccentColor : theme.FanAnimationColor;
-        BtnFanAnimationColor.Background = new BrushConverter().ConvertFromString(fanColor) as SolidColorBrush;
-        BtnFanAnimationColor.Tag = fanColor;
         string storageCard = string.IsNullOrWhiteSpace(theme.StorageCardColor) ? "#121212" : theme.StorageCardColor;
         BtnStorageCardColor.Background = new BrushConverter().ConvertFromString(storageCard) as SolidColorBrush;
         BtnStorageCardColor.Tag = storageCard;
@@ -582,7 +583,6 @@ public partial class SettingsWindow : Window
         theme.TrackColor = BtnTrackColor.Tag?.ToString() ?? theme.TrackColor;
         theme.AlertColor = BtnAlertColor.Tag?.ToString() ?? theme.AlertColor;
         theme.StorageAccentColor = BtnStorageAccentColor.Tag?.ToString() ?? theme.StorageAccentColor;
-        theme.FanAnimationColor = BtnFanAnimationColor.Tag?.ToString() ?? theme.FanAnimationColor;
         theme.StorageCardColor = BtnStorageCardColor.Tag?.ToString() ?? theme.StorageCardColor;
 
         // Remember the palette for the CURRENT display mode, so each mode keeps

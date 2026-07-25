@@ -23,7 +23,7 @@
                        Foreground="{Binding Theme.ForegroundColor, FallbackValue='#FFFFFF'}"
                        FontSize="26" FontWeight="Heavy" HorizontalAlignment="Center"/>
             <Border Height="3" Width="54" CornerRadius="2" Margin="0,8,0,0"
-                    Background="{Binding Theme.FanAnimationBrush, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                    Background="{Binding Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}"/>
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
@@ -41,11 +41,11 @@
                                     <ColumnDefinition Width="Auto"/>
                                 </Grid.ColumnDefinitions>
 
-                                <!-- Fan icon badge with spinning blades -->
+                                <!-- Fan icon badge with spinning blades (colour is per-fan) -->
                                 <Border Grid.Column="0" Width="52" Height="52" CornerRadius="26" Margin="0,0,16,0"
                                         Background="#14FFFFFF" VerticalAlignment="Center">
                                     <Path Data="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12c0 1.4-.5 2.6-1.4 3.6L12 12zm0 0c3 0 5.5 2.5 5.5 5.5S15 23 12 23c-1.4 0-2.6-.5-3.6-1.4L12 12zm0 0c0 3-2.5 5.5-5.5 5.5S1 15 1 12c0-1.4.5-2.6 1.4-3.6L12 12zm0 0c-3 0-5.5-2.5-5.5-5.5S9 1 12 1c1.4 0 2.6.5 3.6 1.4L12 12z"
-                                          Fill="{Binding DataContext.Theme.FanAnimationBrush, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#3b82f6'}"
+                                          Fill="{Binding AnimationBrush, FallbackValue='#3b82f6'}"
                                           Width="28" Height="28" Stretch="Uniform" RenderTransformOrigin="0.5,0.5"
                                           HorizontalAlignment="Center" VerticalAlignment="Center">
                                         <Path.RenderTransform>

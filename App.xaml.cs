@@ -316,6 +316,14 @@ public partial class App : Application
     /// </summary>
     private void SizePrimarySplashToApp(SplashWindow splash)
     {
+        // Only match the app window when there is a SINGLE display — then the main window
+        // lands on this monitor and the sizes should match. With a second display the app
+        // moves to the 7" and this splash is just a brief loader on the big monitor; growing
+        // it to 480x854 there left a large window around small content (client round 15,
+        // item 4), so keep the compact default in that case.
+        if (System.Windows.Forms.Screen.AllScreens.Length != 1)
+            return;
+
         try
         {
             var theme = _host.Services.GetRequiredService<IThemeService>().CurrentTheme;

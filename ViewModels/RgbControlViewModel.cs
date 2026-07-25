@@ -376,8 +376,20 @@ public class RgbControlViewModel : ViewModelBase
         MasterIsGradient = isGradient;
         MasterEndColor = endColor;
 
-        foreach (var device in Devices)
-            ApplyColorToDevice(device, color, isGradient, endColor);
+        // Apply-all touches every zone, and each write otherwise persists synchronously —
+        // that fired ~10 JSON saves on the UI thread and made a second apply-all feel stuck
+        // (client round 15, item 8). Suppress the per-write saves and persist once at the end.
+        RgbSettingsPersistence.SuppressSave = true;
+        try
+        {
+            foreach (var device in Devices)
+                ApplyColorToDevice(device, color, isGradient, endColor);
+        }
+        finally
+        {
+            RgbSettingsPersistence.SuppressSave = false;
+        }
+        RgbSettingsPersistence.SaveCurrentState();
     }
 
     private static void ApplyColorToDevice(RgbDeviceViewModel device,
@@ -484,7 +496,9 @@ public class RgbControlViewModel : ViewModelBase
 
         _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer
         {
-            Interval = TimeSpan.FromSeconds(10)
+            // 30s, not 10s: this only detects devices being added/removed (rare), so a
+            // faster poll was needless OpenRGB traffic that added to the background load.
+            Interval = TimeSpan.FromSeconds(30)
         };
         _autoRefreshTimer.Tick += async (s, e) => await AutoRefreshDevicesAsync();
         _autoRefreshTimer.Start();
@@ -693,13 +707,17 @@ public static class RgbSettingsPersistence
     /// <summary>Reference to the active ViewModel for saving.</summary>
     private static RgbControlViewModel? _activeViewModel;
 
+    /// <summary>When true, SaveCurrentState is a no-op — used to coalesce the burst of
+    /// writes from an apply-to-all into a single save at the end.</summary>
+    public static bool SuppressSave { get; set; }
+
     /// <summary>
     /// Saves the current state of all RGB devices (mode + zone colours) to disk.
     /// Called automatically whenever a colour or mode is changed.
     /// </summary>
     public static void SaveCurrentState()
     {
-        if (_activeViewModel == null) return;
+        if (_activeViewModel == null || SuppressSave) return;
 
         try
         {

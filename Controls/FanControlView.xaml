@@ -250,18 +250,11 @@
                     </StackPanel>
                 </Border>
 
-                <!-- Advanced: force fan control override -->
-                <Border Background="{DynamicResource CardFill}" BorderBrush="{DynamicResource CardStroke}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,12">
-                    <StackPanel>
-                        <Grid>
-                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                            <TextBlock Text="Force fan control (advanced)" Foreground="{DynamicResource PageText}" FontSize="12" FontWeight="SemiBold" VerticalAlignment="Center"/>
-                            <ToggleButton Grid.Column="1" IsChecked="{Binding ForceControlOverride, Mode=TwoWay}" Style="{StaticResource ToggleSwitchStyle}" VerticalAlignment="Center"/>
-                        </Grid>
-                        <TextBlock Foreground="#E6A23C" FontSize="10" TextWrapping="Wrap" Margin="0,6,0,0"
-                                   Text="⚠ Only enable this if your GPU/motherboard fans are not responding and you have enabled a manufacturer driver workaround (e.g. AMD manual fan tuning). Forcing control on unsupported hardware can increase system load."/>
-                    </StackPanel>
-                </Border>
+                <!-- The old "Force fan control (advanced)" toggle was removed: it only did
+                     anything on hardware that rejects fan writes (the discrete GPU fan, which
+                     is now excluded from control), so on working motherboard fans it did
+                     nothing and just sat beside the master switch causing confusion
+                     (client round 15, item 1). Unresponsive fans are still auto-released. -->
 
                 <!-- CONTROLS HEADER -->
                 <StackPanel Orientation="Horizontal" Margin="0,5,0,10">
@@ -299,7 +292,11 @@
                                             <ColumnDefinition Width="*"/>
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
-                                        <Path Data="{StaticResource FanIconGeom}" Fill="{StaticResource BrandBlue}" Width="20" Height="20" Stretch="Uniform" Margin="0,0,8,0"/>
+                                        <Button Grid.Column="0" Click="BtnFanColor_Click" Tag="{Binding}" Cursor="Hand"
+                                                Background="Transparent" BorderThickness="0" Padding="0" Margin="0,0,8,0" Style="{x:Null}"
+                                                ToolTip="Pick this fan's colour on the 7&quot; display">
+                                            <Path Data="{StaticResource FanIconGeom}" Fill="{Binding IconColorBrush}" Width="20" Height="20" Stretch="Uniform"/>
+                                        </Button>
                                         <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource CardText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
                                         <Button Grid.Column="2" Content="⋮" Foreground="{DynamicResource CardText}" FontWeight="Bold" FontSize="14" Cursor="Hand"
                                                 Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">

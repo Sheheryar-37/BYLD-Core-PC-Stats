@@ -582,18 +582,9 @@
                                     </Button>
                                 </Grid>
 
-                                <Grid Margin="0,0,0,12">
-                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
-                                    <TextBlock Text="Fan Animation Color" VerticalAlignment="Center"/>
-                                    <Button x:Name="BtnFanAnimationColor" Grid.Column="1" Width="120" Height="28" Click="BtnColorPick_Click" Style="{x:Null}"
-                                            ToolTip="The spinning fan icons on the 7&quot; System Cooling screen. Defaults to the accent color.">
-                                        <Button.Template>
-                                            <ControlTemplate TargetType="Button">
-                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
-                                            </ControlTemplate>
-                                        </Button.Template>
-                                    </Button>
-                                </Grid>
+                                <!-- Per-fan colours are chosen on each fan card in Fan Control
+                                     (click the fan icon), so the single global fan colour was removed
+                                     to avoid two overlapping settings (client round 15, item 3). -->
 
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>

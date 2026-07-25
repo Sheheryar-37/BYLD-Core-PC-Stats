@@ -69,6 +69,17 @@ public class MainViewModel : ViewModelBase
             : System.Windows.Media.Brushes.White;
     }
 
+    /// <summary>The 7" fan-icon colour for a fan: the user's chosen colour (keyed by name)
+    /// when set, otherwise a distinct default from the palette by position.</summary>
+    private System.Windows.Media.Brush ResolveFanBrush(string name, int index)
+    {
+        var colors = _themeService?.CurrentTheme?.FanColors;
+        if (colors != null && !string.IsNullOrEmpty(name) &&
+            colors.TryGetValue(name, out var hex) && !string.IsNullOrWhiteSpace(hex))
+            return FanMetric.BrushFromHex(hex);
+        return FanMetric.PaletteBrush(index);
+    }
+
     /// <summary>
     /// Re-raises the Theme bindings after in-memory colour swaps (per-screen
     /// theme overrides). When <paramref name="logoLightOverride"/> is given, the
@@ -119,10 +130,16 @@ public class MainViewModel : ViewModelBase
                     {
                         ObservableFans[i].Name = metrics.Fans[i].Name;
                         ObservableFans[i].Speed = metrics.Fans[i].Speed;
+                        ObservableFans[i].AnimationBrush = ResolveFanBrush(metrics.Fans[i].Name, i);
                     }
                     else
                     {
-                        ObservableFans.Add(new FanMetric { Name = metrics.Fans[i].Name, Speed = metrics.Fans[i].Speed });
+                        ObservableFans.Add(new FanMetric
+                        {
+                            Name = metrics.Fans[i].Name,
+                            Speed = metrics.Fans[i].Speed,
+                            AnimationBrush = ResolveFanBrush(metrics.Fans[i].Name, i)
+                        });
                     }
                 }
                 while (ObservableFans.Count > metrics.Fans.Count)
