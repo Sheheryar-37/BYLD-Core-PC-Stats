@@ -131,9 +131,13 @@ public class FanMetric : System.ComponentModel.INotifyPropertyChanged
 
     private static System.Windows.Media.Brush[] BuildFanPalette()
     {
+        // Use BuildFrozenBrush, NOT BrushFromHex: this runs during static initialization of
+        // FanPalette, which is declared before the _brushCache field, so the cache is still
+        // null at this point. Touching it here threw in the type initializer and broke every
+        // fan load (client round 15). BuildFrozenBrush has no such dependency.
         var brushes = new System.Windows.Media.Brush[FanPaletteHex.Length];
         for (int i = 0; i < FanPaletteHex.Length; i++)
-            brushes[i] = BrushFromHex(FanPaletteHex[i]);
+            brushes[i] = BuildFrozenBrush(FanPaletteHex[i]);
         return brushes;
     }
 

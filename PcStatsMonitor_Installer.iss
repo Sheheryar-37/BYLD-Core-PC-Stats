@@ -23,6 +23,10 @@ OutputBaseFilename=BYLD_PC_Stats_Monitor_Setup
 SetupIconFile=Assets\byld-icon.ico
 Compression=lzma
 SolidCompression=yes
+; Modern, per-monitor-DPI-aware wizard. The classic wizard clipped the "Launch"
+; checkbox on the client's high-DPI 5120x2880 display (round 16, item 3).
+WizardStyle=modern
+WizardResizable=yes
 ; "PrivilegesRequired=admin" ensures the installer and its launched app have elevation.
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}
