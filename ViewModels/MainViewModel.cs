@@ -80,6 +80,17 @@ public class MainViewModel : ViewModelBase
         return FanMetric.PaletteBrush(index);
     }
 
+    /// <summary>The label to show for a fan on the 7" widget: the user's custom name
+    /// (keyed by the hardware sensor name) when set, otherwise the hardware name itself.</summary>
+    private string ResolveFanDisplayName(string sensorName)
+    {
+        var names = _themeService?.CurrentTheme?.FanNames;
+        if (names != null && !string.IsNullOrEmpty(sensorName) &&
+            names.TryGetValue(sensorName, out var custom) && !string.IsNullOrWhiteSpace(custom))
+            return custom;
+        return sensorName;
+    }
+
     /// <summary>
     /// Re-raises the Theme bindings after in-memory colour swaps (per-screen
     /// theme overrides). When <paramref name="logoLightOverride"/> is given, the
@@ -126,19 +137,22 @@ public class MainViewModel : ViewModelBase
                 // Update ObservableFans in-place to prevent UI element recreation and flickering
                 for (int i = 0; i < metrics.Fans.Count; i++)
                 {
+                    // Colour and custom name are keyed by the REAL sensor name; only the shown
+                    // label switches to the user's custom name (client round 17, item 3).
+                    string real = metrics.Fans[i].Name;
                     if (i < ObservableFans.Count)
                     {
-                        ObservableFans[i].Name = metrics.Fans[i].Name;
+                        ObservableFans[i].Name = ResolveFanDisplayName(real);
                         ObservableFans[i].Speed = metrics.Fans[i].Speed;
-                        ObservableFans[i].AnimationBrush = ResolveFanBrush(metrics.Fans[i].Name, i);
+                        ObservableFans[i].AnimationBrush = ResolveFanBrush(real, i);
                     }
                     else
                     {
                         ObservableFans.Add(new FanMetric
                         {
-                            Name = metrics.Fans[i].Name,
+                            Name = ResolveFanDisplayName(real),
                             Speed = metrics.Fans[i].Speed,
-                            AnimationBrush = ResolveFanBrush(metrics.Fans[i].Name, i)
+                            AnimationBrush = ResolveFanBrush(real, i)
                         });
                     }
                 }

@@ -519,8 +519,9 @@
                         <StackPanel Margin="5,10">
                         <Border Style="{StaticResource SectionBorderStyle}">
                             <StackPanel>
-                                <TextBlock Text="INTERFACE COLORS" Style="{StaticResource SectionHeaderStyle}"/>
-                                
+                                <TextBlock Text="7&quot; CASE SCREEN COLORS" Style="{StaticResource SectionHeaderStyle}"/>
+                                <TextBlock Text="Colors for the gauges, clock and widgets on the 7&quot; case display. Your dark and light choices are saved separately." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
                                 <Grid Margin="0,0,0,12">
                                     <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
                                     <TextBlock Text="Background Color" VerticalAlignment="Center"/>
@@ -610,6 +611,41 @@
                                         </Button.Template>
                                     </Button>
                                 </Grid>
+                            </StackPanel>
+                        </Border>
+
+                        <!-- Custom colours for this desktop app window (round 17, item 6) -->
+                        <Border Style="{StaticResource SectionBorderStyle}">
+                            <StackPanel>
+                                <TextBlock Text="APP WINDOW COLORS" Style="{StaticResource SectionHeaderStyle}"/>
+                                <TextBlock Text="Background and accent for this desktop window. Leave on the theme default (Appearance tab), or pick your own here." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,0,0,12"/>
+
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Window Background Color" VerticalAlignment="Center"/>
+                                    <Button x:Name="BtnUiBgColor" Grid.Column="1" Width="120" Height="28" Click="BtnUiColorPick_Click" Style="{x:Null}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+
+                                <Grid Margin="0,0,0,12">
+                                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                    <TextBlock Text="Window Accent Color" VerticalAlignment="Center"/>
+                                    <Button x:Name="BtnUiAccentColor" Grid.Column="1" Width="120" Height="28" Click="BtnUiColorPick_Click" Style="{x:Null}">
+                                        <Button.Template>
+                                            <ControlTemplate TargetType="Button">
+                                                <Border Background="{TemplateBinding Background}" CornerRadius="6" BorderBrush="{DynamicResource CheckBorderBrush}" BorderThickness="1"/>
+                                            </ControlTemplate>
+                                        </Button.Template>
+                                    </Button>
+                                </Grid>
+
+                                <Button Content="Reset to theme default" Click="BtnResetUiColors_Click"
+                                        HorizontalAlignment="Left" Style="{StaticResource ModernButtonStyle}" Height="28" Padding="14,0"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

@@ -60,6 +60,11 @@ public class ThemeConfig
     /// palette, so fans are still easy to tell apart out of the box.</summary>
     public Dictionary<string, string> FanColors { get; set; } = new();
 
+    /// <summary>Custom display name per fan, chosen by the user and keyed by the hardware
+    /// sensor name (the stable key). A fan with no entry shows its hardware name. Applied on
+    /// both the Fan Control cards and the 7" System Cooling widget (client round 17, item 3).</summary>
+    public Dictionary<string, string> FanNames { get; set; } = new();
+
     /// <summary>Resolved brush for the fan icons — the user's colour when set, else the accent.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public System.Windows.Media.SolidColorBrush FanAnimationBrush
@@ -89,6 +94,14 @@ public class ThemeConfig
     /// disk continuously. Crash logs are always written regardless.
     /// </summary>
     public bool LoggingEnabled { get; set; } = false;
+
+    /// <summary>User-chosen background colour for the desktop app/settings window. Empty = the
+    /// built-in Dark/Light/System window background (client round 17, item 6).</summary>
+    public string UiBackgroundColor { get; set; } = "";
+
+    /// <summary>User-chosen accent colour for the desktop app/settings window (buttons, tabs,
+    /// highlights). Empty = the built-in blue accent (client round 17, item 6).</summary>
+    public string UiAccentColor { get; set; } = "";
 
     /// <summary>The SSD card fill: a solid user colour when set, else the default metallic gradient.</summary>
     [System.Text.Json.Serialization.JsonIgnore]

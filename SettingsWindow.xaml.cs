@@ -263,6 +263,40 @@ public partial class SettingsWindow : Window
         SetThemeBrush("WindowBorderBrush",  light ? "#29000000" : "#33FFFFFF");
         SetThemeBrush("SliderTrackBrush",   light ? "#26000000" : "#33FFFFFF");
         ApplyEmbeddedViewTheme(light, glass);
+        ApplyCustomUiColors();
+    }
+
+    /// <summary>
+    /// Overrides the desktop window's background and accent with the user's chosen colours
+    /// when set, layered on top of the Dark/Light/System preset (client round 17, item 6).
+    /// The accent is always (re)assigned so clearing a custom colour restores the default blue.
+    /// </summary>
+    private void ApplyCustomUiColors()
+    {
+        var theme = _themeService.CurrentTheme;
+
+        if (!string.IsNullOrWhiteSpace(theme.UiBackgroundColor))
+            TrySetWindowBackground(theme.UiBackgroundColor);
+
+        if (string.IsNullOrWhiteSpace(theme.UiAccentColor))
+            SetAccentBrushes("#3b82f6", "#2563eb");
+        else
+            SetAccentBrushes(theme.UiAccentColor, theme.UiAccentColor);
+    }
+
+    private void TrySetWindowBackground(string hex)
+    {
+        try { Background = NewBrush(hex); } catch { /* ignore a malformed saved colour */ }
+    }
+
+    private void SetAccentBrushes(string accentHex, string hoverHex)
+    {
+        try
+        {
+            SetThemeBrush("BrandBlue", accentHex);
+            SetThemeBrush("BrandBlueHover", hoverHex);
+        }
+        catch { /* ignore a malformed saved colour */ }
     }
 
     /// <summary>
@@ -395,6 +429,9 @@ public partial class SettingsWindow : Window
         string storageCard = string.IsNullOrWhiteSpace(theme.StorageCardColor) ? "#121212" : theme.StorageCardColor;
         BtnStorageCardColor.Background = new BrushConverter().ConvertFromString(storageCard) as SolidColorBrush;
         BtnStorageCardColor.Tag = storageCard;
+
+        // App-window (desktop) custom colours
+        LoadUiColorSwatches();
 
         // Toggles
         ChkCpu.IsChecked = theme.IsCpuEnabled;
@@ -675,6 +712,58 @@ public partial class SettingsWindow : Window
                 LoadClockSettings();
             }
         }
+    }
+
+    /// <summary>
+    /// Colour pickers for the desktop window itself (background + accent). Kept separate from
+    /// the 7" widget palette (UpdateThemeObject) so the two colour sets never overwrite each
+    /// other. Applies live and persists immediately (client round 17, item 6).
+    /// </summary>
+    private void BtnUiColorPick_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing || sender is not Button btn) return;
+
+        var picker = new ColorPickerWindow(btn.Tag?.ToString() ?? "#3b82f6") { Owner = this };
+        if (picker.ShowDialog() == true)
+            ApplyUiColorSelection(btn, picker.SelectedHex);
+    }
+
+    private void ApplyUiColorSelection(Button btn, string hex)
+    {
+        var theme = _themeService.CurrentTheme;
+        if (btn == BtnUiBgColor) theme.UiBackgroundColor = hex;
+        else if (btn == BtnUiAccentColor) theme.UiAccentColor = hex;
+
+        btn.Tag = hex;
+        btn.Background = new BrushConverter().ConvertFromString(hex) as SolidColorBrush;
+        _themeService.SaveTheme(true);
+        ApplyUiTheme();
+    }
+
+    /// <summary>Clears the custom desktop-window colours and returns to the preset theme.</summary>
+    private void BtnResetUiColors_Click(object sender, RoutedEventArgs e)
+    {
+        var theme = _themeService.CurrentTheme;
+        theme.UiBackgroundColor = "";
+        theme.UiAccentColor = "";
+        _themeService.SaveTheme(true);
+        LoadUiColorSwatches();
+        ApplyUiTheme();
+    }
+
+    private void LoadUiColorSwatches()
+    {
+        var theme = _themeService.CurrentTheme;
+        SetUiSwatch(BtnUiBgColor, theme.UiBackgroundColor,
+            WindowBackgroundHex(theme.IsUiThemeLight, theme.LiquidGlassEnabled));
+        SetUiSwatch(BtnUiAccentColor, theme.UiAccentColor, "#3b82f6");
+    }
+
+    private static void SetUiSwatch(Button btn, string customHex, string fallback)
+    {
+        string shown = string.IsNullOrWhiteSpace(customHex) ? fallback : customHex;
+        btn.Tag = shown;
+        btn.Background = new BrushConverter().ConvertFromString(shown) as SolidColorBrush;
     }
 
     private void BtnMoveUp_Click(object sender, RoutedEventArgs e)

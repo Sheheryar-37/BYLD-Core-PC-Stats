@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Extensions.DependencyInjection;
@@ -105,7 +106,7 @@ public partial class App : Application
     /// a pre-crash exception is captured without flooding the log on repeat throws.</summary>
     private void LogFirstChance(Exception ex)
     {
-        if (ex is System.Net.Sockets.SocketException || ex is OperationCanceledException)
+        if (IsBenignConnectionNoise(ex))
             return;
 
         string signature = ex.GetType().FullName + "|" + ex.Message;
@@ -116,6 +117,21 @@ public partial class App : Application
 
         try { Log.Warning(ex, "[FirstChance] {Type}: {Message}", ex.GetType().Name, ex.Message); }
         catch { /* diagnostics must never throw */ }
+    }
+
+    /// <summary>
+    /// True for cancellation/socket exceptions that are expected and already handled —
+    /// including an <see cref="AggregateException"/> that only wraps them, which is what
+    /// OpenRGB.NET's own client Dispose() throws when tearing down a socket. These are
+    /// caught downstream, so logging them as first-chance warnings only alarms the reader.
+    /// </summary>
+    private static bool IsBenignConnectionNoise(Exception ex)
+    {
+        if (ex is System.Net.Sockets.SocketException || ex is OperationCanceledException)
+            return true;
+        return ex is AggregateException agg &&
+               agg.InnerExceptions.All(inner =>
+                   inner is OperationCanceledException || inner is System.Net.Sockets.SocketException);
     }
 
     private long _lastUiBeatTicks;

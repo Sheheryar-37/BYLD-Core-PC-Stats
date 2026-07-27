@@ -297,11 +297,22 @@
                                                 ToolTip="Pick this fan's colour on the 7&quot; display">
                                             <Path Data="{StaticResource FanIconGeom}" Fill="{Binding IconColorBrush}" Width="20" Height="20" Stretch="Uniform"/>
                                         </Button>
-                                        <TextBlock Grid.Column="1" Text="{Binding Name}" Foreground="{DynamicResource CardText}" FontWeight="SemiBold" FontSize="12" VerticalAlignment="Center" TextTrimming="CharacterEllipsis"/>
+                                        <Grid Grid.Column="1" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource CardText}" FontWeight="SemiBold" FontSize="12"
+                                                       VerticalAlignment="Center" TextTrimming="CharacterEllipsis" Cursor="Hand"
+                                                       ToolTip="Double-click to rename this fan"
+                                                       MouseLeftButtonDown="FanName_MouseLeftButtonDown"
+                                                       Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVisibilityConverter}}"/>
+                                            <TextBox Text="{Binding EditableName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource InlineEditBox}"
+                                                     TextAlignment="Left" Width="NaN" HorizontalAlignment="Stretch" MaxLength="24"
+                                                     KeyDown="FanNameEdit_KeyDown" LostFocus="FanNameEdit_LostFocus" IsVisibleChanged="FanNameEdit_IsVisibleChanged"
+                                                     Visibility="{Binding IsEditingName, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                        </Grid>
                                         <Button Grid.Column="2" Content="⋮" Foreground="{DynamicResource CardText}" FontWeight="Bold" FontSize="14" Cursor="Hand"
                                                 Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">
                                             <Button.ContextMenu>
                                                 <ContextMenu Background="{DynamicResource FanPopupBg}" BorderBrush="#33FFFFFF" BorderThickness="1">
+                                                    <MenuItem Header="Rename…" Foreground="{DynamicResource CardText}" Click="FanContextRename_Click"/>
                                                     <MenuItem Header="Reset to Auto" Foreground="{DynamicResource CardText}" Click="FanContextReset_Click"/>
                                                     <MenuItem Header="Set Manual (50%)" Foreground="{DynamicResource CardText}" Click="FanContextManual_Click"/>
                                                 </ContextMenu>

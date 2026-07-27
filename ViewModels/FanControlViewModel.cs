@@ -211,8 +211,44 @@ public class FanItemViewModel : ViewModelBase
     public System.Windows.Media.Brush IconColorBrush => Models.FanMetric.BrushFromHex(IconColorHex);
 
     private string _demoName = "Fan";
+
+    /// <summary>The hardware sensor name — the STABLE key used to persist this fan's
+    /// colour and custom name. Never changes when the user renames the fan.</summary>
     public string Name => Sensor?.Name ?? _demoName;
     public string Identifier => Sensor?.Identifier.ToString() ?? "demo_fan";
+
+    private string? _customName;
+
+    /// <summary>What the user sees for this fan: their custom label when set, otherwise the
+    /// hardware sensor name. Bound by the Fan Control card (client round 17, item 3).</summary>
+    public string DisplayName => string.IsNullOrWhiteSpace(_customName) ? Name : _customName!;
+
+    /// <summary>Applies a saved custom name (from the theme) without re-persisting it.</summary>
+    public void SetCustomNameQuiet(string? customName)
+    {
+        _customName = customName;
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
+    private bool _isEditingName;
+    /// <summary>True while the name field is in inline-edit mode on the card.</summary>
+    public bool IsEditingName
+    {
+        get => _isEditingName;
+        set
+        {
+            if (SetProperty(ref _isEditingName, value) && value)
+                EditableName = DisplayName;
+        }
+    }
+
+    private string _editableName = string.Empty;
+    /// <summary>The working text while renaming; committed by the view through SetFanName.</summary>
+    public string EditableName
+    {
+        get => _editableName;
+        set => SetProperty(ref _editableName, value);
+    }
 
     private bool _isManual;
     public bool IsManual
@@ -1008,6 +1044,7 @@ public class FanControlViewModel : ViewModelBase
         foreach (var item in PairFanSensors(sensors))
         {
             item.IconColorHex = ResolveFanColorHex(item.Name, index++);
+            item.SetCustomNameQuiet(ResolveFanCustomName(item.Name));
             Fans.Add(item);
         }
 
@@ -1031,6 +1068,36 @@ public class FanControlViewModel : ViewModelBase
         if (_themeService == null) return;
         _themeService.CurrentTheme.FanColors[fan.Name] = hex;
         _themeService.SaveTheme();
+    }
+
+    /// <summary>Reads a fan's custom display name from the theme, or null when the user hasn't set one.</summary>
+    private string? ResolveFanCustomName(string sensorName)
+    {
+        var names = _themeService?.CurrentTheme.FanNames;
+        if (names != null && names.TryGetValue(sensorName, out var custom) && !string.IsNullOrWhiteSpace(custom))
+            return custom;
+        return null;
+    }
+
+    /// <summary>
+    /// Sets and persists a fan's custom display name, keyed by its hardware sensor name so it
+    /// survives redetection. A blank name clears the override and restores the hardware name.
+    /// </summary>
+    public void SetFanName(FanItemViewModel fan, string? newName)
+    {
+        string trimmed = newName?.Trim() ?? string.Empty;
+        fan.SetCustomNameQuiet(string.IsNullOrWhiteSpace(trimmed) ? null : trimmed);
+        fan.IsEditingName = false;
+        if (_themeService == null) return;
+        UpdateFanNameInTheme(fan.Name, trimmed);
+        _themeService.SaveTheme();
+    }
+
+    private void UpdateFanNameInTheme(string sensorName, string trimmed)
+    {
+        var names = _themeService!.CurrentTheme.FanNames;
+        if (string.IsNullOrWhiteSpace(trimmed)) names.Remove(sensorName);
+        else names[sensorName] = trimmed;
     }
 
     /// <summary>

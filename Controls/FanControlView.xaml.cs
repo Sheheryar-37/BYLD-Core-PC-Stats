@@ -25,6 +25,24 @@ public class CurveTypeConverter : IValueConverter
 }
 
 /// <summary>
+/// Visible when the bound bool is FALSE, Collapsed when true — the inverse of the
+/// built-in BooleanToVisibilityConverter. Used to swap a fan's name label for its
+/// inline rename box (client round 17, item 3).
+/// </summary>
+public class InverseBoolToVisibilityConverter : IValueConverter
+{
+    public object Convert(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value is true ? Visibility.Collapsed : Visibility.Visible;
+    }
+
+    public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+    {
+        return value is Visibility.Collapsed;
+    }
+}
+
+/// <summary>
 /// Fan control settings panel with card-based layout for Controls and Curves.
 /// Handles +/- button clicks to increment/decrement fan parameters,
 /// and supports direct click-to-type editing via inline TextBoxes.
@@ -35,6 +53,7 @@ public partial class FanControlView : UserControl
     {
         // Register the CurveType converter as a resource before InitializeComponent
         Resources.Add("CurveTypeConverter", new CurveTypeConverter());
+        Resources.Add("InverseBoolToVisibilityConverter", new InverseBoolToVisibilityConverter());
         InitializeComponent();
     }
 
@@ -176,6 +195,55 @@ public partial class FanControlView : UserControl
             fan.IsManual = true;
             fan.SpeedPercentage = 50f;
         }
+    }
+
+    // ── Fan rename (inline) ─────────────────────────────────────────────────
+
+    /// <summary>Double-click a fan's name to rename it inline.</summary>
+    private void FanName_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && sender is FrameworkElement fe && fe.DataContext is FanItemViewModel fan)
+            fan.IsEditingName = true;
+    }
+
+    /// <summary>Fan ⋮ → Rename… enters inline edit mode.</summary>
+    private void FanContextRename_Click(object sender, RoutedEventArgs e)
+    {
+        var fan = GetContextDataContext<FanItemViewModel>(sender);
+        if (fan != null) fan.IsEditingName = true;
+    }
+
+    /// <summary>Selects the whole name as soon as the inline rename box appears.</summary>
+    private void FanNameEdit_IsVisibleChanged(object sender, DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not TextBox box || !box.IsVisible) return;
+        box.Dispatcher.BeginInvoke(new Action(() => { box.Focus(); box.SelectAll(); }),
+            System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    /// <summary>Enter commits the new name; Escape cancels without saving.</summary>
+    private void FanNameEdit_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter) CommitFanName(sender);
+        else if (e.Key == System.Windows.Input.Key.Escape) CancelFanNameEdit(sender);
+    }
+
+    /// <summary>Commits the rename when focus leaves the box (e.g. clicking elsewhere).</summary>
+    private void FanNameEdit_LostFocus(object sender, RoutedEventArgs e) => CommitFanName(sender);
+
+    private void CommitFanName(object sender)
+    {
+        // LostFocus fires again after Enter/Escape already closed the editor — the guard
+        // stops a second, redundant save.
+        if (sender is not TextBox box || box.DataContext is not FanItemViewModel fan) return;
+        if (!fan.IsEditingName) return;
+        (DataContext as FanControlViewModel)?.SetFanName(fan, box.Text);
+    }
+
+    private static void CancelFanNameEdit(object sender)
+    {
+        if (sender is TextBox box && box.DataContext is FanItemViewModel fan)
+            fan.IsEditingName = false; // restores DisplayName; nothing persisted
     }
 
     /// <summary>Curve ⋮ → Duplicate this curve.</summary>

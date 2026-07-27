@@ -34,8 +34,10 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-[Tasks]
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
+; No [Tasks] and no finish-page "Launch" checkbox on purpose: the wizard checkboxes
+; rendered clipped on the client's high-DPI display (round 16/17, item 3). The desktop
+; shortcut is created unconditionally and the app is launched from a shortcut, so there
+; are no checkboxes to clip.
 
 [Files]
 ; Main application files
@@ -64,7 +66,7 @@ Type: files; Name: "{app}\WinRing0x64.sys"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
 
 [Run]
 ; Install the PawnIO driver silently BEFORE the app first launches. PawnIO is the
@@ -73,8 +75,7 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 ; (Services/PawnIoDriverService.cs), so this step is a no-op if PawnIO is present.
 Filename: "{app}\PawnIO_setup.exe"; Parameters: "-install -silent"; Flags: runhidden waituntilterminated; Check: PawnIoSetupNeeded; StatusMsg: "Installing PawnIO hardware driver..."
 ; NOTE: OpenRGB is NOT started here — the app manages the OpenRGB server itself.
-; Launch main application
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec; WorkingDir: "{app}"
+; The app is launched from the desktop/Start shortcut (no finish-page checkbox).
 
 [UninstallRun]
 ; Kill the app and OpenRGB, then stop OpenRGB's WinRing0 kernel service so its

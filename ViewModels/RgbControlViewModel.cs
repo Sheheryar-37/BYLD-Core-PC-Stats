@@ -519,6 +519,16 @@ public class RgbControlViewModel : ViewModelBase
         if (HardwareControlService.IsDemoMode) return;
         if (IsLoading || _connecting) return;
 
+        // A write can find the transport dead and drop the service-side connection while our
+        // flag still reads "connected". Reconnect promptly when that happens, rather than
+        // letting every following write silently no-op (client round 17: "only worked once").
+        if (IsConnected && !_hardwareService.IsRgbConnected)
+        {
+            IsConnected = false;
+            Connect();
+            return;
+        }
+
         if (!IsConnected)
         {
             TryReconnect();

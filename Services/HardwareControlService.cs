@@ -191,31 +191,49 @@ public class HardwareControlService : IDisposable
 
     public void SetFanSpeed(ISensor controlSensor, float percentage) => SetFanSpeed(controlSensor, percentage, null);
 
-    /// <summary>Sets a fan control to a percentage; <paramref name="reason"/> adds log context (e.g. which curve).</summary>
+    /// <summary>
+    /// Queues a fan control to a percentage; <paramref name="reason"/> adds log context
+    /// (e.g. which curve). The driver write is ISA-bus port I/O that can block for tens of
+    /// milliseconds, so it runs on a background worker — enabling app fan control writes
+    /// every fan at once and doing that on the UI thread froze the app for a moment
+    /// (client round 17, item 4). The <c>epoch</c> captured here lets the worker discard the
+    /// write if the fan is released to automatic control before it runs.
+    /// </summary>
     public void SetFanSpeed(ISensor controlSensor, float percentage, string? reason)
     {
         if (controlSensor == null || controlSensor.SensorType != SensorType.Control) return;
-        
-        try
+
+        long epoch = System.Threading.Interlocked.Read(ref _fanReleaseEpoch);
+        EnqueueFanOp(() => WriteFanSpeed(controlSensor, percentage, reason, epoch));
+    }
+
+    /// <summary>
+    /// The actual driver write, on the fan worker thread. The add-to-set, the epoch
+    /// re-check and the <c>SetSoftware</c> call are done under the same lock that
+    /// <see cref="RestoreAllFansToAuto"/> takes, so a release can never interleave and
+    /// strand a fan: either this write completes and the fan is in the released snapshot,
+    /// or the release bumps the epoch first and this write is discarded.
+    /// </summary>
+    private void WriteFanSpeed(ISensor sensor, float percentage, string? reason, long epoch)
+    {
+        lock (_softwareControlled)
         {
-            if (controlSensor.Control != null)
-            {
-                // percentage is 0-100
-                controlSensor.Control.SetSoftware(percentage);
-                lock (_softwareControlled) _softwareControlled.Add(controlSensor);
-                Log($"[FAN] Set control '{controlSensor.Name}' to {percentage:F0}%{(reason == null ? "" : $" ({reason})")}");
-            }
+            if (epoch != System.Threading.Interlocked.Read(ref _fanReleaseEpoch) || sensor.Control == null) return;
+            _softwareControlled.Add(sensor);
+            sensor.Control.SetSoftware(percentage); // percentage is 0-100
         }
-        catch (Exception ex)
-        {
-            Log($"[FAN] ERROR setting fan control '{controlSensor.Name}' to {percentage}%: {ex.Message}\n{ex.StackTrace}");
-        }
+
+        Log($"[FAN] Set control '{sensor.Name}' to {percentage:F0}%{(reason == null ? "" : $" ({reason})")}");
     }
 
     public void SetFanAuto(ISensor controlSensor)
     {
         if (controlSensor == null || controlSensor.SensorType != SensorType.Control) return;
-        
+
+        // Invalidate any queued speed writes before releasing, so a stale background
+        // "set 30%" cannot re-pin this fan after it is handed back to automatic control.
+        System.Threading.Interlocked.Increment(ref _fanReleaseEpoch);
+
         try
         {
             if (controlSensor.Control != null)
@@ -237,10 +255,16 @@ public class HardwareControlService : IDisposable
     /// <summary>
     /// Returns every fan this app took over to the motherboard's own control. MUST run
     /// on shutdown: a control left in software mode stays pinned at the last value the
-    /// app wrote, so exiting used to leave the client's fans stopped at 30%.
+    /// app wrote, so exiting used to leave the client's fans stopped at 30%. Runs
+    /// synchronously on the calling thread (never queued) so it is guaranteed to finish
+    /// on exit or crash even after the fan worker has stopped.
     /// </summary>
     public void RestoreAllFansToAuto()
     {
+        // One epoch bump invalidates every queued speed write up front, so nothing the
+        // worker still holds can re-pin a fan after this restore.
+        System.Threading.Interlocked.Increment(ref _fanReleaseEpoch);
+
         ISensor[] controlled;
         lock (_softwareControlled)
         {
@@ -249,6 +273,36 @@ public class HardwareControlService : IDisposable
 
         foreach (var sensor in controlled)
             SetFanAuto(sensor);
+    }
+
+    // ── Fan-control write worker ────────────────────────────────────────────────
+    // Every fan SPEED write runs on this single background worker so the UI thread never
+    // blocks on the driver. Releasing a fan to automatic control (SetFanAuto /
+    // RestoreAllFansToAuto) stays synchronous so it is guaranteed to complete on exit.
+    private readonly System.Collections.Concurrent.BlockingCollection<Action> _fanQueue =
+        new(new System.Collections.Concurrent.ConcurrentQueue<Action>());
+    private Task? _fanWorker;
+
+    // Bumped whenever a fan (or all fans) is released to automatic control. A queued speed
+    // write captures the epoch at enqueue time and the worker discards it on a mismatch.
+    private long _fanReleaseEpoch;
+
+    private void EnqueueFanOp(Action op)
+    {
+        _fanWorker ??= Task.Factory.StartNew(ProcessFanQueue, TaskCreationOptions.LongRunning);
+        if (!_fanQueue.IsAddingCompleted) _fanQueue.TryAdd(op);
+    }
+
+    private void ProcessFanQueue()
+    {
+        foreach (var op in _fanQueue.GetConsumingEnumerable())
+            RunFanOp(op);
+    }
+
+    private void RunFanOp(Action op)
+    {
+        try { op(); }
+        catch (Exception ex) { Log($"[FAN→] Worker operation failed: {ex.Message}"); }
     }
 
     /// <summary>Serializes every use of the OpenRGB client (create/replace, reads,
@@ -580,6 +634,30 @@ public class HardwareControlService : IDisposable
         return valid ? device.Modes[device.ActiveModeIndex].Name : "?";
     }
 
+    /// <summary>True while the OpenRGB client holds a live connection. Flips to false when a
+    /// write hits a dead transport, so the view-model can re-establish the connection instead
+    /// of silently no-op'ing every subsequent write (client round 17: "only worked once").</summary>
+    public bool IsRgbConnected => _isConnectedToRgb;
+
+    /// <summary>
+    /// Marks the RGB connection dead when an exception means the transport itself is gone
+    /// (socket closed/reset, client disposed) — NOT for ordinary device/protocol errors, which
+    /// are transient. A dead connection would otherwise stay flagged "connected" and swallow
+    /// every following write, which is why RGB control stopped responding after the first use.
+    /// </summary>
+    private void MarkRgbDeadIfTransportError(Exception ex)
+    {
+        for (var e = ex; e != null; e = e.InnerException)
+        {
+            if (e is System.Net.Sockets.SocketException || e is System.IO.IOException || e is ObjectDisposedException)
+            {
+                _isConnectedToRgb = false;
+                Log("[RGB] Connection lost (dead transport) — will reconnect on the next refresh.");
+                return;
+            }
+        }
+    }
+
     public void UpdateRgbZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color, bool force = false)
     {
         if (!_isConnectedToRgb || _rgbClient == null) return;
@@ -616,6 +694,7 @@ public class HardwareControlService : IDisposable
         catch (Exception ex)
         {
             Log($"[RGB→] Zone write FAILED dev={deviceId} zone={zoneId} color={Hex(color)}: {ex.Message}");
+            MarkRgbDeadIfTransportError(ex);
         }
     }
 
@@ -658,6 +737,7 @@ public class HardwareControlService : IDisposable
         catch (Exception ex)
         {
             Log($"[RGB→] Gradient zone write FAILED dev={deviceId} zone={zoneId}: {ex.Message}");
+            MarkRgbDeadIfTransportError(ex);
         }
     }
 
@@ -694,6 +774,7 @@ public class HardwareControlService : IDisposable
         catch (Exception ex)
         {
             Log($"[RGB→] Mode switch FAILED dev={deviceId} mode='{effectName}': {ex.Message}");
+            MarkRgbDeadIfTransportError(ex);
         }
     }
 
@@ -747,6 +828,7 @@ public class HardwareControlService : IDisposable
     public void Dispose()
     {
         _rgbQueue.CompleteAdding();
+        _fanQueue.CompleteAdding();
         _computer.Close();
         if (_rgbClient != null && _rgbClient.Connected)
         {

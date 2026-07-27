@@ -149,6 +149,22 @@ public interface IHardwareMonitorService
         // The shared Computer is owned and closed by HardwareControlService.Dispose().
     }
 
+    private int _updateTick;
+
+    // Drive space/temperature barely move second-to-second, and LibreHardwareMonitor's
+    // storage update issues per-drive SMART reads — refreshing that tree every ~5 s instead
+    // of every second cuts continuous I/O without any visible change (client round 17: throttling).
+    private const int StorageRefreshEveryTicks = 5;
+
+    /// <summary>True when this hardware should be refreshed on the current tick. Everything is
+    /// refreshed every tick except Storage, which is throttled to every few seconds. The CPU is
+    /// deliberately never throttled — stale CPU sensors force a slow, sometimes-hanging WMI fallback.</summary>
+    private bool ShouldRefresh(IHardware hardware)
+    {
+        if (hardware.HardwareType != HardwareType.Storage) return true;
+        return _updateTick % StorageRefreshEveryTicks == 1;
+    }
+
     private void UpdateHardwareTree(IHardware hardware)
     {
         try { hardware.Update(); }
@@ -177,6 +193,7 @@ public interface IHardwareMonitorService
     /// </summary>
     private void UpdateMetrics()
     {
+        _updateTick++;
         var metrics = new HardwareMetrics();
         bool networkEnabled = _themeService.CurrentTheme.IsNetworkEnabled;
 
@@ -189,11 +206,12 @@ public interface IHardwareMonitorService
             if (!networkEnabled && hardware.HardwareType == HardwareType.Network)
                 continue;
 
-            // Always refresh before reading. Skipping the CPU update on alternate ticks
-            // (a discarded optimization) left its sensors at 0, which forced the slow WMI
-            // temp/clock fallback every other second — and that WMI query HANGS on some
-            // machines, freezing startup before the first metrics ever published.
-            UpdateHardwareTree(hardware);
+            // Refresh before reading. Storage is the exception (see ShouldRefresh): its
+            // SMART/space reads are slow and change little second-to-second, so it is
+            // refreshed every few seconds. Everything else — the CPU especially, whose
+            // sensors go stale and force a slow WMI fallback otherwise — updates every tick.
+            if (ShouldRefresh(hardware))
+                UpdateHardwareTree(hardware);
             ReadHardwareTree(hardware, metrics);
         }
 
