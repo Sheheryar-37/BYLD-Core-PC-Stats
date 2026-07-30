@@ -64,6 +64,7 @@ public partial class MainWindow : Window
             WeatherGalleryArea.Visibility = Visibility.Collapsed;
             FansScreenArea.Visibility = Visibility.Collapsed;
             RgbScreenArea.Visibility = Visibility.Collapsed;
+            SplitScreenArea.Visibility = Visibility.Collapsed;
             PluginScreen.Visibility = Visibility.Collapsed;
         }
 
@@ -380,6 +381,9 @@ public partial class MainWindow : Window
         if (config.ShowRgbScreen && !config.ScreenRotationOrder.Contains("RGB"))
             config.ScreenRotationOrder.Add("RGB");
 
+        if (config.ShowSplitScreen && !config.ScreenRotationOrder.Contains("Split"))
+            config.ScreenRotationOrder.Add("Split");
+
         // Synchronize missing enabled plugins into the rotation order
         if (config.EnabledPlugins != null)
         {
@@ -438,6 +442,11 @@ public partial class MainWindow : Window
             targetScreen = RgbScreenArea;
             currentScreenValid = true;
         }
+        else if (currentScreenName == "Split" && config.ShowSplitScreen)
+        {
+            targetScreen = SplitScreenArea;
+            currentScreenValid = true;
+        }
         else
         {
             // Check plugins
@@ -487,6 +496,10 @@ public partial class MainWindow : Window
                 {
                     targetScreen = RgbScreenArea; _currentScreenIndex = i; currentScreenValid = true; break;
                 }
+                if (name == "Split" && config.ShowSplitScreen)
+                {
+                    targetScreen = SplitScreenArea; _currentScreenIndex = i; currentScreenValid = true; break;
+                }
 
                 var p = _pluginManager?.LoadedPlugins?.FirstOrDefault(pl => pl.Name == name);
                 if (p != null && config.EnabledPlugins.Contains(p.Name))
@@ -503,7 +516,7 @@ public partial class MainWindow : Window
         // for the screen we are about to show, before the transition animates.
         ApplyScreenTheme(targetScreen, config);
 
-        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea, WeatherGalleryArea, FansScreenArea, RgbScreenArea };
+        UIElement[] allScreens = { GaugesContainer, SsdScreen, PluginScreen, ClockScreen, WeatherScreenArea, WeatherGalleryArea, FansScreenArea, RgbScreenArea, SplitScreenArea };
 
         if (animate)
         {
@@ -757,7 +770,10 @@ public partial class MainWindow : Window
         // Must disable Topmost so SettingsWindow can appear above it
         this.Topmost = false;
         
-        var settingsWindow = new SettingsWindow(_themeService, _hwControl, _pluginManager);
+        // Share this window's RGB view-model with Settings — see SettingsWindow's constructor.
+        var mainVm = DataContext as PcStatsMonitor.ViewModels.MainViewModel;
+        var settingsWindow = new SettingsWindow(_themeService, _hwControl, _pluginManager,
+            mainVm?.Rgb, mainVm?.FanControl);
         settingsWindow.Owner = this;
         settingsWindow.WindowStartupLocation = WindowStartupLocation.CenterOwner;
         
@@ -785,6 +801,7 @@ public partial class MainWindow : Window
             WeatherGalleryArea.Visibility = Visibility.Collapsed;
             FansScreenArea.Visibility = Visibility.Collapsed;
             RgbScreenArea.Visibility = Visibility.Collapsed;
+            SplitScreenArea.Visibility = Visibility.Collapsed;
             PluginScreen.Visibility = Visibility.Collapsed;
         }
         

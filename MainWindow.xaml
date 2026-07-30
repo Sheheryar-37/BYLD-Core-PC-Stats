@@ -238,33 +238,31 @@
                     </Rectangle>
                 </Grid>
 
-                <ItemsControl ItemsSource="{Binding Metrics.Drives}" AlternationCount="2" Margin="0,120,0,85">
-                    <!-- Use an ItemsPanel of Grid so we can absolutely align Top/Bottom independently -->
+                <ItemsControl ItemsSource="{Binding Metrics.Drives}" Margin="0,120,0,85">
+                    <!-- A UniformGrid of one column divides the height EVENLY between however many
+                         drives exist, so 3-4 SSDs each get their own row. The previous panel was a
+                         plain Grid with only index 0 aligned Top and every other drive aligned
+                         Bottom, which stacked drives 2+ on top of each other (client round 18,
+                         item 15). Card height is capped, not fixed, so cards shrink to fit. -->
                     <ItemsControl.ItemsPanel>
                         <ItemsPanelTemplate>
-                            <Grid/>
+                            <UniformGrid Columns="1"/>
                         </ItemsPanelTemplate>
                     </ItemsControl.ItemsPanel>
-                    
+
                     <ItemsControl.ItemContainerStyle>
                         <Style TargetType="ContentPresenter">
-                            <!-- Bottom SSD card remains locked in its absolute position relative to bottom edge of grid -->
-                            <Setter Property="VerticalAlignment" Value="Bottom"/>
-                            <Setter Property="Margin" Value="10,0,10,0"/>
-                            
-                            <Style.Triggers>
-                                <!-- Top SSD card (Index 0) is pushed to top edge of grid -->
-                                <Trigger Property="ItemsControl.AlternationIndex" Value="0">
-                                    <Setter Property="VerticalAlignment" Value="Top"/>
-                                </Trigger>
-                            </Style.Triggers>
+                            <Setter Property="VerticalAlignment" Value="Stretch"/>
+                            <Setter Property="Margin" Value="10,6,10,6"/>
                         </Style>
                     </ItemsControl.ItemContainerStyle>
                     
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <!-- Thicker left border to catch direct stark lighting, thin elsewhere -->
-                            <Border BorderThickness="2,0.5,0.5,0.5" CornerRadius="12" Height="300">
+                            <!-- MaxHeight (not a fixed Height) so a 3rd/4th SSD makes every card
+                                 shrink to fit instead of overflowing the screen. -->
+                            <Border BorderThickness="2,0.5,0.5,0.5" CornerRadius="12" MaxHeight="300">
                                 <!-- Intense Left-Edge Highlight simulating strong directional lighting -->
                                 <Border.BorderBrush>
                                     <!-- Angled from middle-left (0,0.5) sweeping right -->
@@ -419,6 +417,22 @@
                     </Rectangle>
                 </Grid>
                 <controls:RgbDisplayScreen x:Name="RgbScreenCtrl" />
+            </Grid>
+
+            <!-- Screen 9: Split Screen — stats on top, cooling below (round 18, item 16) -->
+            <Grid x:Name="SplitScreenArea" Grid.ColumnSpan="2" Visibility="Hidden" Opacity="0" RenderTransformOrigin="0.5,0.5">
+                <Grid.RenderTransform>
+                    <TranslateTransform X="0"/>
+                </Grid.RenderTransform>
+                <Grid Height="160" Margin="20,-20,0,0" VerticalAlignment="Top" HorizontalAlignment="Center" Panel.ZIndex="99">
+                    <Image x:Name="LogoImageSplit" Source="{Binding Theme.LogoPath, Converter={StaticResource PathToImage}}" Stretch="Uniform" Visibility="Hidden"/>
+                    <Rectangle Fill="{Binding LogoBrush}" Width="{Binding ElementName=LogoImageSplit, Path=ActualWidth}" Height="{Binding ElementName=LogoImageSplit, Path=ActualHeight}">
+                        <Rectangle.OpacityMask>
+                            <ImageBrush ImageSource="{Binding ElementName=LogoImageSplit, Path=Source}" Stretch="Uniform"/>
+                        </Rectangle.OpacityMask>
+                    </Rectangle>
+                </Grid>
+                <controls:SplitScreen x:Name="SplitScreenCtrl" />
             </Grid>
 
         <!-- License Missing / Invalid Overlay (Always on Top) -->

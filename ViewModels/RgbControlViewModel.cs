@@ -60,6 +60,10 @@ public class RgbZoneViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedColor, value))
             {
+                // Switch the device into a colour-capable mode FIRST, otherwise a device sitting
+                // in an effect (Rainbow, etc.) ignores the per-LED write and the pick does nothing
+                // — only "apply to all" used to do this (client round 18, item 8).
+                Owner?.EnsureColorCapableMode(value);
                 ApplyColor();
             }
         }
@@ -174,6 +178,15 @@ public class RgbDeviceViewModel : ViewModelBase
     public ObservableCollection<RgbZoneViewModel> Zones { get; } = new();
     public ObservableCollection<string> Modes { get; } = new();
 
+    private bool _showOnWidget = true;
+    /// <summary>Whether this device appears on the 7" RGB screen. Hidden devices still show in
+    /// RGB Control so they can be re-shown (client round 18, item 9).</summary>
+    public bool ShowOnWidget
+    {
+        get => _showOnWidget;
+        set => SetProperty(ref _showOnWidget, value);
+    }
+
     private string? _selectedMode;
     public string? SelectedMode
     {
@@ -232,10 +245,24 @@ public class RgbDeviceViewModel : ViewModelBase
     /// </summary>
     public void EnsureColorCapableMode(System.Windows.Media.Color color)
     {
-        var colorMode = Modes.FirstOrDefault(m => m == "Static")
-                     ?? Modes.FirstOrDefault(m => m == "Direct");
+        var colorMode = PickColorCapableMode();
         if (colorMode != null)
             ApplyModeWithColor(colorMode, color);
+    }
+
+    /// <summary>
+    /// Chooses the mode used to display a chosen colour: "Static" (which the hardware stores)
+    /// in preference to "Direct" (which is volatile — OpenRGB greys out "Save to Device" in
+    /// Direct, and ENE DRAM reverts once writes stop).
+    ///
+    /// Deliberately NOT special-cased to force DRAM onto Direct: the "(active mode: Rainbow)"
+    /// in the client's log is written from the CACHED device snapshot taken at connect time,
+    /// so it is a stale-logging artifact and NOT evidence that the Static switch failed.
+    /// Switching DRAM to Direct on that basis risked leaving the client's RAM dark.
+    /// </summary>
+    private string? PickColorCapableMode()
+    {
+        return Modes.FirstOrDefault(m => m == "Static") ?? Modes.FirstOrDefault(m => m == "Direct");
     }
 
     public void ApplyModeWithColor(string modeName, System.Windows.Media.Color color)
@@ -458,17 +485,25 @@ public class RgbControlViewModel : ViewModelBase
         zone.ReapplyColor();
     }
 
-    /// <summary>Recomputes the intersection of modes across all devices.</summary>
+    /// <summary>
+    /// Builds the "apply to all" mode list as the UNION of every device's modes, with the
+    /// modes supported by ALL devices listed first. Each mode is applied only to the devices
+    /// that actually support it (see <see cref="SelectedCommonMode"/>), so offering the full
+    /// set lets the user reach every effect from one place instead of only the handful common
+    /// to every device (client round 18, item 12).
+    /// </summary>
     private void RebuildCommonModes()
     {
         CommonModes.Clear();
         if (Devices.Count == 0) return;
 
-        var common = Devices[0].Modes.AsEnumerable();
-        foreach (var device in Devices.Skip(1))
-            common = common.Intersect(device.Modes);
+        var universal = Devices.Select(d => d.Modes.AsEnumerable())
+                               .Aggregate((a, b) => a.Intersect(b))
+                               .ToList();
+        foreach (var mode in universal)
+            CommonModes.Add(mode);
 
-        foreach (var mode in common)
+        foreach (var mode in Devices.SelectMany(d => d.Modes).Distinct().Except(universal))
             CommonModes.Add(mode);
     }
 
@@ -477,12 +512,82 @@ public class RgbControlViewModel : ViewModelBase
 
     private System.Windows.Threading.DispatcherTimer? _autoRefreshTimer;
 
-    public RgbControlViewModel(HardwareControlService hardwareService)
+    private readonly IThemeService? _themeService;
+
+    /// <summary>
+    /// The devices shown on the 7" RGB screen: the user's visible selection, in the user's chosen
+    /// order (client round 18, items 9 and 13). Kept separate from <see cref="Devices"/> so RGB
+    /// Control still lists every device even when some are hidden from the 7" display.
+    /// </summary>
+    public ObservableCollection<RgbDeviceViewModel> VisibleDevices { get; } = new();
+
+    public RgbControlViewModel(HardwareControlService hardwareService, IThemeService? themeService = null)
     {
         _hardwareService = hardwareService;
+        _themeService = themeService;
         ConnectCommand = new RelayCommand(_ => Connect());
         RefreshCommand = new RelayCommand(_ => LoadDevices(), _ => IsConnected);
+        Devices.CollectionChanged += (_, _) => RebuildVisibleDevices();
         StartAutoRefresh();
+    }
+
+    /// <summary>Rebuilds <see cref="VisibleDevices"/> from the hidden set and display order.</summary>
+    public void RebuildVisibleDevices()
+    {
+        var theme = _themeService?.CurrentTheme;
+        var ordered = Devices.Where(d => !IsHiddenFromWidget(d.Name));
+        if (theme != null)
+            ordered = ordered.OrderBy(d => Models.ThemeConfig.DisplayOrderIndex(theme.RgbDisplayOrder, d.Name));
+
+        VisibleDevices.Clear();
+        foreach (var device in ordered)
+            VisibleDevices.Add(device);
+    }
+
+    private bool IsHiddenFromWidget(string deviceName) =>
+        _themeService?.CurrentTheme.HiddenRgbDeviceNames.Contains(deviceName) == true;
+
+    /// <summary>Applies each device's saved 7"-display visibility after the list is (re)built.</summary>
+    private void ApplySavedWidgetVisibility()
+    {
+        foreach (var device in Devices)
+            device.ShowOnWidget = !IsHiddenFromWidget(device.Name);
+        RebuildVisibleDevices();
+    }
+
+    /// <summary>Shows or hides a device on the 7" RGB screen and persists the choice.</summary>
+    public void SetDeviceWidgetVisibility(RgbDeviceViewModel device, bool visible)
+    {
+        device.ShowOnWidget = visible;
+        if (_themeService == null) return;
+
+        var hidden = _themeService.CurrentTheme.HiddenRgbDeviceNames;
+        if (visible) hidden.Remove(device.Name);
+        else if (!hidden.Contains(device.Name)) hidden.Add(device.Name);
+
+        _themeService.SaveTheme();
+        RebuildVisibleDevices();
+    }
+
+    /// <summary>
+    /// Moves a device one place earlier/later on the 7" display and persists the new order
+    /// (client round 18, item 13). The order list is rewritten from the current visible order so
+    /// devices the user never touched keep a stable position.
+    /// </summary>
+    public void MoveDeviceOnWidget(RgbDeviceViewModel device, int delta)
+    {
+        if (_themeService == null) return;
+
+        var names = VisibleDevices.Select(d => d.Name).ToList();
+        int from = names.IndexOf(device.Name);
+        int to = from + delta;
+        if (from < 0 || to < 0 || to >= names.Count) return;
+
+        names.RemoveAt(from);
+        names.Insert(to, device.Name);
+        _themeService.CurrentTheme.RgbDisplayOrder = names;
+        _themeService.SaveTheme();
+        RebuildVisibleDevices();
     }
 
     /// <summary>
@@ -544,6 +649,7 @@ public class RgbControlViewModel : ViewModelBase
             Devices.Add(new RgbDeviceViewModel(devices[i], i, _hardwareService));
 
         RebuildCommonModes();
+        ApplySavedWidgetVisibility();
         // Property-level restore only — the full hardware reapply happens once
         // per connect in LoadDevicesAsync, not on every device-list change.
         RgbSettingsPersistence.RestoreState(this);
@@ -651,6 +757,7 @@ public class RgbControlViewModel : ViewModelBase
         }
 
         RebuildCommonModes();
+        ApplySavedWidgetVisibility();
 
         // Restore any previously-saved settings (colours + modes). The hardware
         // reapply must ONLY run when a saved state genuinely existed — on a fresh
@@ -693,12 +800,30 @@ public class RgbControlViewModel : ViewModelBase
     private static void ReapplyDevice(RgbDeviceViewModel device)
     {
         var firstZone = device.Zones.FirstOrDefault();
-        if (device.SelectedMode is { } mode && firstZone != null)
-            device.ApplyModeWithColor(mode, firstZone.SelectedColor);
+        if (firstZone == null) return;
+
+        ApplyDeviceMode(device, firstZone.SelectedColor);
 
         foreach (var zone in device.Zones)
             zone.ReapplyColor();
     }
+
+    /// <summary>
+    /// Re-applies a device's saved mode. A saved colour mode (Static/Direct) is routed through
+    /// <see cref="RgbDeviceViewModel.EnsureColorCapableMode"/> so the DRAM lands on Direct (which
+    /// actually shows the colour) rather than the stored-but-broken Static; a saved effect
+    /// (Rainbow, Breathing…) is re-applied as-is (client round 18, item 9).
+    /// </summary>
+    private static void ApplyDeviceMode(RgbDeviceViewModel device, System.Windows.Media.Color color)
+    {
+        if (device.SelectedMode is not { } mode) return;
+        if (IsColorMode(mode)) device.EnsureColorCapableMode(color);
+        else device.ApplyModeWithColor(mode, color);
+    }
+
+    private static bool IsColorMode(string mode) =>
+        mode.Equals("Static", StringComparison.OrdinalIgnoreCase) ||
+        mode.Equals("Direct", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
@@ -795,21 +920,19 @@ public static class RgbSettingsPersistence
                     deviceVm.SelectedMode = savedDevice.SelectedMode;
                 }
 
-                // Restore zone colours
+                // Restore zone colours SILENTLY — no hardware write or mode switch during load.
+                // Setting the colour through its property would switch the device into a colour
+                // mode here and clobber a restored effect; ReapplyStateToHardware applies the
+                // correct mode + colour once, afterwards (client round 18, item 9).
                 foreach (var zoneVm in deviceVm.Zones)
                 {
                     var savedZone = savedDevice.Zones?.FirstOrDefault(
                         z => string.Equals(z.ZoneName, zoneVm.Name, StringComparison.OrdinalIgnoreCase));
                     if (savedZone != null)
-                    {
-                        // Set colors before IsGradient, so the final setter applies it correctly.
-                        zoneVm.GradientEndColor = System.Windows.Media.Color.FromRgb(
-                            savedZone.GradientEndR, savedZone.GradientEndG, savedZone.GradientEndB);
-                        zoneVm.IsGradient = savedZone.IsGradient;
-                        
-                        zoneVm.SelectedColor = System.Windows.Media.Color.FromRgb(
-                            savedZone.ColorR, savedZone.ColorG, savedZone.ColorB);
-                    }
+                        zoneVm.SetColorsSilently(
+                            System.Windows.Media.Color.FromRgb(savedZone.ColorR, savedZone.ColorG, savedZone.ColorB),
+                            savedZone.IsGradient,
+                            System.Windows.Media.Color.FromRgb(savedZone.GradientEndR, savedZone.GradientEndG, savedZone.GradientEndB));
                 }
             }
 

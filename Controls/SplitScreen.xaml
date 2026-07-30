@@ -1,0 +1,192 @@
+<UserControl x:Class="PcStatsMonitor.Controls.SplitScreen"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             Width="480" Height="854"
+             Background="Transparent"
+             FontFamily="{Binding Theme.FontFamily, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='Segoe UI'}">
+
+    <UserControl.Resources>
+        <!-- Compact glass tile used by the stats half -->
+        <Style x:Key="StatTile" TargetType="Border">
+            <Setter Property="Background" Value="#0CFFFFFF"/>
+            <Setter Property="BorderBrush" Value="#1AFFFFFF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Padding" Value="14,12"/>
+            <Setter Property="Margin" Value="0,0,0,0"/>
+        </Style>
+        <Style x:Key="TileLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{Binding Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"/>
+            <Setter Property="Opacity" Value="0.45"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style x:Key="TileValue" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{Binding Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"/>
+            <Setter Property="FontSize" Value="25"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style x:Key="TileUnit" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{Binding Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"/>
+            <Setter Property="Opacity" Value="0.45"/>
+            <Setter Property="FontSize" Value="11"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="VerticalAlignment" Value="Bottom"/>
+            <Setter Property="Margin" Value="3,0,0,4"/>
+        </Style>
+        <Style x:Key="SectionTitle" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="{Binding Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"/>
+            <Setter Property="FontSize" Value="19"/>
+            <Setter Property="FontWeight" Value="Heavy"/>
+            <Setter Property="HorizontalAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Resources>
+
+    <!-- Top margin clears the BYLD logo, matching the other 7" screens. -->
+    <Grid Margin="26,170,26,70">
+        <Grid.RowDefinitions>
+            <!-- Upper half: system stats. Lower half: cooling. -->
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <!-- ── Stats half ───────────────────────────────────────────────── -->
+        <Grid Grid.Row="0" Margin="0,0,0,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel HorizontalAlignment="Center" Margin="0,0,0,16">
+                <TextBlock Text="SYSTEM STATS" Style="{StaticResource SectionTitle}"/>
+                <Border Height="3" Width="46" CornerRadius="2" Margin="0,7,0,0"
+                        Background="{Binding Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            </StackPanel>
+
+            <Grid Grid.Row="1">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="12"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="*"/>
+                    <RowDefinition Height="10"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+
+                <!-- CPU -->
+                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource StatTile}">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="CPU TEMP" Style="{StaticResource TileLabel}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="{Binding Metrics.CpuTemp, StringFormat={}{0:0}, FallbackValue=0}" Style="{StaticResource TileValue}"/>
+                            <TextBlock Text="°C" Style="{StaticResource TileUnit}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <Border Grid.Row="0" Grid.Column="2" Style="{StaticResource StatTile}">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="CPU LOAD" Style="{StaticResource TileLabel}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="{Binding Metrics.CpuLoad, StringFormat={}{0:0}, FallbackValue=0}" Style="{StaticResource TileValue}"/>
+                            <TextBlock Text="%" Style="{StaticResource TileUnit}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- GPU -->
+                <Border Grid.Row="2" Grid.Column="0" Style="{StaticResource StatTile}">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="GPU TEMP" Style="{StaticResource TileLabel}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="{Binding Metrics.GpuTemp, StringFormat={}{0:0}, FallbackValue=0}" Style="{StaticResource TileValue}"/>
+                            <TextBlock Text="°C" Style="{StaticResource TileUnit}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+
+                <!-- RAM -->
+                <Border Grid.Row="2" Grid.Column="2" Style="{StaticResource StatTile}">
+                    <StackPanel VerticalAlignment="Center">
+                        <TextBlock Text="MEMORY" Style="{StaticResource TileLabel}"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <TextBlock Text="{Binding Metrics.RamLoad, StringFormat={}{0:0}, FallbackValue=0}" Style="{StaticResource TileValue}"/>
+                            <TextBlock Text="%" Style="{StaticResource TileUnit}"/>
+                        </StackPanel>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Grid>
+
+        <!-- ── Cooling half ─────────────────────────────────────────────── -->
+        <Grid Grid.Row="1">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+            </Grid.RowDefinitions>
+
+            <StackPanel HorizontalAlignment="Center" Margin="0,0,0,14">
+                <TextBlock Text="COOLING" Style="{StaticResource SectionTitle}"/>
+                <Border Height="3" Width="46" CornerRadius="2" Margin="0,7,0,0"
+                        Background="{Binding Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}"/>
+            </StackPanel>
+
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
+                <ItemsControl ItemsSource="{Binding ObservableFans}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate>
+                            <!-- Compact fan row: half the screen means smaller cards than FansScreen -->
+                            <Border Background="#0CFFFFFF" BorderBrush="#1AFFFFFF" BorderThickness="1"
+                                    CornerRadius="12" Margin="0,0,0,8" Padding="12,9,14,9">
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto"/>
+                                        <ColumnDefinition Width="*"/>
+                                        <ColumnDefinition Width="Auto"/>
+                                    </Grid.ColumnDefinitions>
+
+                                    <Border Grid.Column="0" Width="34" Height="34" CornerRadius="17" Margin="0,0,12,0"
+                                            Background="#14FFFFFF" VerticalAlignment="Center">
+                                        <Path Data="M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12c0 1.4-.5 2.6-1.4 3.6L12 12zm0 0c3 0 5.5 2.5 5.5 5.5S15 23 12 23c-1.4 0-2.6-.5-3.6-1.4L12 12zm0 0c0 3-2.5 5.5-5.5 5.5S1 15 1 12c0-1.4.5-2.6 1.4-3.6L12 12zm0 0c-3 0-5.5-2.5-5.5-5.5S9 1 12 1c1.4 0 2.6.5 3.6 1.4L12 12z"
+                                              Fill="{Binding AnimationBrush, FallbackValue='#3b82f6'}"
+                                              Width="19" Height="19" Stretch="Uniform" RenderTransformOrigin="0.5,0.5"
+                                              HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <Path.RenderTransform>
+                                                <RotateTransform x:Name="FanRotation" Angle="0"/>
+                                            </Path.RenderTransform>
+                                            <Path.Triggers>
+                                                <EventTrigger RoutedEvent="Loaded">
+                                                    <BeginStoryboard>
+                                                        <Storyboard>
+                                                            <DoubleAnimation Storyboard.TargetName="FanRotation" Storyboard.TargetProperty="Angle" From="0" To="360" Duration="0:0:0.9" RepeatBehavior="Forever"/>
+                                                        </Storyboard>
+                                                    </BeginStoryboard>
+                                                </EventTrigger>
+                                            </Path.Triggers>
+                                        </Path>
+                                    </Border>
+
+                                    <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
+                                               Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"
+                                               FontSize="14" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
+
+                                    <StackPanel Grid.Column="2" VerticalAlignment="Center" Orientation="Horizontal">
+                                        <TextBlock Text="{Binding Speed, StringFormat={}{0:0}}"
+                                                   Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"
+                                                   FontSize="19" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <TextBlock Text="RPM"
+                                                   Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"
+                                                   Opacity="0.45" FontSize="10" FontWeight="Bold"
+                                                   VerticalAlignment="Bottom" Margin="3,0,0,3"/>
+                                    </StackPanel>
+                                </Grid>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -2,6 +2,8 @@ using System.Windows;
 using PcStatsMonitor.Models;
 using PcStatsMonitor.Services;
 using System.Collections.ObjectModel;
+using System.Collections.Generic;
+using System.Linq;
 
 namespace PcStatsMonitor.ViewModels;
 
@@ -43,6 +45,10 @@ public class MainViewModel : ViewModelBase
     /// Populated with demo data automatically when demo mode is active.
     /// </summary>
     public RgbControlViewModel Rgb { get; }
+
+    /// <summary>The process-wide fan control view-model. Owned here so the curve engine keeps
+    /// running whether or not the Settings window is open (client round 18, items 10 and 11).</summary>
+    public FanControlViewModel FanControl { get; }
     private bool _rgbDemoLoaded = false;
 
     private void UpdateLogoBrush()
@@ -80,6 +86,72 @@ public class MainViewModel : ViewModelBase
         return FanMetric.PaletteBrush(index);
     }
 
+    private bool _rgbLiveConnectStarted;
+
+    /// <summary>
+    /// Starts the OpenRGB connection once, in the background, on real hardware. Without this the
+    /// 7" RGB screen and the device list stayed empty until the Settings window was opened (the
+    /// only other place that connects), which is why the client had to "manually sync" every run
+    /// (client round 18, item 6). Runs off the first metrics tick rather than at construction so
+    /// it never delays startup; ConnectAsync does all socket work on the thread pool.
+    /// </summary>
+    private void ConnectLiveRgbOnce()
+    {
+        if (_rgbLiveConnectStarted || HardwareControlService.IsDemoMode) return;
+        _rgbLiveConnectStarted = true;
+        Rgb.Connect();
+    }
+
+    /// <summary>
+    /// Rebuilds the 7" fan list in place, skipping fans the user hid (client round 18, item 9b).
+    /// The palette colour uses each fan's ORIGINAL index so hiding one never re-colours the rest.
+    /// </summary>
+    private void SyncObservableFans(HardwareMetrics metrics)
+    {
+        var theme = _themeService?.CurrentTheme;
+        var hidden = theme?.HiddenFanNames;
+        var visible = new List<(string real, double speed, int index)>();
+        for (int i = 0; i < metrics.Fans.Count; i++)
+        {
+            string real = metrics.Fans[i].Name;
+            if (hidden == null || !hidden.Contains(real))
+                visible.Add((real, metrics.Fans[i].Speed, i));
+        }
+
+        // Honour the user's chosen order for the 7" display (client round 18, item 13).
+        // OrderBy is stable, so fans the user never moved keep their detected order.
+        if (theme != null)
+            visible = visible
+                .OrderBy(f => ThemeConfig.DisplayOrderIndex(theme.FanDisplayOrder, f.real))
+                .ToList();
+
+        for (int j = 0; j < visible.Count; j++)
+            ApplyFanRow(j, visible[j].real, visible[j].speed, visible[j].index);
+
+        while (ObservableFans.Count > visible.Count)
+            ObservableFans.RemoveAt(ObservableFans.Count - 1);
+    }
+
+    /// <summary>Updates (or appends) one 7" fan row. Colour/name are keyed by the real sensor
+    /// name; only the shown label switches to the user's custom name.</summary>
+    private void ApplyFanRow(int slot, string real, double speed, int paletteIndex)
+    {
+        if (slot < ObservableFans.Count)
+        {
+            ObservableFans[slot].Name = ResolveFanDisplayName(real);
+            ObservableFans[slot].Speed = speed;
+            ObservableFans[slot].AnimationBrush = ResolveFanBrush(real, paletteIndex);
+            return;
+        }
+
+        ObservableFans.Add(new FanMetric
+        {
+            Name = ResolveFanDisplayName(real),
+            Speed = speed,
+            AnimationBrush = ResolveFanBrush(real, paletteIndex)
+        });
+    }
+
     /// <summary>The label to show for a fan on the 7" widget: the user's custom name
     /// (keyed by the hardware sensor name) when set, otherwise the hardware name itself.</summary>
     private string ResolveFanDisplayName(string sensorName)
@@ -111,7 +183,14 @@ public class MainViewModel : ViewModelBase
     {
         _monitorService = monitorService;
         _themeService = themeService;
-        Rgb = new RgbControlViewModel(hardwareControl);
+        Rgb = new RgbControlViewModel(hardwareControl, themeService);
+
+        // Owned by the main window, NOT the Settings window: the curve engine lives in this
+        // view-model, so a Settings-scoped instance meant fan control stopped the moment Settings
+        // was closed — leaving fans pinned at the last written percentage with nothing updating
+        // them, and making the remembered "Let BYLD Core control my fans" choice pointless on
+        // launch (client round 18, items 10 and 11). Settings now drives this same instance.
+        FanControl = new FanControlViewModel(hardwareControl, themeService);
 
         _themeService.ThemeChanged += (s, theme) =>
         {
@@ -133,33 +212,7 @@ public class MainViewModel : ViewModelBase
             Application.Current.Dispatcher.Invoke(() =>
             {
                 Metrics = metrics;
-
-                // Update ObservableFans in-place to prevent UI element recreation and flickering
-                for (int i = 0; i < metrics.Fans.Count; i++)
-                {
-                    // Colour and custom name are keyed by the REAL sensor name; only the shown
-                    // label switches to the user's custom name (client round 17, item 3).
-                    string real = metrics.Fans[i].Name;
-                    if (i < ObservableFans.Count)
-                    {
-                        ObservableFans[i].Name = ResolveFanDisplayName(real);
-                        ObservableFans[i].Speed = metrics.Fans[i].Speed;
-                        ObservableFans[i].AnimationBrush = ResolveFanBrush(real, i);
-                    }
-                    else
-                    {
-                        ObservableFans.Add(new FanMetric
-                        {
-                            Name = ResolveFanDisplayName(real),
-                            Speed = metrics.Fans[i].Speed,
-                            AnimationBrush = ResolveFanBrush(real, i)
-                        });
-                    }
-                }
-                while (ObservableFans.Count > metrics.Fans.Count)
-                {
-                    ObservableFans.RemoveAt(ObservableFans.Count - 1);
-                }
+                SyncObservableFans(metrics);
 
                 // Sync demo RGB devices for the RGB display screen
                 if (HardwareControlService.IsDemoMode && !_rgbDemoLoaded)
@@ -173,6 +226,8 @@ public class MainViewModel : ViewModelBase
                     Rgb.Devices.Clear();
                     Rgb.IsConnected = false;
                 }
+
+                ConnectLiveRgbOnce();
             });
         };
     }

@@ -230,6 +230,15 @@ public class FanItemViewModel : ViewModelBase
         OnPropertyChanged(nameof(DisplayName));
     }
 
+    private bool _showOnWidget = true;
+    /// <summary>Whether this fan appears on the 7" System Cooling widget. Unused/empty headers
+    /// can be hidden there while still showing in Fan Control (client round 18, item 9b).</summary>
+    public bool ShowOnWidget
+    {
+        get => _showOnWidget;
+        set => SetProperty(ref _showOnWidget, value);
+    }
+
     private bool _isEditingName;
     /// <summary>True while the name field is in inline-edit mode on the card.</summary>
     public bool IsEditingName
@@ -459,6 +468,8 @@ public class FanControlViewModel : ViewModelBase
 
     private void OnAppControlsFansChanged(bool enabled)
     {
+        PersistFanControlEnabled(enabled);
+
         if (!enabled)
         {
             _hardwareService.RestoreAllFansToAuto();
@@ -472,9 +483,15 @@ public class FanControlViewModel : ViewModelBase
         // any unassigned fan a curve now.
         AssignDefaultCurveWhereMissing();
 
-        // Apply immediately rather than waiting for the write deadband/interval.
+        // Force a fresh write on the next tick. Resetting LastCurveWriteUtc alone is not
+        // enough: the fans were just released to BIOS, but LastCurveTarget still holds the
+        // last value we wrote, so the deadband check saw "no change" and skipped the re-apply
+        // entirely — toggling off then on again did nothing (client round 18, item 10).
         foreach (var fan in Fans)
+        {
             fan.LastCurveWriteUtc = DateTime.MinValue;
+            fan.LastCurveTarget = float.NaN;
+        }
     }
 
     private void AssignDefaultCurveWhereMissing()
@@ -484,6 +501,37 @@ public class FanControlViewModel : ViewModelBase
 
         foreach (var fan in Fans)
             AssignCurveIfMissing(fan, defaultCurve);
+    }
+
+    /// <summary>Remembers the user's choice across restarts, unless we are mid-restore.</summary>
+    private void PersistFanControlEnabled(bool enabled)
+    {
+        if (_restoringFanControl || _themeService == null) return;
+        if (_themeService.CurrentTheme.AppFanControlEnabled == enabled) return;
+        _themeService.CurrentTheme.AppFanControlEnabled = enabled;
+        _themeService.SaveTheme();
+    }
+
+    private bool _restoringFanControl;
+    private bool _fanControlRestored;
+
+    /// <summary>
+    /// Re-applies the persisted "Let BYLD Core control my fans" choice once, after fans are
+    /// loaded (client round 18, item 11). Runs under a guard so it does not re-persist the value
+    /// it just read, and only once per session. The safety net is intact: fans are still released
+    /// to the BIOS on exit/crash, so this simply re-takes control on the next clean launch.
+    /// </summary>
+    private void RestorePersistedFanControl()
+    {
+        if (_fanControlRestored || _themeService == null) return;
+        if (Fans.Count == 0) return;
+
+        _fanControlRestored = true;
+        if (!_themeService.CurrentTheme.AppFanControlEnabled) return;
+
+        _restoringFanControl = true;
+        try { AppControlsFans = true; }
+        finally { _restoringFanControl = false; }
     }
 
     private static void AssignCurveIfMissing(FanItemViewModel fan, string curveName)
@@ -526,7 +574,8 @@ public class FanControlViewModel : ViewModelBase
     {
         _hardwareService = hardwareService;
         _themeService = themeService;
-        RefreshFansCommand = new RelayCommand(_ => LoadFans());
+        // A manual refresh also re-arms the automatic retries (see MaxFanScanAttempts).
+        RefreshFansCommand = new RelayCommand(_ => { ResetFanDetectionRetries(); LoadFans(); });
         AddCurveCommand = new RelayCommand(_ => AddNewCurve());
         DeleteCurveCommand = new RelayCommand(param => DeleteCurve(param as CurveItemViewModel));
 
@@ -580,8 +629,26 @@ public class FanControlViewModel : ViewModelBase
     private void RetryFanDetection()
     {
         if (HardwareControlService.IsDemoMode) return;
+        if (_fanScanAttempts >= MaxFanScanAttempts) return;
         if (++_emptyFanPolls % 8 != 0) return;
+
+        _fanScanAttempts++;
         LoadFans();
+    }
+
+    // The deep scan walks every hardware item and is expensive. Now that this view-model lives
+    // for the whole session (not just while Settings is open), a machine with no controllable
+    // fans would rescan every 12s forever. Cap the attempts — ~2 minutes is far longer than the
+    // few seconds a GPU needs to expose its fan lazily — and let Refresh retry on demand.
+    private const int MaxFanScanAttempts = 10;
+    private int _fanScanAttempts;
+
+    /// <summary>Re-arms automatic fan detection, so the Refresh button works after the
+    /// automatic retries have been exhausted.</summary>
+    public void ResetFanDetectionRetries()
+    {
+        _fanScanAttempts = 0;
+        _emptyFanPolls = 0;
     }
 
     private static void UpdateFanReadings(FanItemViewModel fan)
@@ -1045,11 +1112,13 @@ public class FanControlViewModel : ViewModelBase
         {
             item.IconColorHex = ResolveFanColorHex(item.Name, index++);
             item.SetCustomNameQuiet(ResolveFanCustomName(item.Name));
+            item.ShowOnWidget = !IsFanHiddenFromWidget(item.Name);
             Fans.Add(item);
         }
 
         SyncFanCurveLists();
         ReleaseAllFansToBios();
+        RestorePersistedFanControl();
     }
 
     /// <summary>Reads a fan's chosen icon colour (keyed by name) or a distinct palette default.</summary>
@@ -1098,6 +1167,57 @@ public class FanControlViewModel : ViewModelBase
         var names = _themeService!.CurrentTheme.FanNames;
         if (string.IsNullOrWhiteSpace(trimmed)) names.Remove(sensorName);
         else names[sensorName] = trimmed;
+    }
+
+    /// <summary>True when this fan is hidden from the 7" widget (persisted by sensor name).</summary>
+    private bool IsFanHiddenFromWidget(string sensorName) =>
+        _themeService?.CurrentTheme.HiddenFanNames.Contains(sensorName) == true;
+
+    /// <summary>
+    /// Shows or hides a fan on the 7" System Cooling widget and persists the choice, keyed by
+    /// the hardware sensor name (client round 18, item 9b). The fan always stays in Fan Control.
+    /// </summary>
+    public void SetFanWidgetVisibility(FanItemViewModel fan, bool visible)
+    {
+        fan.ShowOnWidget = visible;
+        if (_themeService == null) return;
+
+        var hidden = _themeService.CurrentTheme.HiddenFanNames;
+        bool changed = visible ? hidden.Remove(fan.Name) : AddIfMissing(hidden, fan.Name);
+        if (changed) _themeService.SaveTheme();
+    }
+
+    private static bool AddIfMissing(List<string> list, string value)
+    {
+        if (list.Contains(value)) return false;
+        list.Add(value);
+        return true;
+    }
+
+    /// <summary>
+    /// Moves a fan one place earlier/later on the 7" display and persists the order (client
+    /// round 18, item 13). The order is rewritten from the currently visible fans, so fans the
+    /// user never moved keep a stable position.
+    /// </summary>
+    public void MoveFanOnWidget(FanItemViewModel fan, int delta)
+    {
+        if (_themeService == null) return;
+
+        // Build the baseline the SAME way the 7" display does (visible fans, sorted by the saved
+        // order) — using raw detection order here would move the fan relative to the wrong list.
+        var order = _themeService.CurrentTheme.FanDisplayOrder;
+        var names = Fans.Where(f => f.ShowOnWidget)
+                        .OrderBy(f => Models.ThemeConfig.DisplayOrderIndex(order, f.Name))
+                        .Select(f => f.Name)
+                        .ToList();
+        int from = names.IndexOf(fan.Name);
+        int to = from + delta;
+        if (from < 0 || to < 0 || to >= names.Count) return;
+
+        names.RemoveAt(from);
+        names.Insert(to, fan.Name);
+        _themeService.CurrentTheme.FanDisplayOrder = names;
+        _themeService.SaveTheme();
     }
 
     /// <summary>

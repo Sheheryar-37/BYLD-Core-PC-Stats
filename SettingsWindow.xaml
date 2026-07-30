@@ -47,7 +47,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsChecked" Value="True">
-                                <Setter TargetName="Bg" Property="Background" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="Bg" Property="Background" Value="{DynamicResource BrandBlue}"/>
                                 <Setter TargetName="Dot" Property="HorizontalAlignment" Value="Right"/>
                                 <Setter TargetName="Dot" Property="Margin" Value="0,0,3,0"/>
                             </Trigger>
@@ -100,8 +100,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="{StaticResource BrandBlue}"/>
-                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource BrandBlue}"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource BrandBlue}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -111,8 +111,8 @@
         </Style>
 
         <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource ModernButtonStyle}">
-            <Setter Property="Background" Value="{StaticResource BrandBlue}"/>
-            <Setter Property="BorderBrush" Value="{StaticResource BrandBlue}"/>
+            <Setter Property="Background" Value="{DynamicResource BrandBlue}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BrandBlue}"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="Template">
                 <Setter.Value>
@@ -122,8 +122,8 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="{StaticResource BrandBlueHover}"/>
-                                <Setter TargetName="Border" Property="BorderBrush" Value="{StaticResource BrandBlueHover}"/>
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource BrandBlueHover}"/>
+                                <Setter TargetName="Border" Property="BorderBrush" Value="{DynamicResource BrandBlueHover}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -161,7 +161,7 @@
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsSelected" Value="True">
                                 <Setter TargetName="Border" Property="Background" Value="{DynamicResource TabSelectedBgBrush}"/>
-                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="ContentSite" Property="TextElement.Foreground" Value="{DynamicResource BrandBlue}"/>
                             </Trigger>
                             <Trigger Property="IsMouseOver" Value="True">
                                 <Setter TargetName="Border" Property="Background" Value="{DynamicResource TabSelectedBgBrush}"/>
@@ -260,7 +260,7 @@
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsHighlighted" Value="True">
-                                <Setter TargetName="Border" Property="Background" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="Border" Property="Background" Value="{DynamicResource BrandBlue}"/>
                                 <Setter Property="Foreground" Value="White"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
@@ -281,10 +281,10 @@
                             <Border Background="{DynamicResource SliderTrackBrush}" CornerRadius="3" Height="6" VerticalAlignment="Center"/>
                             <Track x:Name="PART_Track">
                                 <Track.DecreaseRepeatButton>
-                                    <RepeatButton Background="{StaticResource BrandBlue}" BorderThickness="0" Height="6">
+                                    <RepeatButton Background="{DynamicResource BrandBlue}" BorderThickness="0" Height="6">
                                         <RepeatButton.Template>
                                             <ControlTemplate TargetType="RepeatButton">
-                                                <Border Background="{StaticResource BrandBlue}" CornerRadius="3" Height="6"/>
+                                                <Border Background="{DynamicResource BrandBlue}" CornerRadius="3" Height="6"/>
                                             </ControlTemplate>
                                         </RepeatButton.Template>
                                     </RepeatButton>
@@ -336,7 +336,7 @@
                         </Grid>
                         <ControlTemplate.Triggers>
                             <Trigger SourceName="Thumb" Property="IsMouseOver" Value="true">
-                                <Setter TargetName="Thumb" Property="Background" Value="{StaticResource BrandBlue}"/>
+                                <Setter TargetName="Thumb" Property="Background" Value="{DynamicResource BrandBlue}"/>
                             </Trigger>
                         </ControlTemplate.Triggers>
                     </ControlTemplate>
@@ -699,6 +699,8 @@
                                         <CheckBox x:Name="ChkWeatherScreenLayout" Content="Weather Screen" Click="OnWeatherSettingChanged"/>
                                         <CheckBox x:Name="ChkFansScreen" Content="Fan Monitor Screen" Click="OnScreenSettingChanged"/>
                                         <CheckBox x:Name="ChkRgbScreen" Content="RGB Dashboard Screen" Click="OnScreenSettingChanged"/>
+                                        <CheckBox x:Name="ChkSplitScreen" Content="Split Screen (stats + cooling)" Click="OnScreenSettingChanged"
+                                                  ToolTip="Shows system stats in the top half and fan speeds in the bottom half on one screen"/>
                                         
                                         <CheckBox x:Name="ChkWeatherGallery" Content="Weather Icon Gallery (Internal)" 
                                                   Visibility="{Binding Source={x:Static models:Constants.IsDebugMode}, Converter={StaticResource BooleanToVisibilityConverter}}"
@@ -749,8 +751,8 @@
                                                 <ColumnDefinition Width="15"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <TextBox x:Name="TxtInterval" Text="{Binding Value, ElementName=SldInterval, UpdateSourceTrigger=PropertyChanged, FallbackValue=15}" Background="{DynamicResource InputBgBrush}" Foreground="{StaticResource BrandBlue}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Center" Padding="2"/>
-                                            <TextBlock Grid.Column="1" Text="s" Foreground="{StaticResource BrandBlue}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
+                                            <TextBox x:Name="TxtInterval" Text="{Binding Value, ElementName=SldInterval, UpdateSourceTrigger=PropertyChanged, FallbackValue=15}" Background="{DynamicResource InputBgBrush}" Foreground="{DynamicResource BrandBlue}" BorderBrush="{DynamicResource InputBorderBrush}" BorderThickness="1" FontWeight="Bold" VerticalAlignment="Center" TextAlignment="Center" Padding="2"/>
+                                            <TextBlock Grid.Column="1" Text="s" Foreground="{DynamicResource BrandBlue}" FontWeight="Bold" VerticalAlignment="Center" HorizontalAlignment="Center"/>
                                             <Slider x:Name="SldInterval" Grid.Column="2" Minimum="3" Maximum="1200" TickFrequency="1" IsSnapToTickEnabled="True" ValueChanged="SldInterval_ValueChanged" VerticalAlignment="Center" Margin="5,0,0,0"/>
                                         </Grid>
                                     </StackPanel>
@@ -833,7 +835,7 @@
 
                                     <!-- Size & Position Config -->
                                     <StackPanel x:Name="PnlGaugeConfig" Grid.Row="2" Visibility="Visible" Margin="0,0,0,5">
-                                        <TextBlock x:Name="LblConfigTitle" Text="SELECTED CONFIG" FontSize="10" Opacity="0.7" Margin="0,0,0,8" FontWeight="Bold" Foreground="{StaticResource BrandBlue}"/>
+                                        <TextBlock x:Name="LblConfigTitle" Text="SELECTED CONFIG" FontSize="10" Opacity="0.7" Margin="0,0,0,8" FontWeight="Bold" Foreground="{DynamicResource BrandBlue}"/>
                                         
                                         <UniformGrid Columns="2" Margin="0,5,0,5">
                                             <!-- Sizing Controls -->
@@ -994,9 +996,9 @@
                         <StackPanel Margin="5,10">
 
                             <!-- HARDWARE REQUIREMENTS NOTICE -->
-                            <Border Background="#1A3b82f6" BorderBrush="{StaticResource BrandBlue}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,15">
+                            <Border Background="#1A3b82f6" BorderBrush="{DynamicResource BrandBlue}" BorderThickness="1" CornerRadius="8" Padding="12" Margin="0,0,0,15">
                                 <StackPanel>
-                                    <TextBlock Text="⚠ HARDWARE ACCESS REQUIREMENTS" Foreground="{StaticResource BrandBlue}" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
+                                    <TextBlock Text="⚠ HARDWARE ACCESS REQUIREMENTS" Foreground="{DynamicResource BrandBlue}" FontSize="12" FontWeight="Bold" Margin="0,0,0,5"/>
                                     <TextBlock Text="To fully enable live Fan Control, please ensure:" FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" TextWrapping="Wrap" Margin="0,0,0,4"/>
                                     <TextBlock Text="1. Run this application as Administrator." FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" TextWrapping="Wrap" Margin="8,0,0,2"/>
                                     <TextBlock Text="2. Close other hardware tools (OpenRGB, monitoring utilities) before launching if sensors are missing." FontSize="11" Foreground="{DynamicResource SubtleTextBrush}" TextWrapping="Wrap" Margin="8,0,0,0"/>

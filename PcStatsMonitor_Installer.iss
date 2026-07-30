@@ -23,10 +23,20 @@ OutputBaseFilename=BYLD_PC_Stats_Monitor_Setup
 SetupIconFile=Assets\byld-icon.ico
 Compression=lzma
 SolidCompression=yes
-; Modern, per-monitor-DPI-aware wizard. The classic wizard clipped the "Launch"
-; checkbox on the client's high-DPI 5120x2880 display (round 16, item 3).
+; Modern, per-monitor-DPI-aware wizard. The task/launch checkboxes are restored
+; (round 18, item 2) — the client wants the options back, just not clipped.
+;
+; NOTE ON THE CLIPPING: it is NOT yet root-caused. It reproduced on the client's
+; 5120x2880 @ 200% DPI display. This box builds with Inno Setup 7.0.0-preview-2,
+; which is NEWER than the 6.6.0 release that reworked DPI scaling ("Setup and
+; Uninstall now keep the original aspect ratio of their windows when scaling for
+; DPI"), so "use a newer compiler" is NOT the fix. A preview compiler is itself a
+; suspect. Verify by compiling and running this wizard at 200% DPI before shipping;
+; if it still clips, build with the stable 6.6.x release instead.
+; WizardSizePercent gives the pages extra room and is the one lever available here.
 WizardStyle=modern
 WizardResizable=yes
+WizardSizePercent=120,120
 ; "PrivilegesRequired=admin" ensures the installer and its launched app have elevation.
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}
@@ -34,10 +44,8 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-; No [Tasks] and no finish-page "Launch" checkbox on purpose: the wizard checkboxes
-; rendered clipped on the client's high-DPI display (round 16/17, item 3). The desktop
-; shortcut is created unconditionally and the app is launched from a shortcut, so there
-; are no checkboxes to clip.
+[Tasks]
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
 ; Main application files
@@ -66,7 +74,7 @@ Type: files; Name: "{app}\WinRing0x64.sys"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
 
 [Run]
 ; Install the PawnIO driver silently BEFORE the app first launches. PawnIO is the
@@ -75,7 +83,8 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDi
 ; (Services/PawnIoDriverService.cs), so this step is a no-op if PawnIO is present.
 Filename: "{app}\PawnIO_setup.exe"; Parameters: "-install -silent"; Flags: runhidden waituntilterminated; Check: PawnIoSetupNeeded; StatusMsg: "Installing PawnIO hardware driver..."
 ; NOTE: OpenRGB is NOT started here — the app manages the OpenRGB server itself.
-; The app is launched from the desktop/Start shortcut (no finish-page checkbox).
+; Launch main application (finish-page checkbox restored — round 18, item 2)
+Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec; WorkingDir: "{app}"
 
 [UninstallRun]
 ; Kill the app and OpenRGB, then stop OpenRGB's WinRing0 kernel service so its

@@ -374,7 +374,11 @@ public partial class App : Application
                 return;
             }
         }
-        var settingsWindow = new SettingsWindow(themeService, hwControl, mainWindow.PluginManager);
+        // Pass the main window's RGB view-model so Settings drives the SAME instance the 7"
+        // display uses (one connection, one device poll, one owner of the saved settings).
+        var mainVm = mainWindow.DataContext as PcStatsMonitor.ViewModels.MainViewModel;
+        var settingsWindow = new SettingsWindow(themeService, hwControl, mainWindow.PluginManager,
+            mainVm?.Rgb, mainVm?.FanControl);
         settingsWindow.Show();
     }
 

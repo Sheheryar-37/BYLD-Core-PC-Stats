@@ -49,8 +49,18 @@ public partial class SettingsWindow : Window
         }
     }
 
+    /// <summary>True only when this window created its own RGB view-model, so closing it must
+    /// not stop the timers of the shared one that the 7" display depends on.</summary>
+    private readonly bool _ownsRgbViewModel;
+
+    /// <summary>True only when this window created its own fan view-model, so closing it must not
+    /// stop the shared curve engine that keeps driving the fans.</summary>
+    private readonly bool _ownsFanViewModel;
+
     public SettingsWindow(IThemeService themeService, PcStatsMonitor.Services.HardwareControlService hwControl,
-        PluginManager? pluginManager = null)
+        PluginManager? pluginManager = null,
+        PcStatsMonitor.ViewModels.RgbControlViewModel? sharedRgbViewModel = null,
+        PcStatsMonitor.ViewModels.FanControlViewModel? sharedFanViewModel = null)
     {
         InitializeComponent();
         _themeService = themeService;
@@ -60,9 +70,20 @@ public partial class SettingsWindow : Window
         // LibreHardwareMonitor's Ring0 state is process-global and a second Computer
         // (or disposing one) corrupts the others.
         _hwControl = hwControl;
-        FanViewModel = new PcStatsMonitor.ViewModels.FanControlViewModel(_hwControl, themeService);
-        RgbViewModel = new PcStatsMonitor.ViewModels.RgbControlViewModel(_hwControl);
-        
+        // Reuse the main window's fan view-model: it owns the curve engine, which must keep
+        // running after this window closes (client round 18, items 10 and 11).
+        _ownsFanViewModel = sharedFanViewModel == null;
+        FanViewModel = sharedFanViewModel ?? new PcStatsMonitor.ViewModels.FanControlViewModel(_hwControl, themeService);
+
+        // Reuse the main window's RGB view-model rather than creating a second one. Two
+        // instances each ran their own connect + 30s device poll against the same OpenRGB
+        // server, and RgbSettingsPersistence tracks the "active" view-model in a STATIC field —
+        // so whichever connected last owned saving, and changes made here could be persisted
+        // from the other instance's state. That is why settings were not remembered
+        // (client round 18, item 9b).
+        _ownsRgbViewModel = sharedRgbViewModel == null;
+        RgbViewModel = sharedRgbViewModel ?? new PcStatsMonitor.ViewModels.RgbControlViewModel(_hwControl);
+
 
         LstOrder.ItemsSource = ActiveMonitors;
         LstScreenOrder.ItemsSource = ScreenRotationList;
@@ -86,8 +107,10 @@ public partial class SettingsWindow : Window
     /// </summary>
     protected override void OnClosed(EventArgs e)
     {
-        FanViewModel.StopPolling();
-        RgbViewModel.StopAutoRefresh();
+        // Only stop the timers this window owns — the shared view-models keep driving the fans
+        // and the 7" display after Settings closes.
+        if (_ownsFanViewModel) FanViewModel.StopPolling();
+        if (_ownsRgbViewModel) RgbViewModel.StopAutoRefresh();
         // Do NOT dispose _hwControl: it is the process-wide shared instance and the
         // main window / 7" display keep polling it after Settings closes.
         base.OnClosed(e);
@@ -446,6 +469,7 @@ public partial class SettingsWindow : Window
         ChkClockScreen.IsChecked = theme.ShowClockScreen;
         ChkFansScreen.IsChecked = theme.ShowFansScreen;
         ChkRgbScreen.IsChecked = theme.ShowRgbScreen;
+        ChkSplitScreen.IsChecked = theme.ShowSplitScreen;
         
         // SYNC BOTH WEATHER CHECKBOXES (Layout tab and Weather tab)
         ChkWeatherScreenLayout.IsChecked = theme.ShowWeatherScreen;
@@ -638,6 +662,7 @@ public partial class SettingsWindow : Window
         theme.ShowWeatherScreen = ChkWeatherScreenLayout.IsChecked ?? false;
         theme.ShowFansScreen = ChkFansScreen.IsChecked ?? true;
         theme.ShowRgbScreen = ChkRgbScreen.IsChecked ?? true;
+        theme.ShowSplitScreen = ChkSplitScreen.IsChecked ?? false;
         if (theme.Weather == null) theme.Weather = new WeatherConfig();
         theme.Weather.ShowWeatherGallery = ChkWeatherGallery.IsChecked ?? false;
 
@@ -923,6 +948,7 @@ public partial class SettingsWindow : Window
                           (ChkWeatherGallery?.IsChecked == true ? 1 : 0) +
                           (ChkFansScreen.IsChecked == true ? 1 : 0) +
                           (ChkRgbScreen.IsChecked == true ? 1 : 0) +
+                          (ChkSplitScreen.IsChecked == true ? 1 : 0) +
                           PluginSettings.Count(ps => ps.IsEnabled);
 
         if (activeCount == 0)
@@ -974,6 +1000,7 @@ public partial class SettingsWindow : Window
         if (ChkWeatherGallery != null && ChkWeatherGallery.IsChecked == true) activeItems.Add("Gallery");
         if (ChkFansScreen.IsChecked == true) activeItems.Add("Fans");
         if (ChkRgbScreen.IsChecked == true) activeItems.Add("RGB");
+        if (ChkSplitScreen.IsChecked == true) activeItems.Add("Split");
         foreach(var ps in PluginSettings) if (ps.IsEnabled) activeItems.Add(ps.Name);
 
         // 1. Remove items no longer active
@@ -1633,6 +1660,8 @@ public partial class SettingsWindow : Window
 
     private void BtnRefreshHardware_Click(object? sender, RoutedEventArgs? e)
     {
+        // Re-arm the capped automatic fan retries so this button always rescans.
+        FanViewModel.ResetFanDetectionRetries();
         FanViewModel.LoadFans();
         RgbViewModel.Connect();
     }

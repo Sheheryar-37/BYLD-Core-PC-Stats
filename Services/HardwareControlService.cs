@@ -293,10 +293,18 @@ public class HardwareControlService : IDisposable
         if (!_fanQueue.IsAddingCompleted) _fanQueue.TryAdd(op);
     }
 
+    // Small gap between consecutive fan writes so a bulk "apply to all fans" doesn't hold the
+    // slow Super I/O / LPC bus in one continuous burst — that starved other bus traffic and made
+    // the system stutter for a moment when enabling app fan control (client round 18, item 4).
+    private const int FanWriteSpacingMs = 25;
+
     private void ProcessFanQueue()
     {
         foreach (var op in _fanQueue.GetConsumingEnumerable())
+        {
             RunFanOp(op);
+            System.Threading.Thread.Sleep(FanWriteSpacingMs);
+        }
     }
 
     private void RunFanOp(Action op)
@@ -688,8 +696,11 @@ public class HardwareControlService : IDisposable
                 var leds = Enumerable.Repeat(color, (int)ledCount).ToArray();
                 WriteZoneLedsReliably(deviceId, zoneId, leds);
             }
+            // NB: the mode here comes from the CACHED device snapshot taken at the last device
+            // scan, not a live read — labelled accordingly so it is not misread as the device's
+            // current mode (that misreading caused a wrong DRAM diagnosis in round 18).
             Log($"[RGB→] '{deviceName}' zone '{zoneName}': wrote {ledCount} LEDs = {Hex(color)} " +
-                $"(active mode: {ActiveModeName(device)})");
+                $"(mode at last scan: {ActiveModeName(device)})");
         }
         catch (Exception ex)
         {

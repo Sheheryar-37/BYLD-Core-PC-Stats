@@ -64,4 +64,29 @@ public partial class RgbControlView : UserControl
             }
         }
     }
+
+    // ── 7" display: which RGB devices show, and in what order (round 18, items 9 & 13) ──
+
+    /// <summary>Shows/hides this device on the 7" RGB screen.</summary>
+    private void ChkRgbShowOnWidget_Click(object sender, System.Windows.RoutedEventArgs e)
+    {
+        if (sender is not System.Windows.FrameworkElement fe ||
+            fe.DataContext is not RgbDeviceViewModel device) return;
+        ViewModel?.SetDeviceWidgetVisibility(device, !device.ShowOnWidget);
+    }
+
+    /// <summary>Moves this device one place earlier on the 7" display.</summary>
+    private void BtnRgbMoveUp_Click(object sender, System.Windows.RoutedEventArgs e) => MoveDevice(sender, -1);
+
+    /// <summary>Moves this device one place later on the 7" display.</summary>
+    private void BtnRgbMoveDown_Click(object sender, System.Windows.RoutedEventArgs e) => MoveDevice(sender, 1);
+
+    private void MoveDevice(object sender, int delta)
+    {
+        if (sender is not System.Windows.FrameworkElement fe ||
+            fe.DataContext is not RgbDeviceViewModel device) return;
+        ViewModel?.MoveDeviceOnWidget(device, delta);
+    }
+
+    private RgbControlViewModel? ViewModel => DataContext as RgbControlViewModel;
 }

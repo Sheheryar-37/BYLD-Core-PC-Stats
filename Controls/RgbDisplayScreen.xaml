@@ -23,7 +23,7 @@
         </StackPanel>
 
         <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Hidden" HorizontalScrollBarVisibility="Disabled">
-            <ItemsControl ItemsSource="{Binding Rgb.Devices}">
+            <ItemsControl ItemsSource="{Binding Rgb.VisibleDevices}">
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
                         <!-- Glassmorphic device card -->

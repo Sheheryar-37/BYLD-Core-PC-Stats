@@ -313,6 +313,10 @@
                                             <Button.ContextMenu>
                                                 <ContextMenu Background="{DynamicResource FanPopupBg}" BorderBrush="#33FFFFFF" BorderThickness="1">
                                                     <MenuItem Header="Rename…" Foreground="{DynamicResource CardText}" Click="FanContextRename_Click"/>
+                                                    <MenuItem Header="Show on 7&quot; display" Foreground="{DynamicResource CardText}"
+                                                              IsCheckable="True" IsChecked="{Binding ShowOnWidget, Mode=OneWay}" Click="FanContextShowOnWidget_Click"/>
+                                                    <MenuItem Header="Move earlier on 7&quot; display" Foreground="{DynamicResource CardText}" Click="FanContextMoveUp_Click"/>
+                                                    <MenuItem Header="Move later on 7&quot; display" Foreground="{DynamicResource CardText}" Click="FanContextMoveDown_Click"/>
                                                     <MenuItem Header="Reset to Auto" Foreground="{DynamicResource CardText}" Click="FanContextReset_Click"/>
                                                     <MenuItem Header="Set Manual (50%)" Foreground="{DynamicResource CardText}" Click="FanContextManual_Click"/>
                                                 </ContextMenu>

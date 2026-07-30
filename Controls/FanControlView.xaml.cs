@@ -179,6 +179,27 @@ public partial class FanControlView : UserControl
         return null;
     }
 
+    /// <summary>Fan ⋮ → Show on 7" display (toggles the fan's visibility on the case widget).</summary>
+    private void FanContextShowOnWidget_Click(object sender, RoutedEventArgs e)
+    {
+        var fan = GetContextDataContext<FanItemViewModel>(sender);
+        if (fan == null || DataContext is not FanControlViewModel vm) return;
+        vm.SetFanWidgetVisibility(fan, !fan.ShowOnWidget);
+    }
+
+    /// <summary>Fan ⋮ → Move earlier on the 7" display.</summary>
+    private void FanContextMoveUp_Click(object sender, RoutedEventArgs e) => MoveFan(sender, -1);
+
+    /// <summary>Fan ⋮ → Move later on the 7" display.</summary>
+    private void FanContextMoveDown_Click(object sender, RoutedEventArgs e) => MoveFan(sender, 1);
+
+    private void MoveFan(object sender, int delta)
+    {
+        var fan = GetContextDataContext<FanItemViewModel>(sender);
+        if (fan == null || DataContext is not FanControlViewModel vm) return;
+        vm.MoveFanOnWidget(fan, delta);
+    }
+
     /// <summary>Fan ⋮ → Reset to Auto.</summary>
     private void FanContextReset_Click(object sender, RoutedEventArgs e)
     {

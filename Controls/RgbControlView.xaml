@@ -252,7 +252,24 @@
                             Padding="18" Margin="0,0,0,12">
                         <StackPanel>
                             <!-- Device Header -->
-                            <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                            <DockPanel Margin="0,0,0,14">
+                                <!-- 7" display controls: show/hide + reorder (round 18, items 9 & 13) -->
+                                <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="7&quot;" Foreground="#64748B" FontSize="10" FontWeight="Bold"
+                                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <CheckBox IsChecked="{Binding ShowOnWidget, Mode=OneWay}" Click="ChkRgbShowOnWidget_Click"
+                                              VerticalAlignment="Center" Cursor="Hand" Margin="0,0,8,0"
+                                              ToolTip="Show this device on the 7&quot; display"/>
+                                    <Button Content="▲" Click="BtnRgbMoveUp_Click" Cursor="Hand" Style="{x:Null}"
+                                            Background="Transparent" BorderThickness="0" Padding="4,0"
+                                            Foreground="{DynamicResource RgbCardText}" FontSize="10"
+                                            ToolTip="Move earlier on the 7&quot; display"/>
+                                    <Button Content="▼" Click="BtnRgbMoveDown_Click" Cursor="Hand" Style="{x:Null}"
+                                            Background="Transparent" BorderThickness="0" Padding="4,0"
+                                            Foreground="{DynamicResource RgbCardText}" FontSize="10"
+                                            ToolTip="Move later on the 7&quot; display"/>
+                                </StackPanel>
+                                <StackPanel Orientation="Horizontal">
                                 <!-- RGB spectrum icon -->
                                 <Border Width="28" Height="28" CornerRadius="14" Margin="0,0,10,0" VerticalAlignment="Center">
                                     <Border.Background>
@@ -271,7 +288,8 @@
                                     <TextBlock Text="{Binding Name}" Foreground="{DynamicResource RgbCardText}" FontWeight="Bold" FontSize="14"/>
                                     <TextBlock Text="{Binding Type, StringFormat='({0})'}" Foreground="#64748B" FontSize="11" Margin="0,1,0,0"/>
                                 </StackPanel>
-                            </StackPanel>
+                                </StackPanel>
+                            </DockPanel>
 
                             <!-- Separator -->
                             <Border Height="1" Background="{DynamicResource RgbCardBorder}" Margin="0,0,0,14"/>

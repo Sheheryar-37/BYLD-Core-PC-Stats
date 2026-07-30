@@ -65,6 +65,23 @@ public class ThemeConfig
     /// both the Fan Control cards and the 7" System Cooling widget (client round 17, item 3).</summary>
     public Dictionary<string, string> FanNames { get; set; } = new();
 
+    /// <summary>Hardware sensor names of fans the user chose to HIDE from the 7" System Cooling
+    /// widget (e.g. empty/unused headers). They still appear in Fan Control so they can be
+    /// re-shown or renamed. Empty = show every detected fan (client round 18, item 9b).</summary>
+    public List<string> HiddenFanNames { get; set; } = new();
+
+    /// <summary>Device names the user chose to HIDE from the 7" RGB screen. They still appear in
+    /// RGB Control. Empty = show every detected device (client round 18, item 9).</summary>
+    public List<string> HiddenRgbDeviceNames { get; set; } = new();
+
+    /// <summary>Fan sensor names in the order the user wants them shown on the 7" display. Fans
+    /// not listed keep their detected order, after the listed ones (client round 18, item 13).</summary>
+    public List<string> FanDisplayOrder { get; set; } = new();
+
+    /// <summary>RGB device names in the order the user wants them shown on the 7" display.
+    /// Devices not listed keep their detected order, after the listed ones (round 18, item 13).</summary>
+    public List<string> RgbDisplayOrder { get; set; } = new();
+
     /// <summary>Resolved brush for the fan icons — the user's colour when set, else the accent.</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public System.Windows.Media.SolidColorBrush FanAnimationBrush
@@ -87,6 +104,12 @@ public class ThemeConfig
     /// <summary>Advanced: keep sending fan-control commands even to hardware that
     /// appears to ignore them (for users with a driver-side workaround enabled).</summary>
     public bool ForceFanControlOverride { get; set; } = false;
+
+    /// <summary>Whether the user last left "Let BYLD Core control my fans" ON. Persisted so the
+    /// choice is remembered across restarts (client round 18, item 11). The safety net is kept:
+    /// fans are still released to the BIOS on exit/crash, and this only re-applies the curves on
+    /// the next clean launch — a hard crash therefore self-heals when the app is reopened.</summary>
+    public bool AppFanControlEnabled { get; set; } = false;
 
     /// <summary>
     /// Diagnostic logging on/off (hardware, sensor, display, action and app logs).
@@ -134,6 +157,17 @@ public class ThemeConfig
         b.GradientStops.Add(new System.Windows.Media.GradientStop(System.Windows.Media.Color.FromRgb(0x05, 0x05, 0x05), 1));
         b.Freeze();
         return b;
+    }
+
+    /// <summary>
+    /// The position of <paramref name="name"/> in a user-defined display order. Items the user
+    /// has never reordered return <see cref="int.MaxValue"/> so they sort after the ordered ones
+    /// while keeping their detected order among themselves (client round 18, item 13).
+    /// </summary>
+    public static int DisplayOrderIndex(List<string> order, string name)
+    {
+        int index = order.IndexOf(name);
+        return index < 0 ? int.MaxValue : index;
     }
 
     /// <summary>Resolved brush for the SSD card accent square.</summary>
@@ -193,6 +227,10 @@ public class ThemeConfig
     public bool ShowWeatherScreen { get; set; } = false;
     public bool ShowFansScreen { get; set; } = true;
     public bool ShowRgbScreen { get; set; } = true;
+
+    /// <summary>Show the combined split screen (system stats above, cooling below) in the 7"
+    /// rotation. Off by default so existing setups are unchanged (client round 18, item 16).</summary>
+    public bool ShowSplitScreen { get; set; } = false;
     public List<string> EnabledPlugins { get; set; } = new() { "System Clock", "Fan & RGB Controller" };
 
     // ── Utility / Restrictions ───────────────────────────────────────────────
