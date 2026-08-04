@@ -989,7 +989,28 @@ public class FanControlViewModel : ViewModelBase
             LoadLiveFans();
         }
 
+        // Applied to BOTH paths: these used to live inside the live loader only, so in demo mode
+        // per-fan colours, custom names, 7"-visibility and ordering silently did nothing.
+        ApplyPerFanPreferences();
+        ApplySavedFanOrder();
+
         IsLoading = false;
+    }
+
+    /// <summary>
+    /// Applies each fan's saved colour, custom name and 7"-display visibility. Runs while the
+    /// list is still in hardware-detection order, so the palette colour assigned by position
+    /// stays stable no matter how the user later reorders the cards.
+    /// </summary>
+    private void ApplyPerFanPreferences()
+    {
+        for (int i = 0; i < Fans.Count; i++)
+        {
+            var fan = Fans[i];
+            fan.IconColorHex = ResolveFanColorHex(fan.Name, i);
+            fan.SetCustomNameQuiet(ResolveFanCustomName(fan.Name));
+            fan.ShowOnWidget = !IsFanHiddenFromWidget(fan.Name);
+        }
     }
 
     /// <summary>
@@ -1107,14 +1128,10 @@ public class FanControlViewModel : ViewModelBase
 
         // Pair each Control (%) sensor with its RPM tach so one physical fan
         // shows as ONE card with both readings, instead of two half-cards.
-        int index = 0;
+        // Per-fan colours/names/visibility and ordering are applied by LoadFans for both the
+        // live and demo paths — see ApplyPerFanPreferences.
         foreach (var item in PairFanSensors(sensors))
-        {
-            item.IconColorHex = ResolveFanColorHex(item.Name, index++);
-            item.SetCustomNameQuiet(ResolveFanCustomName(item.Name));
-            item.ShowOnWidget = !IsFanHiddenFromWidget(item.Name);
             Fans.Add(item);
-        }
 
         SyncFanCurveLists();
         ReleaseAllFansToBios();
@@ -1203,21 +1220,41 @@ public class FanControlViewModel : ViewModelBase
     {
         if (_themeService == null) return;
 
-        // Build the baseline the SAME way the 7" display does (visible fans, sorted by the saved
-        // order) — using raw detection order here would move the fan relative to the wrong list.
-        var order = _themeService.CurrentTheme.FanDisplayOrder;
-        var names = Fans.Where(f => f.ShowOnWidget)
-                        .OrderBy(f => Models.ThemeConfig.DisplayOrderIndex(order, f.Name))
-                        .Select(f => f.Name)
-                        .ToList();
-        int from = names.IndexOf(fan.Name);
+        // Move within the live Fans collection so the Fan Control cards visibly reorder too —
+        // ordering only the saved list left the on-screen cards unchanged, which read as the
+        // menu items doing nothing (client round 18 follow-up). Hidden fans are included so
+        // they keep a stable position and reappear where the user left them.
+        int from = Fans.IndexOf(fan);
         int to = from + delta;
-        if (from < 0 || to < 0 || to >= names.Count) return;
+        if (from < 0 || to < 0 || to >= Fans.Count) return;
 
-        names.RemoveAt(from);
-        names.Insert(to, fan.Name);
-        _themeService.CurrentTheme.FanDisplayOrder = names;
+        Fans.Move(from, to);
+        PersistFanOrder();
+    }
+
+    /// <summary>Saves the current on-screen fan order, which the 7" display then mirrors.</summary>
+    private void PersistFanOrder()
+    {
+        if (_themeService == null) return;
+        _themeService.CurrentTheme.FanDisplayOrder = Fans.Select(f => f.Name).ToList();
         _themeService.SaveTheme();
+    }
+
+    /// <summary>
+    /// Re-sorts the freshly detected fan list into the user's saved display order, so the Fan
+    /// Control cards come back in the same order after a reload or restart.
+    /// </summary>
+    private void ApplySavedFanOrder()
+    {
+        var order = _themeService?.CurrentTheme.FanDisplayOrder;
+        if (order == null || order.Count == 0) return;
+
+        var sorted = Fans.OrderBy(f => Models.ThemeConfig.DisplayOrderIndex(order, f.Name)).ToList();
+        for (int target = 0; target < sorted.Count; target++)
+        {
+            int current = Fans.IndexOf(sorted[target]);
+            if (current != target) Fans.Move(current, target);
+        }
     }
 
     /// <summary>

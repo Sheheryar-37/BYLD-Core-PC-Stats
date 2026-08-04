@@ -741,6 +741,7 @@ public partial class MainWindow : Window
         if (screen == WeatherScreenArea) return "Weather";
         if (screen == FansScreenArea) return "Fans";
         if (screen == RgbScreenArea) return "RGB";
+        if (screen == SplitScreenArea) return "Split";
         return null;
     }
 

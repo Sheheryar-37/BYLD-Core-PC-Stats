@@ -432,6 +432,7 @@ public partial class SettingsWindow : Window
         LoadScreenThemeCombo(CmbScreenThemeWeather);
         LoadScreenThemeCombo(CmbScreenThemeFans);
         LoadScreenThemeCombo(CmbScreenThemeRgb);
+        LoadScreenThemeCombo(CmbScreenThemeSplit);
         ApplyUiTheme();
 
         // Theme Colors

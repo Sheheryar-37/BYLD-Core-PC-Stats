@@ -15,7 +15,38 @@
         <SolidColorBrush x:Key="RgbDimText" Color="#94A3B8"/>
         <SolidColorBrush x:Key="RgbInputBg" Color="#1A1A2E"/>
         <SolidColorBrush x:Key="RgbInputBorder" Color="#2A2A4A"/>
-        
+
+        <!-- ═══ Nudge button (reorder on the 7" display) ═══
+             Custom-templated to match the card surface; a bare Button with Style="{x:Null}"
+             rendered as flat default chrome (client round 18 follow-up). -->
+        <Style x:Key="RgbNudgeButton" TargetType="Button">
+            <Setter Property="Width" Value="22"/>
+            <Setter Property="Height" Value="22"/>
+            <Setter Property="Margin" Value="2,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="9"/>
+            <Setter Property="Foreground" Value="{DynamicResource RgbCardText}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="6" Background="{DynamicResource RgbInputBg}"
+                                BorderBrush="{DynamicResource RgbInputBorder}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#333B82F6"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="#3B82F6"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#553B82F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- ═══ Dark ComboBox Toggle ═══ -->
         <ControlTemplate x:Key="DarkComboToggle" TargetType="ToggleButton">
             <Border x:Name="Border" CornerRadius="6" Background="{DynamicResource RgbInputBg}" BorderBrush="{DynamicResource RgbInputBorder}" BorderThickness="1" Padding="10,6">
@@ -236,7 +267,7 @@
         </Border>
 
         <!-- ═══ Connected: Device Cards ═══ -->
-        <ItemsControl ItemsSource="{Binding Devices}">
+        <ItemsControl ItemsSource="{Binding OrderedDevices}">
             <ItemsControl.Style>
                 <Style TargetType="ItemsControl">
                     <Style.Triggers>
@@ -248,25 +279,35 @@
             </ItemsControl.Style>
             <ItemsControl.ItemTemplate>
                 <DataTemplate>
-                    <Border Background="{DynamicResource RgbCardBg}" BorderBrush="{DynamicResource RgbCardBorder}" BorderThickness="1" CornerRadius="10" 
+                    <Border Background="{DynamicResource RgbCardBg}" BorderBrush="{DynamicResource RgbCardBorder}" BorderThickness="1" CornerRadius="10"
                             Padding="18" Margin="0,0,0,12">
+                        <!-- Dimmed when hidden from the 7" display, matching the fan cards. The
+                             device stays fully controllable here. -->
+                        <Border.Style>
+                            <Style TargetType="Border">
+                                <Setter Property="Opacity" Value="1"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding ShowOnWidget}" Value="False">
+                                        <Setter Property="Opacity" Value="0.55"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </Border.Style>
                         <StackPanel>
                             <!-- Device Header -->
                             <DockPanel Margin="0,0,0,14">
                                 <!-- 7" display controls: show/hide + reorder (round 18, items 9 & 13) -->
                                 <StackPanel DockPanel.Dock="Right" Orientation="Horizontal" VerticalAlignment="Center">
-                                    <TextBlock Text="7&quot;" Foreground="#64748B" FontSize="10" FontWeight="Bold"
-                                               VerticalAlignment="Center" Margin="0,0,6,0"/>
+                                    <TextBlock Text="7&quot; DISPLAY" Foreground="#64748B" FontSize="9" FontWeight="Bold"
+                                               VerticalAlignment="Center" Margin="0,0,8,0"/>
+                                    <!-- Margin 0 overrides the global CheckBox style's 0,8,0,8, which
+                                         pushed it off-centre in this header row. -->
                                     <CheckBox IsChecked="{Binding ShowOnWidget, Mode=OneWay}" Click="ChkRgbShowOnWidget_Click"
-                                              VerticalAlignment="Center" Cursor="Hand" Margin="0,0,8,0"
+                                              VerticalAlignment="Center" Cursor="Hand" Margin="0,0,10,0"
                                               ToolTip="Show this device on the 7&quot; display"/>
-                                    <Button Content="▲" Click="BtnRgbMoveUp_Click" Cursor="Hand" Style="{x:Null}"
-                                            Background="Transparent" BorderThickness="0" Padding="4,0"
-                                            Foreground="{DynamicResource RgbCardText}" FontSize="10"
+                                    <Button Content="▲" Click="BtnRgbMoveUp_Click" Style="{StaticResource RgbNudgeButton}"
                                             ToolTip="Move earlier on the 7&quot; display"/>
-                                    <Button Content="▼" Click="BtnRgbMoveDown_Click" Cursor="Hand" Style="{x:Null}"
-                                            Background="Transparent" BorderThickness="0" Padding="4,0"
-                                            Foreground="{DynamicResource RgbCardText}" FontSize="10"
+                                    <Button Content="▼" Click="BtnRgbMoveDown_Click" Style="{StaticResource RgbNudgeButton}"
                                             ToolTip="Move later on the 7&quot; display"/>
                                 </StackPanel>
                                 <StackPanel Orientation="Horizontal">

@@ -521,27 +521,43 @@ public class RgbControlViewModel : ViewModelBase
     /// </summary>
     public ObservableCollection<RgbDeviceViewModel> VisibleDevices { get; } = new();
 
+    /// <summary>
+    /// EVERY device in the user's chosen order — what the RGB Control list binds to. The raw
+    /// <see cref="Devices"/> collection stays in hardware-detection order (the auto-refresh
+    /// comparison depends on it), so binding the UI straight to it meant reordering a device
+    /// changed the 7" display but not the list the user was looking at, which read as the
+    /// buttons doing nothing (client round 18 follow-up).
+    /// </summary>
+    public ObservableCollection<RgbDeviceViewModel> OrderedDevices { get; } = new();
+
     public RgbControlViewModel(HardwareControlService hardwareService, IThemeService? themeService = null)
     {
         _hardwareService = hardwareService;
         _themeService = themeService;
         ConnectCommand = new RelayCommand(_ => Connect());
         RefreshCommand = new RelayCommand(_ => LoadDevices(), _ => IsConnected);
-        Devices.CollectionChanged += (_, _) => RebuildVisibleDevices();
+        Devices.CollectionChanged += (_, _) => RebuildDeviceViews();
         StartAutoRefresh();
     }
 
-    /// <summary>Rebuilds <see cref="VisibleDevices"/> from the hidden set and display order.</summary>
-    public void RebuildVisibleDevices()
+    /// <summary>Rebuilds the ordered and visible device views from the saved order and hidden set.</summary>
+    public void RebuildDeviceViews()
     {
         var theme = _themeService?.CurrentTheme;
-        var ordered = Devices.Where(d => !IsHiddenFromWidget(d.Name));
+        IEnumerable<RgbDeviceViewModel> all = Devices;
         if (theme != null)
-            ordered = ordered.OrderBy(d => Models.ThemeConfig.DisplayOrderIndex(theme.RgbDisplayOrder, d.Name));
+            all = all.OrderBy(d => Models.ThemeConfig.DisplayOrderIndex(theme.RgbDisplayOrder, d.Name));
 
-        VisibleDevices.Clear();
-        foreach (var device in ordered)
-            VisibleDevices.Add(device);
+        var ordered = all.ToList();
+        ReplaceAll(OrderedDevices, ordered);
+        ReplaceAll(VisibleDevices, ordered.Where(d => !IsHiddenFromWidget(d.Name)));
+    }
+
+    private static void ReplaceAll(ObservableCollection<RgbDeviceViewModel> target,
+        IEnumerable<RgbDeviceViewModel> items)
+    {
+        target.Clear();
+        foreach (var item in items) target.Add(item);
     }
 
     private bool IsHiddenFromWidget(string deviceName) =>
@@ -552,7 +568,7 @@ public class RgbControlViewModel : ViewModelBase
     {
         foreach (var device in Devices)
             device.ShowOnWidget = !IsHiddenFromWidget(device.Name);
-        RebuildVisibleDevices();
+        RebuildDeviceViews();
     }
 
     /// <summary>Shows or hides a device on the 7" RGB screen and persists the choice.</summary>
@@ -566,7 +582,7 @@ public class RgbControlViewModel : ViewModelBase
         else if (!hidden.Contains(device.Name)) hidden.Add(device.Name);
 
         _themeService.SaveTheme();
-        RebuildVisibleDevices();
+        RebuildDeviceViews();
     }
 
     /// <summary>
@@ -578,7 +594,9 @@ public class RgbControlViewModel : ViewModelBase
     {
         if (_themeService == null) return;
 
-        var names = VisibleDevices.Select(d => d.Name).ToList();
+        // Order the FULL list, not just the visible one, so hidden devices keep a stable
+        // position and re-showing one puts it back where the user left it.
+        var names = OrderedDevices.Select(d => d.Name).ToList();
         int from = names.IndexOf(device.Name);
         int to = from + delta;
         if (from < 0 || to < 0 || to >= names.Count) return;
@@ -587,7 +605,7 @@ public class RgbControlViewModel : ViewModelBase
         names.Insert(to, device.Name);
         _themeService.CurrentTheme.RgbDisplayOrder = names;
         _themeService.SaveTheme();
-        RebuildVisibleDevices();
+        RebuildDeviceViews();
     }
 
     /// <summary>

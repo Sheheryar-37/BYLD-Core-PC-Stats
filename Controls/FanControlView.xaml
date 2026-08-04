@@ -166,6 +166,67 @@
             </Setter>
         </Style>
 
+        <!-- ── Glass context menu ───────────────────────────────────────────────
+             The stock ContextMenu/MenuItem chrome renders as a light Windows menu with a
+             default check column, which clashes with the app (client round 18 follow-up).
+             Fully templated here: dark glass surface, brand-blue hover, custom tick. -->
+        <Style x:Key="GlassMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Foreground" Value="{DynamicResource CardText}"/>
+            <Setter Property="FontSize" Value="12"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Padding" Value="0"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="MenuItem">
+                        <Border x:Name="Bd" Background="Transparent" CornerRadius="6" Margin="4,1" Padding="8,7">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="18"/>
+                                    <ColumnDefinition Width="*"/>
+                                </Grid.ColumnDefinitions>
+                                <!-- Custom tick, shown only for checkable items that are checked -->
+                                <Path x:Name="Tick" Grid.Column="0" Data="M 0,4 L 3.5,7.5 L 9,1"
+                                      Stroke="{StaticResource AccentBrush}" StrokeThickness="2"
+                                      StrokeStartLineCap="Round" StrokeEndLineCap="Round"
+                                      VerticalAlignment="Center" HorizontalAlignment="Center"
+                                      Visibility="Collapsed"/>
+                                <ContentPresenter Grid.Column="1" ContentSource="Header"
+                                                  VerticalAlignment="Center" Margin="6,0,0,0"/>
+                            </Grid>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsHighlighted" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#333B82F6"/>
+                            </Trigger>
+                            <Trigger Property="IsChecked" Value="True">
+                                <Setter TargetName="Tick" Property="Visibility" Value="Visible"/>
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.4"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style x:Key="GlassContextMenuStyle" TargetType="ContextMenu">
+            <Setter Property="ItemContainerStyle" Value="{StaticResource GlassMenuItemStyle}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="ContextMenu">
+                        <Border Background="{DynamicResource FanPopupBg}" BorderBrush="{DynamicResource CardStroke}"
+                                BorderThickness="1" CornerRadius="10" Padding="2,4" SnapsToDevicePixels="True">
+                            <Border.Effect>
+                                <DropShadowEffect BlurRadius="18" ShadowDepth="4" Opacity="0.55" Color="#000000"/>
+                            </Border.Effect>
+                            <StackPanel IsItemsHost="True" KeyboardNavigation.DirectionalNavigation="Cycle"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Fan icon path data -->
         <Geometry x:Key="FanIconGeom">M12 12c0-3 2.5-5.5 5.5-5.5S23 9 23 12c0 1.4-.5 2.6-1.4 3.6L12 12zm0 0c3 0 5.5 2.5 5.5 5.5S15 23 12 23c-1.4 0-2.6-.5-3.6-1.4L12 12zm0 0c0 3-2.5 5.5-5.5 5.5S1 15 1 12c0-1.4.5-2.6 1.4-3.6L12 12zm0 0c-3 0-5.5-2.5-5.5-5.5S9 1 12 1c1.4 0 2.6.5 3.6 1.4L12 12z</Geometry>
         
@@ -284,6 +345,20 @@
                     <ItemsControl.ItemTemplate>
                         <DataTemplate>
                             <Border Background="{DynamicResource CardBg}" BorderBrush="{DynamicResource CardBorder}" BorderThickness="1" CornerRadius="10" Padding="14" Margin="0,0,12,12" Width="220">
+                                <!-- A fan hidden from the 7" display is dimmed so it is obvious at a
+                                     glance without opening the menu. It stays fully controllable
+                                     here — only its 7" visibility differs. -->
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="Opacity" Value="1"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ShowOnWidget}" Value="False">
+                                                <Setter Property="Opacity" Value="0.55"/>
+                                                <Setter Property="ToolTip" Value="Hidden from the 7&quot; display (⋮ → Show on 7&quot; display)"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
                                 <StackPanel>
                                     <!-- Header: icon + name + menu -->
                                     <Grid Margin="0,0,0,6">
@@ -311,14 +386,14 @@
                                         <Button Grid.Column="2" Content="⋮" Foreground="{DynamicResource CardText}" FontWeight="Bold" FontSize="14" Cursor="Hand"
                                                 Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">
                                             <Button.ContextMenu>
-                                                <ContextMenu Background="{DynamicResource FanPopupBg}" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                    <MenuItem Header="Rename…" Foreground="{DynamicResource CardText}" Click="FanContextRename_Click"/>
-                                                    <MenuItem Header="Show on 7&quot; display" Foreground="{DynamicResource CardText}"
+                                                <ContextMenu Style="{StaticResource GlassContextMenuStyle}">
+                                                    <MenuItem Header="Rename…" Click="FanContextRename_Click"/>
+                                                    <MenuItem Header="Show on 7&quot; display"
                                                               IsCheckable="True" IsChecked="{Binding ShowOnWidget, Mode=OneWay}" Click="FanContextShowOnWidget_Click"/>
-                                                    <MenuItem Header="Move earlier on 7&quot; display" Foreground="{DynamicResource CardText}" Click="FanContextMoveUp_Click"/>
-                                                    <MenuItem Header="Move later on 7&quot; display" Foreground="{DynamicResource CardText}" Click="FanContextMoveDown_Click"/>
-                                                    <MenuItem Header="Reset to Auto" Foreground="{DynamicResource CardText}" Click="FanContextReset_Click"/>
-                                                    <MenuItem Header="Set Manual (50%)" Foreground="{DynamicResource CardText}" Click="FanContextManual_Click"/>
+                                                    <MenuItem Header="Move earlier on 7&quot; display" Click="FanContextMoveUp_Click"/>
+                                                    <MenuItem Header="Move later on 7&quot; display" Click="FanContextMoveDown_Click"/>
+                                                    <MenuItem Header="Reset to Auto" Click="FanContextReset_Click"/>
+                                                    <MenuItem Header="Set Manual (50%)" Click="FanContextManual_Click"/>
                                                 </ContextMenu>
                                             </Button.ContextMenu>
                                         </Button>
@@ -495,8 +570,8 @@
                                         <Button Grid.Column="3" Content="⋮" Foreground="{DynamicResource CardText}" FontWeight="Bold" FontSize="14" Cursor="Hand"
                                                 Background="Transparent" BorderThickness="0" Padding="4,0" Style="{x:Null}" Click="BtnContextMenu_Click">
                                             <Button.ContextMenu>
-                                                <ContextMenu Background="{DynamicResource FanPopupBg}" BorderBrush="#33FFFFFF" BorderThickness="1">
-                                                    <MenuItem Header="Duplicate" Foreground="{DynamicResource CardText}" Click="CurveContextDuplicate_Click"/>
+                                                <ContextMenu Style="{StaticResource GlassContextMenuStyle}">
+                                                    <MenuItem Header="Duplicate" Click="CurveContextDuplicate_Click"/>
                                                     <MenuItem Header="Delete" Foreground="#E63946" Click="CurveContextDelete_Click"/>
                                                 </ContextMenu>
                                             </Button.ContextMenu>

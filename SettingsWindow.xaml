@@ -506,6 +506,13 @@
                                                 <ComboBoxItem Content="Follow widget theme"/><ComboBoxItem Content="Dark"/><ComboBoxItem Content="Light"/>
                                             </ComboBox>
                                         </Grid>
+                                        <Grid Style="{StaticResource ScreenThemeRow}">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                            <TextBlock Text="Split Screen (stats + cooling)" FontSize="11" VerticalAlignment="Center" Opacity="0.85"/>
+                                            <ComboBox x:Name="CmbScreenThemeSplit" Grid.Column="1" Tag="Split" Style="{StaticResource ScreenThemeCombo}" SelectionChanged="CmbScreenTheme_SelectionChanged">
+                                                <ComboBoxItem Content="Follow widget theme"/><ComboBoxItem Content="Dark"/><ComboBoxItem Content="Light"/>
+                                            </ComboBox>
+                                        </Grid>
                                     </StackPanel>
                                 </StackPanel>
                             </Border>
