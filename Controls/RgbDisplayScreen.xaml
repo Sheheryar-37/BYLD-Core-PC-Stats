@@ -38,17 +38,51 @@
                                         <ColumnDefinition Width="Auto"/>
                                     </Grid.ColumnDefinitions>
 
-                                    <!-- Device badge, tinted by the first zone's live colour -->
+                                    <!-- Device badge: a lamp/bulb glyph that reads clearly as lighting
+                                         control, lit in the zone's live colour. The plain dot did not
+                                         signify RGB (client round 19, item 3). -->
                                     <Border Grid.Column="0" Width="52" Height="52" CornerRadius="26" Margin="0,0,16,0"
                                             Background="#14FFFFFF" VerticalAlignment="Center">
-                                        <Ellipse Width="26" Height="26" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <Ellipse.Fill>
-                                                <SolidColorBrush Color="{Binding Zones[0].SelectedColor, FallbackValue=#3B82F6}"/>
-                                            </Ellipse.Fill>
-                                            <Ellipse.Effect>
-                                                <DropShadowEffect Color="{Binding Zones[0].SelectedColor, FallbackValue=#3B82F6}" BlurRadius="14" ShadowDepth="0" Opacity="0.8"/>
-                                            </Ellipse.Effect>
-                                        </Ellipse>
+                                        <Grid Width="34" Height="34" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <!-- Colour wheel: six spectrum segments around a hub.
+                                                 Reads immediately as colour/lighting control. -->
+                                            <Ellipse Width="34" Height="34">
+                                                <Ellipse.Fill>
+                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
+                                                        <GradientStop Color="#EF4444" Offset="0.00"/>
+                                                        <GradientStop Color="#F59E0B" Offset="0.20"/>
+                                                        <GradientStop Color="#FDE047" Offset="0.35"/>
+                                                        <GradientStop Color="#22C55E" Offset="0.52"/>
+                                                        <GradientStop Color="#06B6D4" Offset="0.68"/>
+                                                        <GradientStop Color="#6366F1" Offset="0.84"/>
+                                                        <GradientStop Color="#D946EF" Offset="1.00"/>
+                                                    </LinearGradientBrush>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <!-- Second sweep at right angles, so the wheel reads as
+                                                 a full spectrum rather than a single diagonal ramp -->
+                                            <Ellipse Width="34" Height="34" Opacity="0.55">
+                                                <Ellipse.Fill>
+                                                    <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
+                                                        <GradientStop Color="#00000000" Offset="0.0"/>
+                                                        <GradientStop Color="#8822C55E" Offset="0.35"/>
+                                                        <GradientStop Color="#00000000" Offset="0.7"/>
+                                                    </LinearGradientBrush>
+                                                </Ellipse.Fill>
+                                            </Ellipse>
+                                            <!-- Hub tinted with the device's live colour -->
+                                            <Ellipse Width="15" Height="15" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Ellipse.Fill>
+                                                    <SolidColorBrush Color="{Binding Zones[0].SelectedColor, FallbackValue=#3B82F6}"/>
+                                                </Ellipse.Fill>
+                                                <Ellipse.Effect>
+                                                    <DropShadowEffect Color="{Binding Zones[0].SelectedColor, FallbackValue=#3B82F6}" BlurRadius="12" ShadowDepth="0" Opacity="0.9"/>
+                                                </Ellipse.Effect>
+                                            </Ellipse>
+                                            <!-- Thin dark ring separating hub from wheel -->
+                                            <Ellipse Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"
+                                                     Stroke="#66000000" StrokeThickness="2"/>
+                                        </Grid>
                                     </Border>
 
                                     <!-- Name + type -->

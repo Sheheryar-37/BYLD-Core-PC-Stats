@@ -84,6 +84,10 @@ public partial class SettingsWindow : Window
         _ownsRgbViewModel = sharedRgbViewModel == null;
         RgbViewModel = sharedRgbViewModel ?? new PcStatsMonitor.ViewModels.RgbControlViewModel(_hwControl);
 
+        // Live device re-enumeration is only needed while this window is open. Leaving it on
+        // permanently made OpenRGB sweep the SMBus every 30s and bogged the machine down.
+        RgbViewModel.EnableDeviceListPolling = true;
+
 
         LstOrder.ItemsSource = ActiveMonitors;
         LstScreenOrder.ItemsSource = ScreenRotationList;
@@ -111,6 +115,8 @@ public partial class SettingsWindow : Window
         // and the 7" display after Settings closes.
         if (_ownsFanViewModel) FanViewModel.StopPolling();
         if (_ownsRgbViewModel) RgbViewModel.StopAutoRefresh();
+        // Stop the SMBus-heavy device sweep as soon as this window closes.
+        RgbViewModel.EnableDeviceListPolling = false;
         // Do NOT dispose _hwControl: it is the process-wide shared instance and the
         // main window / 7" display keep polling it after Settings closes.
         base.OnClosed(e);

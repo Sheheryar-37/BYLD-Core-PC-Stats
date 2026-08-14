@@ -820,6 +820,38 @@ public class HardwareControlService : IDisposable
         }
         Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
             $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
+
+        LogModeReadback(deviceId, device.Name, mode.Name);
+    }
+
+    /// <summary>
+    /// Reads the device back LIVE after a mode switch and logs what it actually reports. Earlier
+    /// rounds guessed at DRAM behaviour from a cached snapshot and got it wrong; this records
+    /// whether the controller genuinely accepted the mode, so the next set of client logs is
+    /// evidence rather than inference.
+    /// </summary>
+    private void LogModeReadback(int deviceId, string deviceName, string requested)
+    {
+        try
+        {
+            OpenRGB.NET.Device fresh;
+            lock (_rgbClientLock)
+            {
+                fresh = _rgbClient!.GetControllerData(deviceId);
+            }
+
+            // Refresh the cache too, so later log lines stop reporting a stale mode.
+            var cache = _rgbDeviceCache;
+            if (deviceId >= 0 && deviceId < cache.Length) cache[deviceId] = fresh;
+
+            string actual = ActiveModeName(fresh);
+            string verdict = actual.Equals(requested, StringComparison.OrdinalIgnoreCase) ? "ACCEPTED" : "REJECTED";
+            Log($"[RGB✓] '{deviceName}': requested '{requested}', device now reports '{actual}' — {verdict}");
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB✓] '{deviceName}': mode read-back failed: {ex.Message}");
+        }
     }
 
     /// <summary>

@@ -180,11 +180,27 @@ public partial class FanControlView : UserControl
     }
 
     /// <summary>Fan ⋮ → Show on 7" display (toggles the fan's visibility on the case widget).</summary>
-    private void FanContextShowOnWidget_Click(object sender, RoutedEventArgs e)
+    private void FanContextShowOnWidget_Click(object sender, RoutedEventArgs e) => ToggleFanOnWidget(sender);
+
+    /// <summary>The inline 7"-display toggle on the fan card.</summary>
+    private void FanShowOnWidget_Click(object sender, RoutedEventArgs e) => ToggleFanOnWidget(sender);
+
+    private void ToggleFanOnWidget(object sender)
     {
-        var fan = GetContextDataContext<FanItemViewModel>(sender);
+        var fan = ResolveFan(sender);
         if (fan == null || DataContext is not FanControlViewModel vm) return;
         vm.SetFanWidgetVisibility(fan, !fan.ShowOnWidget);
+    }
+
+    /// <summary>
+    /// Resolves the fan a click came from. The same actions are reachable from the ⋮ menu (where
+    /// the DataContext must be read through the menu's placement target) and from the inline
+    /// controls on the card (where the element's own DataContext is the fan).
+    /// </summary>
+    private static FanItemViewModel? ResolveFan(object sender)
+    {
+        return GetContextDataContext<FanItemViewModel>(sender)
+            ?? (sender as FrameworkElement)?.DataContext as FanItemViewModel;
     }
 
     /// <summary>Fan ⋮ → Move earlier on the 7" display.</summary>
@@ -195,7 +211,7 @@ public partial class FanControlView : UserControl
 
     private void MoveFan(object sender, int delta)
     {
-        var fan = GetContextDataContext<FanItemViewModel>(sender);
+        var fan = ResolveFan(sender);
         if (fan == null || DataContext is not FanControlViewModel vm) return;
         vm.MoveFanOnWidget(fan, delta);
     }

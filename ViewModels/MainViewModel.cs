@@ -106,8 +106,20 @@ public class MainViewModel : ViewModelBase
     /// Rebuilds the 7" fan list in place, skipping fans the user hid (client round 18, item 9b).
     /// The palette colour uses each fan's ORIGINAL index so hiding one never re-colours the rest.
     /// </summary>
+    /// <summary>The most recent metrics, kept so the 7" fan list can be rebuilt on demand
+    /// (e.g. right after the user hides or reorders a fan) without waiting for the next tick.</summary>
+    private HardwareMetrics? _lastMetrics;
+
+    /// <summary>Rebuilds the 7" fan list immediately from the last known readings.</summary>
+    private void RefreshFanWidget()
+    {
+        if (_lastMetrics is { } metrics)
+            Application.Current?.Dispatcher.Invoke(() => SyncObservableFans(metrics));
+    }
+
     private void SyncObservableFans(HardwareMetrics metrics)
     {
+        _lastMetrics = metrics;
         var theme = _themeService?.CurrentTheme;
         var hidden = theme?.HiddenFanNames;
         var visible = new List<(string real, double speed, int index)>();
@@ -191,6 +203,10 @@ public class MainViewModel : ViewModelBase
         // them, and making the remembered "Let BYLD Core control my fans" choice pointless on
         // launch (client round 18, items 10 and 11). Settings now drives this same instance.
         FanControl = new FanControlViewModel(hardwareControl, themeService);
+
+        // Rebuild the 7" fan list the instant the user hides/reorders a fan, rather than waiting
+        // for the next sensor tick — that wait read as a lag (client round 19, item 6).
+        FanControl.WidgetLayoutChanged += (_, _) => RefreshFanWidget();
 
         _themeService.ThemeChanged += (s, theme) =>
         {

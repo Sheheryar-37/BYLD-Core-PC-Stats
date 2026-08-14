@@ -95,6 +95,35 @@
             </Setter>
         </Style>
 
+        <!-- Small reorder button for the 7" display row on each fan card -->
+        <Style x:Key="FanNudgeButton" TargetType="Button">
+            <Setter Property="Width" Value="20"/>
+            <Setter Property="Height" Value="16"/>
+            <Setter Property="Margin" Value="4,0,0,0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="FontSize" Value="8"/>
+            <Setter Property="Foreground" Value="{DynamicResource CardText}"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="Bd" CornerRadius="5" Background="{DynamicResource CardFill}"
+                                BorderBrush="{DynamicResource CardStroke}" BorderThickness="1">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#333B82F6"/>
+                                <Setter TargetName="Bd" Property="BorderBrush" Value="{StaticResource AccentBrush}"/>
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="Bd" Property="Background" Value="#553B82F6"/>
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
         <!-- Curve Type Toggle (Linear/Custom) -->
         <Style x:Key="CurveTypeToggle" TargetType="ToggleButton">
             <Setter Property="Cursor" Value="Hand"/>
@@ -390,13 +419,34 @@
                                                     <MenuItem Header="Rename…" Click="FanContextRename_Click"/>
                                                     <MenuItem Header="Show on 7&quot; display"
                                                               IsCheckable="True" IsChecked="{Binding ShowOnWidget, Mode=OneWay}" Click="FanContextShowOnWidget_Click"/>
-                                                    <MenuItem Header="Move earlier on 7&quot; display" Click="FanContextMoveUp_Click"/>
-                                                    <MenuItem Header="Move later on 7&quot; display" Click="FanContextMoveDown_Click"/>
+                                                    <MenuItem Header="Move up" Click="FanContextMoveUp_Click"/>
+                                                    <MenuItem Header="Move down" Click="FanContextMoveDown_Click"/>
                                                     <MenuItem Header="Reset to Auto" Click="FanContextReset_Click"/>
                                                     <MenuItem Header="Set Manual (50%)" Click="FanContextManual_Click"/>
                                                 </ContextMenu>
                                             </Button.ContextMenu>
                                         </Button>
+                                    </Grid>
+
+                                    <!-- 7" display: visibility + ordering, inline so it is visible
+                                         without opening the menu (client round 19, items 5 & 6).
+                                         Mirrors the RGB card's controls. -->
+                                    <Grid Margin="0,0,0,8">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <TextBlock Text="7&quot; DISPLAY" FontSize="8" FontWeight="Bold" Opacity="0.55"
+                                                   Foreground="{DynamicResource CardText}" VerticalAlignment="Center"/>
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                            <ToggleButton IsChecked="{Binding ShowOnWidget, Mode=OneWay}" Click="FanShowOnWidget_Click"
+                                                          Style="{StaticResource ToggleSwitchStyle}" VerticalAlignment="Center"
+                                                          ToolTip="Show this fan on the 7&quot; display"/>
+                                            <Button Content="▲" Click="FanContextMoveUp_Click" Style="{StaticResource FanNudgeButton}"
+                                                    ToolTip="Move up on the 7&quot; display"/>
+                                            <Button Content="▼" Click="FanContextMoveDown_Click" Style="{StaticResource FanNudgeButton}"
+                                                    ToolTip="Move down on the 7&quot; display"/>
+                                        </StackPanel>
                                     </Grid>
 
                                     <!-- Mode label (Curve / Static) + toggle + curve dropdown -->

@@ -14,8 +14,11 @@ AppName={#MyAppName}
 AppVersion={#MyAppVersion}
 AppPublisher={#MyAppPublisher}
 DefaultDirName={autopf}\{#MyAppPublisher}\{#MyAppName}
-ArchitecturesAllowed=x64
-ArchitecturesInstallIn64BitMode=x64
+; "x64os" = native 64-bit Windows. The old "x64" spelling is deprecated and the compiler
+; substitutes x64os anyway; naming it explicitly removes the warning. Not "x64compatible",
+; which would also allow ARM64 emulation where the hardware driver cannot work.
+ArchitecturesAllowed=x64os
+ArchitecturesInstallIn64BitMode=x64os
 DefaultGroupName={#MyAppPublisher}
 DisableProgramGroupPage=yes
 OutputDir=InstallerOutput
@@ -26,17 +29,20 @@ SolidCompression=yes
 ; Modern, per-monitor-DPI-aware wizard. The task/launch checkboxes are restored
 ; (round 18, item 2) — the client wants the options back, just not clipped.
 ;
-; NOTE ON THE CLIPPING: it is NOT yet root-caused. It reproduced on the client's
-; 5120x2880 @ 200% DPI display. This box builds with Inno Setup 7.0.0-preview-2,
-; which is NEWER than the 6.6.0 release that reworked DPI scaling ("Setup and
-; Uninstall now keep the original aspect ratio of their windows when scaling for
-; DPI"), so "use a newer compiler" is NOT the fix. A preview compiler is itself a
-; suspect. Verify by compiling and running this wizard at 200% DPI before shipping;
-; if it still clips, build with the stable 6.6.x release instead.
-; WizardSizePercent gives the pages extra room and is the one lever available here.
+; CLIPPING NOTES (client rounds 16-19): the task checkbox renders as a sliver with no
+; label on his 5120x2880 display.
+;   * WizardResizable was REMOVED - Inno Setup 7 reports it as obsolete and ignores it.
+;   * WizardSizePercent=120,120 was REMOVED - enlarging the wizard is a prime suspect for
+;     the mis-measured checkbox, so this returns the pages to their natural size.
+;   * BUILD WITH THE STABLE INNO SETUP 6 COMPILER, NOT the 7.0 preview that is also on this
+;     machine. A preview compiler was the remaining suspect for the undersized checkbox glyph
+;     at 200% DPI. Use:
+;         "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" PcStatsMonitor_Installer.iss
+;     (Inno Setup 6.7.3, installed via winget as JRSoftware.InnoSetup.)
 WizardStyle=modern
-WizardResizable=yes
-WizardSizePercent=120,120
+; Skips the "Ready to Install" summary, which appeared as a large grey review box
+; (client round 19, item 2). Install starts straight after the task selection.
+DisableReadyPage=yes
 ; "PrivilegesRequired=admin" ensures the installer and its launched app have elevation.
 PrivilegesRequired=admin
 UninstallDisplayIcon={app}\{#MyAppExeName}

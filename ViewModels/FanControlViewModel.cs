@@ -1186,6 +1186,14 @@ public class FanControlViewModel : ViewModelBase
         else names[sensorName] = trimmed;
     }
 
+    /// <summary>
+    /// Raised when a fan's 7"-display visibility or order changes, so the widget can rebuild
+    /// straight away instead of waiting for the next sensor tick (client round 19, item 6).
+    /// </summary>
+    public event EventHandler? WidgetLayoutChanged;
+
+    private void RaiseWidgetLayoutChanged() => WidgetLayoutChanged?.Invoke(this, EventArgs.Empty);
+
     /// <summary>True when this fan is hidden from the 7" widget (persisted by sensor name).</summary>
     private bool IsFanHiddenFromWidget(string sensorName) =>
         _themeService?.CurrentTheme.HiddenFanNames.Contains(sensorName) == true;
@@ -1202,6 +1210,7 @@ public class FanControlViewModel : ViewModelBase
         var hidden = _themeService.CurrentTheme.HiddenFanNames;
         bool changed = visible ? hidden.Remove(fan.Name) : AddIfMissing(hidden, fan.Name);
         if (changed) _themeService.SaveTheme();
+        RaiseWidgetLayoutChanged();
     }
 
     private static bool AddIfMissing(List<string> list, string value)
@@ -1230,6 +1239,7 @@ public class FanControlViewModel : ViewModelBase
 
         Fans.Move(from, to);
         PersistFanOrder();
+        RaiseWidgetLayoutChanged();
     }
 
     /// <summary>Saves the current on-screen fan order, which the 7" display then mirrors.</summary>

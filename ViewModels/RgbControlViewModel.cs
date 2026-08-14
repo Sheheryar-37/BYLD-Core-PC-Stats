@@ -194,13 +194,23 @@ public class RgbDeviceViewModel : ViewModelBase
         set
         {
             if (SetProperty(ref _selectedMode, value) && value != null)
-            {
-                if (!HardwareControlService.IsDemoMode)
-                    SendModeToHardware(value);
-                // Persist mode change
-                RgbSettingsPersistence.SaveCurrentState();
-            }
+                ApplyModeToHardware(value);
         }
+    }
+
+    /// <summary>
+    /// Sends a mode to the hardware and persists it, WITHOUT requiring the selection to have
+    /// changed. Re-picking the mode a device is already nominally in has to reach the hardware:
+    /// the device may have been left on something else by an effect or a colour apply, and the
+    /// silent no-op made effect selection look broken (client round 19, item 9).
+    /// </summary>
+    public void ApplyModeToHardware(string modeName)
+    {
+        SetProperty(ref _selectedMode, modeName, nameof(SelectedMode));
+
+        if (!HardwareControlService.IsDemoMode)
+            SendModeToHardware(modeName);
+        RgbSettingsPersistence.SaveCurrentState();
     }
 
     /// <summary>
@@ -349,10 +359,17 @@ public class RgbControlViewModel : ViewModelBase
         get => _selectedCommonMode;
         set
         {
-            if (!SetProperty(ref _selectedCommonMode, value) || value == null) return;
+            // Do NOT gate on SetProperty returning true. Choosing a mode is a deliberate action
+            // and must always reach the hardware — a device whose SelectedMode already equalled
+            // the choice (very common, because applying a colour puts every device into Static)
+            // silently did nothing, which is why "apply to all" effects appeared dead and never
+            // even produced a log line (client round 19, item 9).
+            SetProperty(ref _selectedCommonMode, value);
+            if (value == null) return;
+
             foreach (var device in Devices)
             {
-                if (device.Modes.Contains(value)) device.SelectedMode = value;
+                if (device.Modes.Contains(value)) device.ApplyModeToHardware(value);
             }
         }
     }
@@ -486,24 +503,21 @@ public class RgbControlViewModel : ViewModelBase
     }
 
     /// <summary>
-    /// Builds the "apply to all" mode list as the UNION of every device's modes, with the
-    /// modes supported by ALL devices listed first. Each mode is applied only to the devices
-    /// that actually support it (see <see cref="SelectedCommonMode"/>), so offering the full
-    /// set lets the user reach every effect from one place instead of only the handful common
-    /// to every device (client round 18, item 12).
+    /// The "apply to all" list offers ONLY the modes every detected device supports, so choosing
+    /// one always affects the whole system. Round 18 briefly widened this to the union of all
+    /// modes, but that listed effects most devices could not honour and made the bar look broken;
+    /// the client asked for common-only back (round 19, item 8). Per-device dropdowns still list
+    /// every mode that device supports.
     /// </summary>
     private void RebuildCommonModes()
     {
         CommonModes.Clear();
         if (Devices.Count == 0) return;
 
-        var universal = Devices.Select(d => d.Modes.AsEnumerable())
-                               .Aggregate((a, b) => a.Intersect(b))
-                               .ToList();
-        foreach (var mode in universal)
-            CommonModes.Add(mode);
+        var common = Devices.Select(d => d.Modes.AsEnumerable())
+                            .Aggregate((a, b) => a.Intersect(b));
 
-        foreach (var mode in Devices.SelectMany(d => d.Modes).Distinct().Except(universal))
+        foreach (var mode in common)
             CommonModes.Add(mode);
     }
 
@@ -613,14 +627,23 @@ public class RgbControlViewModel : ViewModelBase
     /// appears without the user pressing Refresh. The list is only rebuilt
     /// when the device set actually changes, to avoid UI flicker.
     /// </summary>
+    /// <summary>
+    /// True only while a screen that needs a live device LIST is on show (the Settings RGB tab).
+    /// Re-enumerating devices makes OpenRGB re-read every controller over the SMBus, which stalls
+    /// the whole machine on DRAM modules; before this view-model became session-long that only
+    /// happened while Settings was open, and running it 24/7 is what made the client's system
+    /// bog down badly (client round 19, item 1). The 7" screen only displays already-loaded
+    /// devices, so it does not need this.
+    /// </summary>
+    public bool EnableDeviceListPolling { get; set; }
+
     private void StartAutoRefresh()
     {
         if (HardwareControlService.IsDemoMode) return;
 
         _autoRefreshTimer = new System.Windows.Threading.DispatcherTimer
         {
-            // 30s, not 10s: this only detects devices being added/removed (rare), so a
-            // faster poll was needless OpenRGB traffic that added to the background load.
+            // Device add/remove is rare, and each tick can cost an SMBus sweep — keep it slow.
             Interval = TimeSpan.FromSeconds(30)
         };
         _autoRefreshTimer.Tick += async (s, e) => await AutoRefreshDevicesAsync();
@@ -657,6 +680,10 @@ public class RgbControlViewModel : ViewModelBase
             TryReconnect();
             return;
         }
+
+        // Skip the device sweep unless a screen that needs a live list is open. This is the
+        // expensive part: it makes OpenRGB re-read every controller over the SMBus.
+        if (!EnableDeviceListPolling) return;
 
         // Network round-trip on the thread pool; UI updates back on the dispatcher.
         var devices = await Task.Run(() => _hardwareService.GetRgbDevices());
