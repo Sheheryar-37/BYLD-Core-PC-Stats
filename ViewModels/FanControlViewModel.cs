@@ -1177,6 +1177,9 @@ public class FanControlViewModel : ViewModelBase
         if (_themeService == null) return;
         UpdateFanNameInTheme(fan.Name, trimmed);
         _themeService.SaveTheme();
+        // Push the new label to the 7" display now rather than on the next sensor tick
+        // (client round 20, item 5).
+        RaiseWidgetLayoutChanged();
     }
 
     private void UpdateFanNameInTheme(string sensorName, string trimmed)

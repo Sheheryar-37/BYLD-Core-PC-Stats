@@ -68,8 +68,10 @@ public partial class App : Application
             if (args.ExceptionObject is Exception ex)
                 CrashLogger.LogCrash(ex, "AppDomain UnhandledException");
             // The process is going down: give the fans back to the motherboard first,
-            // or they stay pinned at the last value we wrote.
+            // or they stay pinned at the last value we wrote, and stop the OpenRGB server
+            // so it cannot outlive us and keep loading the SMBus.
             TryRestoreFansToAuto();
+            TryShutdownOpenRgb();
         };
         System.Threading.Tasks.TaskScheduler.UnobservedTaskException += (s, args) =>
         {
@@ -98,6 +100,19 @@ public partial class App : Application
     {
         try { _host.Services.GetRequiredService<HardwareControlService>().RestoreAllFansToAuto(); }
         catch (Exception ex) { Log.Warning(ex, "[FAN] Could not restore fans to automatic control."); }
+    }
+
+    /// <summary>
+    /// Kills the bundled OpenRGB server SYNCHRONOUSLY. This used to happen only through
+    /// HardwareControlService.Dispose() via async host disposal inside an async void OnExit —
+    /// which the process frequently terminated before completing, leaving OpenRGB running and
+    /// hammering the SMBus indefinitely (client round 20, items 1 and 8). Safe in a crash
+    /// handler: it must never throw while the process is already failing.
+    /// </summary>
+    private void TryShutdownOpenRgb()
+    {
+        try { _host.Services.GetRequiredService<HardwareControlService>().ShutdownOpenRgbServer(); }
+        catch (Exception ex) { Log.Warning(ex, "[RGB] Could not stop the OpenRGB server."); }
     }
 
     private readonly HashSet<string> _seenFirstChance = new();
@@ -390,6 +405,11 @@ public partial class App : Application
         // left in software mode stays pinned at the last written value, so exiting used to
         // leave the client's fans stopped at 30%.
         TryRestoreFansToAuto();
+
+        // Stop OpenRGB here, SYNCHRONOUSLY, rather than relying on the awaited host disposal
+        // below — this method is async void, so the process can die at the first await and
+        // leave the server running for the rest of the machine's uptime.
+        TryShutdownOpenRgb();
 
         if (_notifyIcon != null)
         {

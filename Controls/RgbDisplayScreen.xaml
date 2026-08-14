@@ -43,81 +43,91 @@
                                          signify RGB (client round 19, item 3). -->
                                     <Border Grid.Column="0" Width="52" Height="52" CornerRadius="26" Margin="0,0,16,0"
                                             Background="#14FFFFFF" VerticalAlignment="Center">
-                                        <Grid Width="34" Height="34" HorizontalAlignment="Center" VerticalAlignment="Center">
-                                            <!-- Colour wheel: six spectrum segments around a hub.
-                                                 Reads immediately as colour/lighting control. -->
-                                            <Ellipse Width="34" Height="34">
-                                                <Ellipse.Fill>
-                                                    <LinearGradientBrush StartPoint="0,0" EndPoint="1,1">
-                                                        <GradientStop Color="#EF4444" Offset="0.00"/>
-                                                        <GradientStop Color="#F59E0B" Offset="0.20"/>
-                                                        <GradientStop Color="#FDE047" Offset="0.35"/>
-                                                        <GradientStop Color="#22C55E" Offset="0.52"/>
-                                                        <GradientStop Color="#06B6D4" Offset="0.68"/>
-                                                        <GradientStop Color="#6366F1" Offset="0.84"/>
-                                                        <GradientStop Color="#D946EF" Offset="1.00"/>
-                                                    </LinearGradientBrush>
-                                                </Ellipse.Fill>
-                                            </Ellipse>
-                                            <!-- Second sweep at right angles, so the wheel reads as
-                                                 a full spectrum rather than a single diagonal ramp -->
-                                            <Ellipse Width="34" Height="34" Opacity="0.55">
-                                                <Ellipse.Fill>
-                                                    <LinearGradientBrush StartPoint="1,0" EndPoint="0,1">
-                                                        <GradientStop Color="#00000000" Offset="0.0"/>
-                                                        <GradientStop Color="#8822C55E" Offset="0.35"/>
-                                                        <GradientStop Color="#00000000" Offset="0.7"/>
-                                                    </LinearGradientBrush>
-                                                </Ellipse.Fill>
-                                            </Ellipse>
-                                            <!-- Hub tinted with the device's live colour -->
-                                            <Ellipse Width="15" Height="15" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                        <Grid Width="36" Height="36" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                            <!-- Modern spectrum RING: six true colour arcs forming a
+                                                 ring, with a clean solid core in the device's live
+                                                 colour. Flat, geometric and legible at a glance
+                                                 (client round 20, item 3). -->
+                                            <Grid Width="36" Height="36">
+                                                <!-- Each arc is a stroked pie segment of the ring -->
+                                                <Path Stroke="#EF4444" StrokeThickness="6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                      Data="M 18,3 A 15,15 0 0 1 30.99,10.5"/>
+                                                <Path Stroke="#F59E0B" StrokeThickness="6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                      Data="M 30.99,10.5 A 15,15 0 0 1 30.99,25.5"/>
+                                                <Path Stroke="#22C55E" StrokeThickness="6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                      Data="M 30.99,25.5 A 15,15 0 0 1 18,33"/>
+                                                <Path Stroke="#06B6D4" StrokeThickness="6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                      Data="M 18,33 A 15,15 0 0 1 5.01,25.5"/>
+                                                <Path Stroke="#6366F1" StrokeThickness="6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                      Data="M 5.01,25.5 A 15,15 0 0 1 5.01,10.5"/>
+                                                <Path Stroke="#D946EF" StrokeThickness="6" StrokeStartLineCap="Flat" StrokeEndLineCap="Flat"
+                                                      Data="M 5.01,10.5 A 15,15 0 0 1 18,3"/>
+                                            </Grid>
+                                            <!-- Solid core in the device's current colour -->
+                                            <Ellipse Width="14" Height="14" HorizontalAlignment="Center" VerticalAlignment="Center">
                                                 <Ellipse.Fill>
                                                     <SolidColorBrush Color="{Binding Zones[0].SelectedColor, FallbackValue=#3B82F6}"/>
                                                 </Ellipse.Fill>
                                                 <Ellipse.Effect>
-                                                    <DropShadowEffect Color="{Binding Zones[0].SelectedColor, FallbackValue=#3B82F6}" BlurRadius="12" ShadowDepth="0" Opacity="0.9"/>
+                                                    <DropShadowEffect Color="{Binding Zones[0].SelectedColor, FallbackValue=#3B82F6}" BlurRadius="10" ShadowDepth="0" Opacity="0.85"/>
                                                 </Ellipse.Effect>
                                             </Ellipse>
-                                            <!-- Thin dark ring separating hub from wheel -->
-                                            <Ellipse Width="18" Height="18" HorizontalAlignment="Center" VerticalAlignment="Center"
-                                                     Stroke="#66000000" StrokeThickness="2"/>
                                         </Grid>
                                     </Border>
 
-                                    <!-- Name + type -->
+                                    <!-- Name + type. Sizes raised across this card: at arm's length
+                                         on a 7" panel the old 11pt secondary text was unreadable
+                                         (client round 20, item 4). -->
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="17" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"/>
-                                        <TextBlock Text="{Binding Type}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" Opacity="0.45" FontSize="11" FontWeight="SemiBold" Margin="0,2,0,0"/>
+                                        <TextBlock Text="{Binding Name}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="21" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding Type}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" Opacity="0.6" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
                                     </StackPanel>
-
-                                    <!-- Active mode chip -->
-                                    <Border Grid.Column="2" VerticalAlignment="Center" CornerRadius="9" Padding="10,4"
-                                            Background="#1F3B82F6">
-                                        <TextBlock Text="{Binding SelectedMode}" Foreground="{Binding DataContext.Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}" FontSize="11" FontWeight="Bold"/>
-                                    </Border>
                                 </Grid>
 
-                                <!-- Zone colour chips -->
-                                <ItemsControl ItemsSource="{Binding Zones}" Margin="68,10,0,0">
-                                    <ItemsControl.ItemsPanel>
-                                        <ItemsPanelTemplate>
-                                            <WrapPanel Orientation="Horizontal"/>
-                                        </ItemsPanelTemplate>
-                                    </ItemsControl.ItemsPanel>
+                                <!-- Active effect, on its own full-width row so the name above has
+                                     the space it needs and the mode is readable at a glance. -->
+                                <Border CornerRadius="10" Padding="12,7" Margin="68,12,0,0" HorizontalAlignment="Left"
+                                        Background="#1F3B82F6">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Text="EFFECT" Opacity="0.55" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"
+                                                   Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"/>
+                                        <TextBlock Text="{Binding SelectedMode}" Margin="10,0,0,0" FontSize="16" FontWeight="Bold" VerticalAlignment="Center"
+                                                   Foreground="{Binding DataContext.Theme.AccentColorBrush, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                    </StackPanel>
+                                </Border>
+
+                                <!-- Zone rows: a large colour swatch, the zone name, and its LED
+                                     count on the right. One per line instead of small wrapped
+                                     chips, so each is easy to read and scan. -->
+                                <ItemsControl ItemsSource="{Binding Zones}" Margin="68,12,0,0">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate>
-                                            <Border CornerRadius="10" Padding="8,3" Margin="0,0,8,6" Background="#0FFFFFFF">
-                                                <StackPanel Orientation="Horizontal">
-                                                    <Ellipse Width="10" Height="10" Margin="0,0,6,0" VerticalAlignment="Center">
-                                                        <Ellipse.Fill>
+                                            <Border CornerRadius="12" Padding="12,9" Margin="0,0,0,8" Background="#12FFFFFF">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                        <ColumnDefinition Width="*"/>
+                                                        <ColumnDefinition Width="Auto"/>
+                                                    </Grid.ColumnDefinitions>
+
+                                                    <!-- Live colour swatch, glowing in its own colour -->
+                                                    <Border Grid.Column="0" Width="26" Height="26" CornerRadius="8" Margin="0,0,12,0" VerticalAlignment="Center">
+                                                        <Border.Background>
                                                             <SolidColorBrush Color="{Binding SelectedColor}"/>
-                                                        </Ellipse.Fill>
-                                                    </Ellipse>
-                                                    <TextBlock Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" Opacity="0.6" FontSize="11" VerticalAlignment="Center">
-                                                        <Run Text="{Binding Name, Mode=OneWay}"/><Run Text=" · "/><Run Text="{Binding LedCount, StringFormat='{}{0} LEDs', Mode=OneWay}"/>
-                                                    </TextBlock>
-                                                </StackPanel>
+                                                        </Border.Background>
+                                                        <Border.Effect>
+                                                            <DropShadowEffect Color="{Binding SelectedColor}" BlurRadius="12" ShadowDepth="0" Opacity="0.85"/>
+                                                        </Border.Effect>
+                                                    </Border>
+
+                                                    <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
+                                                               FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis"
+                                                               Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"/>
+
+                                                    <TextBlock Grid.Column="2" VerticalAlignment="Center" FontSize="13" FontWeight="Bold" Opacity="0.55"
+                                                               Text="{Binding LedCount, StringFormat='{}{0} LEDs', Mode=OneWay}"
+                                                               Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}"/>
+                                                </Grid>
                                             </Border>
                                         </DataTemplate>
                                     </ItemsControl.ItemTemplate>

@@ -348,8 +348,16 @@ public class HardwareControlService : IDisposable
             }
             else
             {
+                // An OpenRGB already running at this point is an ORPHAN from a previous session
+                // (older builds started it detached, so it survived exit and kept loading the
+                // SMBus). Replace it with one we own, so this install self-heals and the server
+                // can never outlive the app again.
                 foreach (var p in rgbProcesses)
-                    Log($"  [RGB] PID={p.Id}");
+                    Log($"  [RGB] PID={p.Id} — orphaned server from an earlier session; replacing it.");
+
+                StopOpenRgbServer();
+                System.Threading.Thread.Sleep(500);
+                EnsureOpenRgbRunningAsAdmin();
             }
         }
         catch (Exception ex) { Log($"[RGB] Could not check OpenRGB process: {ex.Message}"); }
@@ -457,6 +465,10 @@ public class HardwareControlService : IDisposable
         _isConnectedToRgb = false;
     }
 
+    /// <summary>Kernel-enforced cleanup: any OpenRGB we start dies when this process does,
+    /// even on a crash or force-kill.</summary>
+    private readonly ChildProcessJob _openRgbJob = new();
+
     public void EnsureOpenRgbRunningAsAdmin()
     {
         try
@@ -478,16 +490,27 @@ public class HardwareControlService : IDisposable
 
             if (System.IO.File.Exists(openRgbPath))
             {
+                // UseShellExecute=false (no "runas"): this app already runs elevated per its
+                // manifest, so the child inherits that token — and a direct child handle is what
+                // lets us put it in the kill-on-close job below. Started via the shell it was
+                // detached, and a crash or force-kill left it running for the rest of the
+                // machine's uptime, sweeping the SMBus (client round 20, item 8).
                 var psi = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = openRgbPath,
                     Arguments = "--server",
-                    UseShellExecute = true,
-                    Verb = "runas", // Forces UAC prompt if not already admin; inherits if parent is admin
-                    WindowStyle = System.Diagnostics.ProcessWindowStyle.Hidden
+                    UseShellExecute = false,
+                    CreateNoWindow = true,
+                    WorkingDirectory = System.IO.Path.GetDirectoryName(openRgbPath) ?? string.Empty
                 };
-                System.Diagnostics.Process.Start(psi);
-                Log($"[RGB] Launched OpenRGB.exe from {openRgbPath} in server mode.");
+
+                var child = System.Diagnostics.Process.Start(psi);
+                if (child != null)
+                {
+                    bool tracked = _openRgbJob.Assign(child);
+                    Log($"[RGB] Launched OpenRGB.exe from {openRgbPath} in server mode " +
+                        $"(PID={child.Id}, auto-terminates with this app: {tracked}).");
+                }
             }
             else
             {
@@ -666,9 +689,25 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Called on the RGB worker before every write. When the connection has gone (which used to
+    /// make every later command return silently, so the lighting "only worked the first time"
+    /// and nothing at all appeared in the log), this logs it and re-establishes the connection
+    /// so the command still lands (client round 20, items 6 and 7).
+    /// </summary>
+    private bool EnsureRgbConnectedForWrite()
+    {
+        if (_isConnectedToRgb && _rgbClient != null) return true;
+
+        Log("[RGB→] Connection was down at write time — reconnecting before sending.");
+        bool ok = ConnectRgbServer();
+        Log(ok ? "[RGB→] Reconnected; continuing with the write."
+               : "[RGB→] Reconnect FAILED — command dropped.");
+        return ok;
+    }
+
     public void UpdateRgbZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color, bool force = false)
     {
-        if (!_isConnectedToRgb || _rgbClient == null) return;
         if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", Hex(color), force))
         {
             Log($"[RGB→] deduped identical zone write dev={deviceId} zone={zoneId} {Hex(color)}");
@@ -680,6 +719,7 @@ public class HardwareControlService : IDisposable
 
     private void WriteZoneColor(int deviceId, int zoneId, OpenRGB.NET.Color color)
     {
+        if (!EnsureRgbConnectedForWrite()) return;
         try
         {
             var device = GetCachedDevice(deviceId);
@@ -725,7 +765,6 @@ public class HardwareControlService : IDisposable
 
     public void UpdateRgbZoneColors(int deviceId, int zoneId, OpenRGB.NET.Color[] colors, bool force = false)
     {
-        if (!_isConnectedToRgb || _rgbClient == null) return;
         if (IsDuplicateRgbWrite($"zone:{deviceId}:{zoneId}", $"{Hex(colors[0])}→{Hex(colors[^1])}×{colors.Length}", force))
         {
             Log($"[RGB→] deduped identical gradient write dev={deviceId} zone={zoneId}");
@@ -737,6 +776,7 @@ public class HardwareControlService : IDisposable
 
     private void WriteZoneGradient(int deviceId, int zoneId, OpenRGB.NET.Color[] colors)
     {
+        if (!EnsureRgbConnectedForWrite()) return;
         try
         {
             lock (_rgbClientLock)
@@ -766,7 +806,6 @@ public class HardwareControlService : IDisposable
     /// </summary>
     public void RequestRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color, bool force = false)
     {
-        if (!_isConnectedToRgb || _rgbClient == null) return;
         if (IsDuplicateRgbWrite($"mode:{deviceId}", $"{effectName}|{(color == null ? "" : Hex(color.Value))}", force))
         {
             Log($"[RGB→] deduped identical mode switch dev={deviceId} '{effectName}'");
@@ -778,6 +817,7 @@ public class HardwareControlService : IDisposable
 
     private void RunRgbEffectSwitch(int deviceId, string effectName, OpenRGB.NET.Color? color)
     {
+        if (!EnsureRgbConnectedForWrite()) return;
         try
         {
             ApplyRgbEffect(deviceId, effectName, color);
@@ -884,6 +924,14 @@ public class HardwareControlService : IDisposable
         // it on connect, which is the same clean state as a first run.
         StopOpenRgbServer();
     }
+
+    /// <summary>
+    /// Terminates the bundled OpenRGB server. Public and safe to call at any time, including
+    /// from a crash handler: the server must NEVER outlive the app. A leaked OpenRGB keeps
+    /// sweeping the SMBus for as long as the machine is on, which the client experienced as
+    /// heavy system-wide load "even when the app is not running" (client round 20, item 8).
+    /// </summary>
+    public void ShutdownOpenRgbServer() => StopOpenRgbServer();
 
     private void StopOpenRgbServer()
     {
