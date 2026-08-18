@@ -2,11 +2,13 @@
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" 
-             xmlns:d="http://schemas.microsoft.com/expression/blend/2008" 
-             mc:Ignorable="d" 
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:controls="clr-namespace:PcStatsMonitor.Controls"
+             mc:Ignorable="d"
              d:DesignHeight="400" d:DesignWidth="500">
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+        <controls:InverseBoolToVisibilityConverter x:Key="InverseBoolToVis"/>
         <!-- Retinted by SettingsWindow.ApplyUiTheme() in light mode -->
         <SolidColorBrush x:Key="WarnText" Color="#FFB0B0"/>
         <SolidColorBrush x:Key="RgbCardBg" Color="#0C0C1A"/>
@@ -351,7 +353,20 @@
                                           HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                 </Border>
                                 <StackPanel VerticalAlignment="Center">
-                                    <TextBlock Text="{Binding Name}" Foreground="{DynamicResource RgbCardText}" FontWeight="Bold" FontSize="14"/>
+                                    <!-- Double-click the name to rename this device (round 22, item 5) -->
+                                    <Grid>
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="{DynamicResource RgbCardText}" FontWeight="Bold" FontSize="14"
+                                                   Cursor="Hand" ToolTip="Double-click to rename this device"
+                                                   MouseLeftButtonDown="RgbName_MouseLeftButtonDown"
+                                                   Visibility="{Binding IsEditingName, Converter={StaticResource InverseBoolToVis}}"/>
+                                        <TextBox Text="{Binding EditableName, UpdateSourceTrigger=PropertyChanged}" MaxLength="28"
+                                                 Background="{DynamicResource RgbInputBg}" Foreground="{DynamicResource RgbCardText}"
+                                                 BorderBrush="{DynamicResource RgbInputBorder}" BorderThickness="1" Padding="4,1"
+                                                 FontWeight="Bold" FontSize="14" MinWidth="160" HorizontalAlignment="Left"
+                                                 KeyDown="RgbNameEdit_KeyDown" LostFocus="RgbNameEdit_LostFocus"
+                                                 IsVisibleChanged="RgbNameEdit_IsVisibleChanged"
+                                                 Visibility="{Binding IsEditingName, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                    </Grid>
                                     <TextBlock Text="{Binding Type, StringFormat='({0})'}" Foreground="#64748B" FontSize="11" Margin="0,1,0,0"/>
                                 </StackPanel>
                                 </StackPanel>

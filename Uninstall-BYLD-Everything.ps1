@@ -36,7 +36,15 @@ $PublisherDir = Join-Path $env:ProgramFiles 'BYLD Core'
 $PawnIoDir    = Join-Path $env:ProgramFiles 'PawnIO'
 $TaskName     = 'BYLDCore_PCStatsMonitor_Startup'
 $Processes    = @('PcStatsMonitor', 'OpenRGB')
-$Services     = @('WinRing0_1_2_0', 'WinRing0x64')   # PawnIO handled by its own uninstaller
+# Low-level bus drivers that monitoring/RGB tools register. A LOADED one of these can hold the
+# LPC/ISA access LibreHardwareMonitor needs, so the motherboard Super I/O silently fails to
+# enumerate — which surfaces in the app as "your I/O chip is not supported" with no case fans,
+# even while PawnIO reports present (client round 22, item 2).
+# These unload fully only after a REBOOT.
+$Services     = @(
+    'WinRing0_1_2_0', 'WinRing0x64', 'WinRing0',
+    'Ols', 'OlsIo', 'inpout32', 'inpoutx64', 'directio', 'DirectIo64'
+)   # PawnIO handled by its own uninstaller
 $AppId        = '{9A97C51E-3107-430E-8EB3-58D0EFEB179D}_is1'
 $Shortcuts    = @(
     (Join-Path $env:ProgramData 'Microsoft\Windows\Start Menu\Programs\BYLD Core\BYLD Core PC Stats Monitor.lnk'),
@@ -165,4 +173,15 @@ catch { Report 'Defender not queryable (skipped)' 'not found' }
 
 Write-Host "`n=== Done ($mode). ===" -ForegroundColor Cyan
 if ($Check) { Write-Host "Nothing was changed. Re-run without -Check to remove.`n" -ForegroundColor DarkGray }
-else { Write-Host "Re-run with -Check to confirm everything reads 'not found'.`n" -ForegroundColor DarkGray }
+else {
+    Write-Host "Re-run with -Check to confirm everything reads 'not found'." -ForegroundColor DarkGray
+    # Kernel-mode drivers stay resident until the machine restarts, even once their service
+    # entry is deleted. Reinstalling before a reboot can leave the old driver holding the bus,
+    # which is what makes case fans fail to appear on an otherwise correct install.
+    Write-Host "`n  >>> RESTART THE PC NOW, BEFORE REINSTALLING. <<<" -ForegroundColor Yellow
+    Write-Host "  Kernel drivers (WinRing0/PawnIO) stay loaded in memory until a restart.`n" -ForegroundColor Yellow
+}
+
+# Report success explicitly: individual steps are best-effort with SilentlyContinue, so without
+# this the host can surface a non-zero exit code and make a clean run look like a failure.
+exit 0

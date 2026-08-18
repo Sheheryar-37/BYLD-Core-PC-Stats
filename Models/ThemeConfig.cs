@@ -74,6 +74,11 @@ public class ThemeConfig
     /// RGB Control. Empty = show every detected device (client round 18, item 9).</summary>
     public List<string> HiddenRgbDeviceNames { get; set; } = new();
 
+    /// <summary>Custom display name per RGB device, keyed by the hardware device name (the stable
+    /// key). A device with no entry shows its hardware name. Mirrors <see cref="FanNames"/> and is
+    /// applied in RGB Control and on the 7" RGB screen (client round 22, item 5).</summary>
+    public Dictionary<string, string> RgbDeviceNames { get; set; } = new();
+
     /// <summary>Fan sensor names in the order the user wants them shown on the 7" display. Fans
     /// not listed keep their detected order, after the listed ones (client round 18, item 13).</summary>
     public List<string> FanDisplayOrder { get; set; } = new();

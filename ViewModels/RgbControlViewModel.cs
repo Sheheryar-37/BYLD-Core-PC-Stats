@@ -187,6 +187,39 @@ public class RgbDeviceViewModel : ViewModelBase
         set => SetProperty(ref _showOnWidget, value);
     }
 
+    private string? _customName;
+
+    /// <summary>What the user sees for this device: their custom label when set, otherwise the
+    /// hardware name. <see cref="Name"/> stays the stable key (client round 22, item 5).</summary>
+    public string DisplayName => string.IsNullOrWhiteSpace(_customName) ? Name : _customName!;
+
+    /// <summary>Applies a saved custom name without re-persisting it.</summary>
+    public void SetCustomNameQuiet(string? customName)
+    {
+        _customName = customName;
+        OnPropertyChanged(nameof(DisplayName));
+    }
+
+    private bool _isEditingName;
+    /// <summary>True while the device name is in inline-edit mode on the card.</summary>
+    public bool IsEditingName
+    {
+        get => _isEditingName;
+        set
+        {
+            if (SetProperty(ref _isEditingName, value) && value)
+                EditableName = DisplayName;
+        }
+    }
+
+    private string _editableName = string.Empty;
+    /// <summary>Working text while renaming; committed by the view through SetDeviceName.</summary>
+    public string EditableName
+    {
+        get => _editableName;
+        set => SetProperty(ref _editableName, value);
+    }
+
     private string? _selectedMode;
     public string? SelectedMode
     {
@@ -577,12 +610,42 @@ public class RgbControlViewModel : ViewModelBase
     private bool IsHiddenFromWidget(string deviceName) =>
         _themeService?.CurrentTheme.HiddenRgbDeviceNames.Contains(deviceName) == true;
 
-    /// <summary>Applies each device's saved 7"-display visibility after the list is (re)built.</summary>
+    /// <summary>Applies each device's saved 7"-display visibility and custom name after the list
+    /// is (re)built.</summary>
     private void ApplySavedWidgetVisibility()
     {
         foreach (var device in Devices)
+        {
             device.ShowOnWidget = !IsHiddenFromWidget(device.Name);
+            device.SetCustomNameQuiet(ResolveDeviceCustomName(device.Name));
+        }
         RebuildDeviceViews();
+    }
+
+    /// <summary>Reads a device's custom name from the theme, or null when the user hasn't set one.</summary>
+    private string? ResolveDeviceCustomName(string deviceName)
+    {
+        var names = _themeService?.CurrentTheme.RgbDeviceNames;
+        if (names != null && names.TryGetValue(deviceName, out var custom) && !string.IsNullOrWhiteSpace(custom))
+            return custom;
+        return null;
+    }
+
+    /// <summary>
+    /// Sets and persists a device's custom display name, keyed by its hardware name so it survives
+    /// redetection. A blank name clears the override (client round 22, item 5).
+    /// </summary>
+    public void SetDeviceName(RgbDeviceViewModel device, string? newName)
+    {
+        string trimmed = newName?.Trim() ?? string.Empty;
+        device.SetCustomNameQuiet(string.IsNullOrWhiteSpace(trimmed) ? null : trimmed);
+        device.IsEditingName = false;
+        if (_themeService == null) return;
+
+        var names = _themeService.CurrentTheme.RgbDeviceNames;
+        if (string.IsNullOrWhiteSpace(trimmed)) names.Remove(device.Name);
+        else names[device.Name] = trimmed;
+        _themeService.SaveTheme();
     }
 
     /// <summary>Shows or hides a device on the 7" RGB screen and persists the choice.</summary>

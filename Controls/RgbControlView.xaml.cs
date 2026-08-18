@@ -89,4 +89,42 @@ public partial class RgbControlView : UserControl
     }
 
     private RgbControlViewModel? ViewModel => DataContext as RgbControlViewModel;
+
+    // ── Device rename (round 22, item 5) ────────────────────────────────────
+
+    /// <summary>Double-click a device name to rename it inline.</summary>
+    private void RgbName_MouseLeftButtonDown(object sender, System.Windows.Input.MouseButtonEventArgs e)
+    {
+        if (e.ClickCount == 2 && sender is System.Windows.FrameworkElement fe &&
+            fe.DataContext is RgbDeviceViewModel device)
+            device.IsEditingName = true;
+    }
+
+    /// <summary>Selects the whole name as soon as the rename box appears.</summary>
+    private void RgbNameEdit_IsVisibleChanged(object sender, System.Windows.DependencyPropertyChangedEventArgs e)
+    {
+        if (sender is not TextBox box || !box.IsVisible) return;
+        box.Dispatcher.BeginInvoke(new Action(() => { box.Focus(); box.SelectAll(); }),
+            System.Windows.Threading.DispatcherPriority.Input);
+    }
+
+    /// <summary>Enter commits the new name; Escape cancels without saving.</summary>
+    private void RgbNameEdit_KeyDown(object sender, System.Windows.Input.KeyEventArgs e)
+    {
+        if (e.Key == System.Windows.Input.Key.Enter) CommitRgbName(sender);
+        else if (e.Key == System.Windows.Input.Key.Escape && sender is TextBox b &&
+                 b.DataContext is RgbDeviceViewModel d)
+            d.IsEditingName = false;
+    }
+
+    private void RgbNameEdit_LostFocus(object sender, System.Windows.RoutedEventArgs e) => CommitRgbName(sender);
+
+    private void CommitRgbName(object sender)
+    {
+        // LostFocus fires again after Enter/Escape closed the editor — the guard stops a
+        // second, redundant save.
+        if (sender is not TextBox box || box.DataContext is not RgbDeviceViewModel device) return;
+        if (!device.IsEditingName) return;
+        ViewModel?.SetDeviceName(device, box.Text);
+    }
 }

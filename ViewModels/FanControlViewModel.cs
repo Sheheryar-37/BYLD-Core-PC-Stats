@@ -1115,7 +1115,13 @@ public class FanControlViewModel : ViewModelBase
                                          "2. PawnIO installs in a few seconds and does not require disabling any Windows security features.";
                 break;
             case FanDetectionStatus.SuperIoUnsupported:
-                DetectionStatusMessage = "Your motherboard's I/O chip is not yet supported for direct case fan monitoring. GPU fan controls (if available) will still work. This is a hardware compatibility limitation, not a configuration issue.";
+                // This state is far more often a BLOCKED bus than an unsupported chip: another
+                // tool's kernel driver (OpenRGB's WinRing0, MSI Afterburner, HWiNFO, Fan Control,
+                // Armoury Crate...) holds the LPC/ISA access, so the Super I/O cannot be read even
+                // though PawnIO is installed. The client's board reads 8 fans normally and then
+                // reported "not supported" on one run — telling him it was a hardware limitation
+                // sent him the wrong way entirely (client round 22, item 2).
+                DetectionStatusMessage = BuildSuperIoBlockedMessage();
                 break;
             case FanDetectionStatus.NoFansDetected:
                 DetectionStatusMessage = "The system successfully scanned for fans, but none were detected. Make sure your fans are connected directly to the motherboard headers, not to a proprietary USB hub (like Corsair Commander).";
@@ -1136,6 +1142,53 @@ public class FanControlViewModel : ViewModelBase
         SyncFanCurveLists();
         ReleaseAllFansToBios();
         RestorePersistedFanControl();
+    }
+
+    /// <summary>
+    /// Explains a failed Super I/O read as the bus-contention problem it almost always is, and
+    /// names any conflicting low-level driver actually present on this machine so the user has a
+    /// concrete thing to remove rather than a dead end.
+    /// </summary>
+    private static string BuildSuperIoBlockedMessage()
+    {
+        var found = DetectConflictingBusDrivers();
+        string detail = found.Count > 0
+            ? $"\n\nDetected on this PC: {string.Join(", ", found)}. " +
+              "Uninstall or stop the tool that installed it, then RESTART — these drivers stay " +
+              "loaded in memory until a reboot."
+            : "\n\nNo conflicting driver was detected by name, so a restart is the next step: " +
+              "one of these drivers may still be loaded from a program that has since been closed.";
+
+        return "Your motherboard's fan headers could not be read on this run.\n\n" +
+               "This is almost always another program holding low-level hardware access — OpenRGB, " +
+               "MSI Afterburner, HWiNFO, Fan Control, Armoury Crate or similar. Close it, then " +
+               "restart the PC and reopen BYLD Core." + detail;
+    }
+
+    /// <summary>Kernel services known to take exclusive low-level bus access. Present-and-loaded
+    /// is what blocks the Super I/O read.</summary>
+    private static List<string> DetectConflictingBusDrivers()
+    {
+        string[] candidates =
+        {
+            "WinRing0_1_2_0", "WinRing0x64", "WinRing0",
+            "Ols", "OlsIo", "inpout32", "inpoutx64", "directio", "DirectIo64"
+        };
+
+        // Read the service registry directly rather than pulling in ServiceController: no extra
+        // assembly reference, and a registered key is exactly what we want to report.
+        var found = new List<string>();
+        foreach (var name in candidates)
+        {
+            try
+            {
+                using var key = Microsoft.Win32.Registry.LocalMachine
+                    .OpenSubKey($@"SYSTEM\CurrentControlSet\Services\{name}");
+                if (key != null) found.Add(name);
+            }
+            catch { /* unreadable — nothing to report */ }
+        }
+        return found;
     }
 
     /// <summary>Reads a fan's chosen icon colour (keyed by name) or a distinct palette default.</summary>

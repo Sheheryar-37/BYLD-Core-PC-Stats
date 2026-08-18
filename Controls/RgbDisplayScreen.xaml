@@ -79,7 +79,7 @@
                                          on a 7" panel the old 11pt secondary text was unreadable
                                          (client round 20, item 4). -->
                                     <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                        <TextBlock Text="{Binding Name}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="21" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                                        <TextBlock Text="{Binding DisplayName}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" FontSize="21" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
                                         <TextBlock Text="{Binding Type}" Foreground="{Binding DataContext.Theme.ForegroundColor, RelativeSource={RelativeSource AncestorType=Window}, FallbackValue='#FFFFFF'}" Opacity="0.6" FontSize="14" FontWeight="SemiBold" Margin="0,3,0,0"/>
                                     </StackPanel>
                                     <!-- Effect chip on the SAME line as the name, right-aligned, so one
