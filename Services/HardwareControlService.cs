@@ -61,6 +61,13 @@ public class HardwareControlService : IDisposable
             IsNetworkEnabled = true,
             IsBatteryEnabled = true
         };
+        // Free the LPC/ISA bus BEFORE opening: a resident WinRing0 (registered by our own
+        // bundled OpenRGB) holds that access, and LibreHardwareMonitor then reports
+        // SubHardware=0 — no Super I/O, no case fans at all, even with PawnIO installed.
+        // Confirmed on the client's PC, where the app itself reported WinRing0_1_2_0 and
+        // WinRing0x64 present (client round 23, items 1 and 3).
+        ReleaseConflictingBusDrivers("startup");
+
         try
         {
             // PawnIO availability is checked at app startup by
@@ -468,6 +475,66 @@ public class HardwareControlService : IDisposable
     /// <summary>Kernel-enforced cleanup: any OpenRGB we start dies when this process does,
     /// even on a crash or force-kill.</summary>
     private readonly ChildProcessJob _openRgbJob = new();
+
+    /// <summary>
+    /// Bus drivers that take exclusive low-level port access and therefore block the Super I/O
+    /// read. Our bundled OpenRGB registers WinRing0 itself, so the app was installing the very
+    /// driver that broke its own fan detection.
+    /// </summary>
+    private static readonly string[] ConflictingBusServices =
+    {
+        "WinRing0_1_2_0", "WinRing0x64", "WinRing0"
+    };
+
+    /// <summary>
+    /// Stops and deregisters any resident WinRing0 service so the LPC/ISA bus is free for
+    /// PawnIO. Called before LibreHardwareMonitor opens and again on shutdown, so the driver
+    /// cannot linger and break the NEXT run either. Best-effort: failures are logged, never
+    /// thrown — losing fan detection is bad, but crashing startup is worse.
+    /// </summary>
+    public void ReleaseConflictingBusDrivers(string reason)
+    {
+        foreach (var service in ConflictingBusServices)
+        {
+            if (!BusServiceExists(service)) continue;
+
+            Log($"[Driver] '{service}' is registered and can block motherboard fan access — removing ({reason}).");
+            RunServiceCommand($"stop {service}");
+            RunServiceCommand($"delete {service}");
+            Log($"[Driver] '{service}' {(BusServiceExists(service) ? "could NOT be removed" : "removed")}.");
+        }
+    }
+
+    private static bool BusServiceExists(string serviceName)
+    {
+        try
+        {
+            using var key = Microsoft.Win32.Registry.LocalMachine
+                .OpenSubKey($@"SYSTEM\CurrentControlSet\Services\{serviceName}");
+            return key != null;
+        }
+        catch { return false; }
+    }
+
+    private void RunServiceCommand(string arguments)
+    {
+        try
+        {
+            var psi = new System.Diagnostics.ProcessStartInfo("sc.exe", arguments)
+            {
+                UseShellExecute = false,
+                CreateNoWindow = true,
+                RedirectStandardOutput = true,
+                RedirectStandardError = true
+            };
+            using var proc = System.Diagnostics.Process.Start(psi);
+            proc?.WaitForExit(4000);
+        }
+        catch (Exception ex)
+        {
+            Log($"[Driver] sc.exe {arguments} failed: {ex.Message}");
+        }
+    }
 
     public void EnsureOpenRgbRunningAsAdmin()
     {
@@ -931,7 +998,13 @@ public class HardwareControlService : IDisposable
     /// sweeping the SMBus for as long as the machine is on, which the client experienced as
     /// heavy system-wide load "even when the app is not running" (client round 20, item 8).
     /// </summary>
-    public void ShutdownOpenRgbServer() => StopOpenRgbServer();
+    public void ShutdownOpenRgbServer()
+    {
+        StopOpenRgbServer();
+        // OpenRGB leaves WinRing0 registered behind it. Clear it here as well as at startup, so
+        // a machine that never reopens this app is not left with the bus held (round 23).
+        ReleaseConflictingBusDrivers("shutdown");
+    }
 
     private void StopOpenRgbServer()
     {
