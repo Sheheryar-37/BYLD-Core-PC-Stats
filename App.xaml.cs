@@ -225,6 +225,15 @@ public partial class App : Application
         try { AppLogging.SetEnabled(_host.Services.GetRequiredService<IThemeService>().CurrentTheme.LoggingEnabled || AppLogging.OverrideActive()); }
         catch { /* first run / theme unavailable: logging stays off unless overridden */ }
 
+        // Apply the memory/motherboard (SMBus) lighting preference before anything can start
+        // the OpenRGB server, so its low-level bus driver is only reachable when opted in.
+        try
+        {
+            _host.Services.GetRequiredService<HardwareControlService>().EnableSmbusLighting =
+                _host.Services.GetRequiredService<IThemeService>().CurrentTheme.EnableSmbusLighting;
+        }
+        catch { /* first run: stays off, which is the clean default */ }
+
         // Ensure the PawnIO driver is present BEFORE the host starts so that
         // LibreHardwareMonitor can read CPU temperature/clock (MSR) and the
         // motherboard Super I/O (case fans, VRM/chipset temps) on first run.

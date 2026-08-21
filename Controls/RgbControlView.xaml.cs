@@ -29,7 +29,12 @@ public partial class RgbControlView : UserControl
         string hex = $"#{vm.MasterColor.R:X2}{vm.MasterColor.G:X2}{vm.MasterColor.B:X2}";
         string endHex = $"#{vm.MasterEndColor.R:X2}{vm.MasterEndColor.G:X2}{vm.MasterEndColor.B:X2}";
 
-        var picker = new ColorPickerWindow(hex, vm.MasterIsGradient, endHex);
+        // Owner MUST be set. Settings is itself shown modally, so an UNOWNED dialog can open
+        // behind it (and on a multi-monitor setup, on the wrong screen). The app then looks
+        // frozen, nothing is confirmed and nothing reaches the hardware — which is why the
+        // client's second colour "did nothing" and never produced a single log line, across
+        // several rounds (client round 24, item 4). The fan picker always set Owner; these did not.
+        var picker = NewPicker(hex, vm.MasterIsGradient, endHex);
         if (picker.ShowDialog() != true) return;
 
         var newColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.SelectedHex);
@@ -45,7 +50,7 @@ public partial class RgbControlView : UserControl
             string hex = $"#{zone.SelectedColor.R:X2}{zone.SelectedColor.G:X2}{zone.SelectedColor.B:X2}";
             string endHex = $"#{zone.GradientEndColor.R:X2}{zone.GradientEndColor.G:X2}{zone.GradientEndColor.B:X2}";
             
-            var picker = new ColorPickerWindow(hex, zone.IsGradient, endHex);
+            var picker = NewPicker(hex, zone.IsGradient, endHex);
             if (picker.ShowDialog() == true)
             {
                 var newColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.SelectedHex);
@@ -89,6 +94,23 @@ public partial class RgbControlView : UserControl
     }
 
     private RgbControlViewModel? ViewModel => DataContext as RgbControlViewModel;
+
+    /// <summary>
+    /// Creates the colour picker correctly parented to the window hosting this view, and centred
+    /// on it. Without an Owner the dialog is not tied to the modal Settings window and can open
+    /// behind it or on another monitor, leaving the user with an apparently dead UI.
+    /// </summary>
+    private ColorPickerWindow NewPicker(string hex, bool isGradient, string endHex)
+    {
+        var owner = System.Windows.Window.GetWindow(this);
+        var picker = new ColorPickerWindow(hex, isGradient, endHex);
+        if (owner != null)
+        {
+            picker.Owner = owner;
+            picker.WindowStartupLocation = System.Windows.WindowStartupLocation.CenterOwner;
+        }
+        return picker;
+    }
 
     // ── Device rename (round 22, item 5) ────────────────────────────────────
 

@@ -96,7 +96,10 @@
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
                         <Border x:Name="Border" Background="{TemplateBinding Background}" BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}" CornerRadius="6">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            <!-- Margin bound to Padding: without this the style's Padding setter was
+                                 silently ignored and the label sat hard against the border on EVERY
+                                 button using this style (client round 24, item 3). -->
+                            <ContentPresenter Margin="{TemplateBinding Padding}" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                         <ControlTemplate.Triggers>
                             <Trigger Property="IsMouseOver" Value="True">
@@ -437,6 +440,20 @@
                                             <ColumnDefinition Width="Auto"/>
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
+                                            <TextBlock Text="Memory &amp; Motherboard Lighting" FontSize="12"/>
+                                            <TextBlock Text="Needed to control RGB on memory modules and most motherboard headers. This uses a low-level hardware driver that competes with case-fan monitoring and stays active until the PC restarts, so it is off by default. Keyboards, mice and other USB lighting work either way. Restart the app after changing this."
+                                                       FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
+                                        </StackPanel>
+                                        <ToggleButton x:Name="TglSmbusLighting" Grid.Column="1" Style="{StaticResource AppearanceToggleStyle}"
+                                                      VerticalAlignment="Center" IsChecked="False" Click="SmbusLightingToggle_Click"/>
+                                    </Grid>
+
+                                    <Grid Margin="0,12,0,0">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="*"/>
+                                            <ColumnDefinition Width="Auto"/>
+                                        </Grid.ColumnDefinitions>
+                                        <StackPanel>
                                             <TextBlock Text="Widget Theme (7&quot; display)" FontSize="12"/>
                                             <TextBlock Text="Colors for the clock and widgets on the case screen. 'Follow settings theme' matches the Settings Theme above." FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
                                         </StackPanel>
@@ -651,8 +668,10 @@
                                     </Button>
                                 </Grid>
 
+                                <!-- No fixed Height/Padding override: let the style's own 12,6 padding
+                                     size the button now that the template honours it. -->
                                 <Button Content="Reset to theme default" Click="BtnResetUiColors_Click"
-                                        HorizontalAlignment="Left" Style="{StaticResource ModernButtonStyle}" Height="28" Padding="14,0"/>
+                                        HorizontalAlignment="Left" Style="{StaticResource ModernButtonStyle}" Margin="0,4,0,0"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>

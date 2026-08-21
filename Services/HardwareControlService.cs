@@ -536,6 +536,48 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    /// <summary>
+    /// Whether memory/motherboard (SMBus) lighting is allowed. Set from the saved theme at
+    /// startup. When false the WinRing0 driver OpenRGB needs for SMBus is kept out of reach, so
+    /// no low-level bus driver is ever loaded (client round 24, item 1).
+    /// </summary>
+    public bool EnableSmbusLighting { get; set; }
+
+    private const string WinRing0SysName = "WinRing0x64.sys";
+    private const string WinRing0DisabledSuffix = ".disabled";
+
+    /// <summary>
+    /// Enables or disables OpenRGB's SMBus capability by making its WinRing0 driver file
+    /// available or unavailable before the server starts. Renaming is used rather than deleting
+    /// so the choice is reversible without a reinstall. USB lighting is unaffected.
+    /// </summary>
+    private void ApplySmbusLightingPreference(string openRgbDirectory)
+    {
+        try
+        {
+            string active = System.IO.Path.Combine(openRgbDirectory, WinRing0SysName);
+            string parked = active + WinRing0DisabledSuffix;
+
+            if (EnableSmbusLighting && System.IO.File.Exists(parked) && !System.IO.File.Exists(active))
+            {
+                System.IO.File.Move(parked, active);
+                Log("[RGB] Memory/motherboard lighting ENABLED — WinRing0 restored for OpenRGB.");
+            }
+            else if (!EnableSmbusLighting && System.IO.File.Exists(active))
+            {
+                if (System.IO.File.Exists(parked)) System.IO.File.Delete(parked);
+                System.IO.File.Move(active, parked);
+                Log("[RGB] Memory/motherboard lighting OFF — WinRing0 parked so no low-level " +
+                    "bus driver is loaded. USB lighting is unaffected.");
+            }
+        }
+        catch (Exception ex)
+        {
+            // Never block RGB startup over this; worst case the previous state persists.
+            Log($"[RGB] Could not apply the SMBus lighting preference: {ex.Message}");
+        }
+    }
+
     public void EnsureOpenRgbRunningAsAdmin()
     {
         try
@@ -562,13 +604,18 @@ public class HardwareControlService : IDisposable
                 // lets us put it in the kill-on-close job below. Started via the shell it was
                 // detached, and a crash or force-kill left it running for the rest of the
                 // machine's uptime, sweeping the SMBus (client round 20, item 8).
+                string openRgbDir = System.IO.Path.GetDirectoryName(openRgbPath) ?? string.Empty;
+
+                // Decide BEFORE launch whether OpenRGB can load its low-level bus driver.
+                ApplySmbusLightingPreference(openRgbDir);
+
                 var psi = new System.Diagnostics.ProcessStartInfo
                 {
                     FileName = openRgbPath,
                     Arguments = "--server",
                     UseShellExecute = false,
                     CreateNoWindow = true,
-                    WorkingDirectory = System.IO.Path.GetDirectoryName(openRgbPath) ?? string.Empty
+                    WorkingDirectory = openRgbDir
                 };
 
                 var child = System.Diagnostics.Process.Start(psi);

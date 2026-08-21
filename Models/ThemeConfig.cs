@@ -110,6 +110,16 @@ public class ThemeConfig
     /// appears to ignore them (for users with a driver-side workaround enabled).</summary>
     public bool ForceFanControlOverride { get; set; } = false;
 
+    /// <summary>
+    /// Enables lighting on devices reached over the SMBus — memory modules and most motherboard
+    /// headers. Those need OpenRGB's WinRing0 kernel driver, which takes exclusive low-level bus
+    /// access: it competes with motherboard fan monitoring and stays resident until the PC
+    /// restarts, which the client experienced as background load lasting beyond app exit.
+    /// OFF by default so a standard install stays clean; USB lighting (keyboards, mice) is
+    /// unaffected either way (client round 24, item 1).
+    /// </summary>
+    public bool EnableSmbusLighting { get; set; } = false;
+
     /// <summary>Whether the user last left "Let BYLD Core control my fans" ON. Persisted so the
     /// choice is remembered across restarts (client round 18, item 11). The safety net is kept:
     /// fans are still released to the BIOS on exit/crash, and this only re-applies the curves on

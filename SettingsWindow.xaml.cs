@@ -166,6 +166,27 @@ public partial class SettingsWindow : Window
         AppLogging.SetEnabled(theme.LoggingEnabled);
     }
 
+    /// <summary>
+    /// Opt in/out of memory + motherboard (SMBus) lighting. The underlying driver is only made
+    /// available to OpenRGB on the next launch, so the change takes effect after a restart —
+    /// swapping it under a running server would leave the lighting half-initialised.
+    /// </summary>
+    private void SmbusLightingToggle_Click(object sender, RoutedEventArgs e)
+    {
+        if (_isInitializing) return;
+
+        var theme = _themeService.CurrentTheme;
+        theme.EnableSmbusLighting = TglSmbusLighting.IsChecked == true;
+        _themeService.SaveTheme();
+        _hwControl.EnableSmbusLighting = theme.EnableSmbusLighting;
+
+        PcStatsMonitor.Controls.GlassMessageBox.ShowDialog(this,
+            theme.EnableSmbusLighting
+                ? "Memory and motherboard lighting will be enabled the next time BYLD Core starts.\n\nThis uses a low-level hardware driver, so case-fan monitoring may be affected while it is on."
+                : "Memory and motherboard lighting will be turned off the next time BYLD Core starts.\n\nKeyboard, mouse and other USB lighting are unaffected.",
+            "Restart Required");
+    }
+
     /// <summary>Persists the settings-window theme (Dark / Light / System) and re-skins the window.</summary>
     private void CmbUiTheme_SelectionChanged(object sender, System.Windows.Controls.SelectionChangedEventArgs e)
     {
@@ -425,6 +446,7 @@ public partial class SettingsWindow : Window
         };
         TglLiquidGlass.IsChecked = theme.LiquidGlassEnabled;
         TglLogging.IsChecked = theme.LoggingEnabled;
+        TglSmbusLighting.IsChecked = theme.EnableSmbusLighting;
         CmbWidgetTheme.SelectedIndex = theme.WidgetTheme?.ToLowerInvariant() switch
         {
             "light"  => 1,
