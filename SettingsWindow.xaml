@@ -434,19 +434,9 @@
                                                       VerticalAlignment="Center" IsChecked="False" Click="LoggingToggle_Click"/>
                                     </Grid>
 
-                                    <Grid Margin="0,12,0,0">
-                                        <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="*"/>
-                                            <ColumnDefinition Width="Auto"/>
-                                        </Grid.ColumnDefinitions>
-                                        <StackPanel>
-                                            <TextBlock Text="Memory &amp; Motherboard Lighting" FontSize="12"/>
-                                            <TextBlock Text="Needed to control RGB on memory modules and most motherboard headers. This uses a low-level hardware driver that competes with case-fan monitoring and stays active until the PC restarts, so it is off by default. Keyboards, mice and other USB lighting work either way. Restart the app after changing this."
-                                                       FontSize="10" Opacity="0.5" TextWrapping="Wrap" Margin="0,2,0,0"/>
-                                        </StackPanel>
-                                        <ToggleButton x:Name="TglSmbusLighting" Grid.Column="1" Style="{StaticResource AppearanceToggleStyle}"
-                                                      VerticalAlignment="Center" IsChecked="False" Click="SmbusLightingToggle_Click"/>
-                                    </Grid>
+                                    <!-- The "Memory & Motherboard Lighting" toggle was removed: with it off
+                                         that lighting simply did not work, and core features should not be
+                                         switchable off (client round 25, items 3 and 5). It is now always on. -->
 
                                     <Grid Margin="0,12,0,0">
                                         <Grid.ColumnDefinitions>

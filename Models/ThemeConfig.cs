@@ -115,10 +115,12 @@ public class ThemeConfig
     /// headers. Those need OpenRGB's WinRing0 kernel driver, which takes exclusive low-level bus
     /// access: it competes with motherboard fan monitoring and stays resident until the PC
     /// restarts, which the client experienced as background load lasting beyond app exit.
-    /// OFF by default so a standard install stays clean; USB lighting (keyboards, mice) is
-    /// unaffected either way (client round 24, item 1).
+    /// Now ON by default and no longer exposed as a user setting: with it off, memory and
+    /// motherboard lighting simply did not work, which read as "RGB control didn't work at all",
+    /// and the client did not want core features switchable off at all (client round 25, items
+    /// 3 and 5). Kept as a config value so it can still be turned off by hand for diagnosis.
     /// </summary>
-    public bool EnableSmbusLighting { get; set; } = false;
+    public bool EnableSmbusLighting { get; set; } = true;
 
     /// <summary>Whether the user last left "Let BYLD Core control my fans" ON. Persisted so the
     /// choice is remembered across restarts (client round 18, item 11). The safety net is kept:

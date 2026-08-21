@@ -124,20 +124,39 @@ public static class PawnIoDriverService
             return false;
         }
 
-        return RunSetup(setupPath, logger);
+        if (RunSetup(setupPath, "-install -silent", logger)) return true;
+
+        // Exit code 183 is ERROR_ALREADY_EXISTS: the setup believes PawnIO is already installed
+        // while the driver is NOT actually usable — the state left behind when the service was
+        // removed but PawnIO's own files remain (e.g. after a manual cleanup). A plain re-install
+        // refuses forever, so the prompt reappeared on every launch no matter what the user did
+        // (client round 25, item 4). Uninstall first, then install, to repair it automatically.
+        if (_lastSetupExitCode != ErrorAlreadyExists) return false;
+
+        logger.LogWarning("[Driver] PawnIO reports as already installed but is not usable — " +
+            "repairing with a clean uninstall/reinstall…");
+        RunSetup(setupPath, "-uninstall -silent", logger);
+        System.Threading.Thread.Sleep(2000);
+        return RunSetup(setupPath, "-install -silent", logger);
     }
+
+    /// <summary>Windows ERROR_ALREADY_EXISTS — PawnIO's setup returns this when it thinks the
+    /// driver is already present.</summary>
+    private const int ErrorAlreadyExists = 183;
+
+    private static int _lastSetupExitCode;
 
     /// <summary>
     /// Runs the PawnIO installer unattended. PawnIO_setup.exe uses its own CLI
     /// ("-install -silent"), not Inno flags. The app already holds Administrator,
     /// which the driver install requires.
     /// </summary>
-    private static bool RunSetup(string setupPath, ILogger logger)
+    private static bool RunSetup(string setupPath, string arguments, ILogger logger)
     {
         var psi = new ProcessStartInfo
         {
             FileName        = setupPath,
-            Arguments       = "-install -silent",
+            Arguments       = arguments,
             UseShellExecute = false,
             CreateNoWindow  = true
         };
@@ -153,6 +172,7 @@ public static class PawnIoDriverService
     private static bool ReportSetupExit(Process proc, ILogger logger)
     {
         int code = proc.ExitCode;
+        _lastSetupExitCode = code;
         logger.LogInformation("[Driver] PawnIO_setup.exe exited with code {c}.", code);
         return code == 0;
     }
