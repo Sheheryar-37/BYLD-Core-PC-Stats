@@ -50,13 +50,13 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
 
-; NO [Tasks] SECTION ON PURPOSE.
-; The task checkbox rendered clipped/undersized on the client's 5120x2880 @ 200% display
-; across five rounds and BOTH compilers (7.0-preview and stable 6.7.3), with and without
-; WizardSizePercent. It is an Inno rendering issue at that scale that the script cannot
-; reach. Rather than keep shipping a visibly broken control, the desktop shortcut is simply
-; created for everyone (see [Icons]) and there is no task page at all.
-; DisableReadyPage below also removes the summary page, so the wizard has no checkboxes.
+[Tasks]
+; KEEP THIS. The client confirmed "Installer scales perfectly now!" on the first build
+; compiled with the STABLE Inno Setup 6.7.3 toolchain and this exact section, on his
+; 5120x2880 @ 200% display. The clipping reports came from builds made with the 7.0-preview
+; compiler and/or WizardSizePercent set — not from this checkbox itself. Do not remove it;
+; build with 6.7.3 (see the note above) and it renders correctly.
+Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
 ; Main application files
@@ -85,8 +85,7 @@ Type: files; Name: "{app}\WinRing0x64.sys"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-; Created unconditionally — there is no task checkbox to opt out with any more (see [Tasks] note).
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
 
 [Run]
 ; Install the PawnIO driver silently BEFORE the app first launches. PawnIO is the
