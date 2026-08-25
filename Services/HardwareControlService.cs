@@ -388,7 +388,7 @@ public class HardwareControlService : IDisposable
             {
                 try
                 {
-                    var devices = _rgbClient.GetAllControllerData();
+                    var devices = _rgbClient!.GetAllControllerData();
                     Log($"[RGB] Total RGB devices detected: {devices.Length}");
                     for (int i = 0; i < devices.Length; i++)
                     {
@@ -737,6 +737,48 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    /// <summary>How long a lighting command waits for the client before declaring it stuck.</summary>
+    private static readonly TimeSpan RgbLockTimeout = TimeSpan.FromSeconds(8);
+
+    /// <summary>
+    /// Runs a lighting command against the OpenRGB client, but never waits on it forever.
+    ///
+    /// The OpenRGB writes are blocking socket calls made while holding <see cref="_rgbClientLock"/>.
+    /// If the server stalls mid-write, that thread stays stuck HOLDING the lock, so every later
+    /// command blocks behind it — silently, because the logging lives inside the command. That is
+    /// why exactly one batch of colours applied per session and everything afterwards did nothing
+    /// with no error: the picker still returned and the choice was still saved (which is why the
+    /// right colour appeared after a restart), but the write never ran (client round 26).
+    ///
+    /// On timeout the connection is reset so the NEXT command reconnects and works.
+    /// </summary>
+    private bool TryWithRgbClient(string description, Action action)
+    {
+        if (!System.Threading.Monitor.TryEnter(_rgbClientLock, RgbLockTimeout))
+        {
+            Log($"[RGB→] '{description}' could not start — a previous lighting command is stuck. " +
+                "Resetting the connection so this and later commands can run.");
+            ResetStalledRgbConnection();
+            return false;
+        }
+
+        try { action(); return true; }
+        finally { System.Threading.Monitor.Exit(_rgbClientLock); }
+    }
+
+    /// <summary>
+    /// Drops the wedged client WITHOUT taking the lock — the stuck thread still holds it.
+    /// Disposing the client makes that blocked socket call fail out and release the lock, and
+    /// clearing the flag makes the next write re-establish a fresh connection.
+    /// </summary>
+    private void ResetStalledRgbConnection()
+    {
+        _isConnectedToRgb = false;
+        try { _rgbClient?.Dispose(); }
+        catch { /* already dead — that is the point */ }
+        _rgbClient = null;
+    }
+
     // ── Device metadata cache ───────────────────────────────────────────────
     // Zone LED counts and mode lists come from here instead of a blocking
     // GetControllerData round-trip before every write.
@@ -837,10 +879,10 @@ public class HardwareControlService : IDisposable
         try
         {
             var device = GetCachedDevice(deviceId);
-            uint ledCount;
-            string deviceName;
-            string zoneName;
-            lock (_rgbClientLock)
+            uint ledCount = 0;
+            string deviceName = "?";
+            string zoneName = "?";
+            if (!TryWithRgbClient($"zone write dev={deviceId} zone={zoneId}", () =>
             {
                 device ??= _rgbClient!.GetControllerData(deviceId);
                 var zone = device.Zones[zoneId];
@@ -849,12 +891,12 @@ public class HardwareControlService : IDisposable
                 zoneName = zone.Name;
                 var leds = Enumerable.Repeat(color, (int)ledCount).ToArray();
                 WriteZoneLedsReliably(deviceId, zoneId, leds);
-            }
+            })) return;
             // NB: the mode here comes from the CACHED device snapshot taken at the last device
             // scan, not a live read — labelled accordingly so it is not misread as the device's
             // current mode (that misreading caused a wrong DRAM diagnosis in round 18).
             Log($"[RGB→] '{deviceName}' zone '{zoneName}': wrote {ledCount} LEDs = {Hex(color)} " +
-                $"(mode at last scan: {ActiveModeName(device)})");
+                $"(mode at last scan: {(device == null ? "?" : ActiveModeName(device))})");
         }
         catch (Exception ex)
         {
@@ -893,10 +935,8 @@ public class HardwareControlService : IDisposable
         if (!EnsureRgbConnectedForWrite()) return;
         try
         {
-            lock (_rgbClientLock)
-            {
-                WriteZoneLedsReliably(deviceId, zoneId, colors);
-            }
+            if (!TryWithRgbClient($"gradient write dev={deviceId} zone={zoneId}",
+                    () => WriteZoneLedsReliably(deviceId, zoneId, colors))) return;
             Log($"[RGB→] dev={deviceId} zone={zoneId}: wrote {colors.Length} LEDs gradient {Hex(colors[0])} → {Hex(colors[^1])}");
         }
         catch (Exception ex)
@@ -946,10 +986,10 @@ public class HardwareControlService : IDisposable
     private void ApplyRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
     {
         var device = GetCachedDevice(deviceId);
-        lock (_rgbClientLock)
-        {
-            device ??= _rgbClient!.GetControllerData(deviceId);
-        }
+        if (device == null &&
+            !TryWithRgbClient($"read device {deviceId}", () => device = _rgbClient!.GetControllerData(deviceId)))
+            return;
+        if (device == null) return;
 
         var modeIndex = Array.FindIndex(device.Modes, m => m.Name.Equals(effectName, StringComparison.OrdinalIgnoreCase));
         if (modeIndex < 0)
@@ -961,7 +1001,7 @@ public class HardwareControlService : IDisposable
 
         var mode = device.Modes[modeIndex];
         var modeColors = BuildModeColors(mode, color);
-        lock (_rgbClientLock)
+        if (!TryWithRgbClient($"mode switch dev={deviceId} '{mode.Name}'", () =>
         {
             // Only force Custom Mode if we are switching to direct LED control
             if (mode.Name.Contains("Direct", StringComparison.OrdinalIgnoreCase) ||
@@ -971,7 +1011,8 @@ public class HardwareControlService : IDisposable
             }
 
             _rgbClient!.UpdateMode(deviceId, modeIndex, colors: modeColors);
-        }
+        })) return;
+
         Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
             $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
 
@@ -988,11 +1029,10 @@ public class HardwareControlService : IDisposable
     {
         try
         {
-            OpenRGB.NET.Device fresh;
-            lock (_rgbClientLock)
-            {
-                fresh = _rgbClient!.GetControllerData(deviceId);
-            }
+            OpenRGB.NET.Device? fresh = null;
+            if (!TryWithRgbClient($"mode read-back dev={deviceId}",
+                    () => fresh = _rgbClient!.GetControllerData(deviceId)) || fresh == null)
+                return;
 
             // Refresh the cache too, so later log lines stop reporting a stale mode.
             var cache = _rgbDeviceCache;
