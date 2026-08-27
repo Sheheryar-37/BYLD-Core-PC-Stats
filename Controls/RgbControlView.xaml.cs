@@ -24,7 +24,13 @@ public partial class RgbControlView : UserControl
     /// </summary>
     private void ExecuteApplyAllColor()
     {
-        if (DataContext is not RgbControlViewModel vm) return;
+        if (DataContext is not RgbControlViewModel vm)
+        {
+            ViewModel?.LogUi("[UI] Apply-to-all pressed but the RGB view-model was not available.");
+            return;
+        }
+
+        vm.LogUi("[UI] Apply-to-all pressed — opening the colour picker…");
 
         string hex = $"#{vm.MasterColor.R:X2}{vm.MasterColor.G:X2}{vm.MasterColor.B:X2}";
         string endHex = $"#{vm.MasterEndColor.R:X2}{vm.MasterEndColor.G:X2}{vm.MasterEndColor.B:X2}";
@@ -35,10 +41,26 @@ public partial class RgbControlView : UserControl
         // client's second colour "did nothing" and never produced a single log line, across
         // several rounds (client round 24, item 4). The fan picker always set Owner; these did not.
         var picker = NewPicker(hex, vm.MasterIsGradient, endHex);
-        if (picker.ShowDialog() != true) return;
+        bool? result;
+        try
+        {
+            result = picker.ShowDialog();
+        }
+        catch (Exception ex)
+        {
+            // A dialog that cannot be shown would otherwise fail invisibly and look like
+            // "the button does nothing".
+            vm.LogUi($"[UI] Colour picker FAILED to open: {ex.GetType().Name}: {ex.Message}");
+            throw;
+        }
+
+        vm.LogUi($"[UI] Colour picker closed with result={(result == true ? "SELECT" : "cancel/closed")}" +
+                 (result == true ? $", colour={picker.SelectedHex}" : ""));
+        if (result != true) return;
 
         var newColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.SelectedHex);
         var endColor = (System.Windows.Media.Color)System.Windows.Media.ColorConverter.ConvertFromString(picker.GradientEndHex);
+        vm.LogUi($"[UI] Applying {picker.SelectedHex} to all {vm.Devices.Count} device(s)…");
         vm.ApplyColorToAllZones(newColor, picker.IsGradient, endColor);
     }
 

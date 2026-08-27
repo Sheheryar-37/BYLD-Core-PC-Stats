@@ -400,10 +400,15 @@ public class RgbControlViewModel : ViewModelBase
             SetProperty(ref _selectedCommonMode, value);
             if (value == null) return;
 
-            foreach (var device in Devices)
-            {
-                if (device.Modes.Contains(value)) device.ApplyModeToHardware(value);
-            }
+            // No effect command has EVER appeared in the client's logs. Record the selection at
+            // the point it is made, so the next logs show whether the UI raised it at all and
+            // which devices accepted it (client round 27).
+            var supported = Devices.Where(d => d.Modes.Contains(value)).ToList();
+            LogUi($"[UI] Apply-to-all EFFECT '{value}' selected — {supported.Count} of {Devices.Count} " +
+                  $"device(s) support it: {string.Join(", ", supported.Select(d => d.Name))}");
+
+            foreach (var device in supported)
+                device.ApplyModeToHardware(value);
         }
     }
 
@@ -566,6 +571,10 @@ public class RgbControlViewModel : ViewModelBase
     /// order (client round 18, items 9 and 13). Kept separate from <see cref="Devices"/> so RGB
     /// Control still lists every device even when some are hidden from the 7" display.
     /// </summary>
+    /// <summary>Records a UI-level lighting event (button pressed, picker opened/closed) in the
+    /// hardware log, so a failure above the command layer is visible rather than inferred.</summary>
+    public void LogUi(string message) => _hardwareService?.LogUiEvent(message);
+
     public ObservableCollection<RgbDeviceViewModel> VisibleDevices { get; } = new();
 
     /// <summary>

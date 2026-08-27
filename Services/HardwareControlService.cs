@@ -25,6 +25,17 @@ public class HardwareControlService : IDisposable
     
     public static bool IsDemoMode { get; set; } = false;
 
+    /// <summary>
+    /// Writes a UI-level event to the same hardware log as the lighting commands.
+    ///
+    /// The RGB failure has repeatedly shown ONE successful batch followed by no further
+    /// commands being attempted at all — no stall, no dedupe, no dropped writes. Everything
+    /// below this point is already instrumented, so the remaining blind spot is the UI layer
+    /// itself: whether the button fires, whether the picker opens, and what it returns. This
+    /// makes that visible instead of inferred (client round 27).
+    /// </summary>
+    public void LogUiEvent(string message) => Log(message);
+
     private void Log(string message)
     {
         if (!AppLogging.Enabled) return;
