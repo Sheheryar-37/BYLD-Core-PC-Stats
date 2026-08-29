@@ -305,9 +305,26 @@ public class HardwareControlService : IDisposable
     // write captures the epoch at enqueue time and the worker discards it on a mismatch.
     private long _fanReleaseEpoch;
 
+    private readonly object _fanWorkerLock = new();
+
+    /// <summary>
+    /// Queues a fan write, restarting the consumer if it has stopped. Same single-start flaw as
+    /// the RGB worker had: once that task ended, fan writes would queue forever in silence
+    /// (client round 28).
+    /// </summary>
     private void EnqueueFanOp(Action op)
     {
-        _fanWorker ??= Task.Factory.StartNew(ProcessFanQueue, TaskCreationOptions.LongRunning);
+        lock (_fanWorkerLock)
+        {
+            if (_fanWorker is not { IsCompleted: false })
+            {
+                if (_fanWorker != null)
+                    Log($"[FAN→] The fan worker had stopped " +
+                        $"({_fanWorker.Exception?.GetBaseException().Message ?? "ended without an error"}) — restarting it.");
+                _fanWorker = Task.Factory.StartNew(ProcessFanQueue, TaskCreationOptions.LongRunning);
+            }
+        }
+
         if (!_fanQueue.IsAddingCompleted) _fanQueue.TryAdd(op);
     }
 
@@ -723,17 +740,63 @@ public class HardwareControlService : IDisposable
         new(boundedCapacity: 64);
     private Task? _rgbWorker;
 
+    private readonly object _rgbWorkerLock = new();
+
+    /// <summary>
+    /// Queues a lighting command and GUARANTEES a live consumer for it.
+    ///
+    /// This used to be "_rgbWorker ??= StartNew(...)", which starts the consumer exactly once
+    /// for the life of the process. If that task ever ended — returning normally or faulting —
+    /// the field stayed non-null, so no replacement was ever started and every later command was
+    /// queued and silently never executed. That is exactly what the client saw: the first batch
+    /// of colours applied perfectly, and every colour and effect afterwards did nothing, with no
+    /// error anywhere because the code that logs is the code that never ran (client round 28).
+    /// </summary>
     private void EnqueueRgbOp(string description, Action op)
     {
-        _rgbWorker ??= Task.Factory.StartNew(ProcessRgbQueue, TaskCreationOptions.LongRunning);
+        EnsureRgbWorkerAlive();
+
         if (!_rgbQueue.TryAdd(op))
             Log($"[RGB→] queue full — dropped: {description}");
+        else
+            Log($"[RGB→] queued: {description} (waiting: {_rgbQueue.Count})");
+    }
+
+    /// <summary>Starts the queue consumer, or replaces one that has stopped.</summary>
+    private void EnsureRgbWorkerAlive()
+    {
+        lock (_rgbWorkerLock)
+        {
+            if (_rgbWorker is { IsCompleted: false }) return;
+
+            if (_rgbWorker != null)
+            {
+                // It stopped. Say why, then replace it so lighting keeps working.
+                string reason = _rgbWorker.Exception?.GetBaseException().Message ?? "ended without an error";
+                Log($"[RGB→] The lighting worker had stopped ({reason}) — starting a new one so " +
+                    "queued commands are processed.");
+            }
+
+            _rgbWorker = Task.Factory.StartNew(ProcessRgbQueue, TaskCreationOptions.LongRunning);
+        }
     }
 
     private void ProcessRgbQueue()
     {
-        foreach (var op in _rgbQueue.GetConsumingEnumerable())
-            RunRgbOp(op);
+        // Anything escaping this loop kills the consumer, so record it rather than letting the
+        // lighting go quiet without explanation. EnsureRgbWorkerAlive will start a replacement.
+        try
+        {
+            foreach (var op in _rgbQueue.GetConsumingEnumerable())
+                RunRgbOp(op);
+
+            Log("[RGB→] Lighting worker exited: the queue was marked complete (app shutting down).");
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB→] Lighting worker STOPPED unexpectedly: {ex.GetType().Name}: {ex.Message}");
+            throw;
+        }
     }
 
     private void RunRgbOp(Action op)
