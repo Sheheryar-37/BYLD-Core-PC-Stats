@@ -752,14 +752,53 @@ public class HardwareControlService : IDisposable
     /// of colours applied perfectly, and every colour and effect afterwards did nothing, with no
     /// error anywhere because the code that logs is the code that never ran (client round 28).
     /// </summary>
+    /// <summary>When the consumer last finished a command — the heartbeat the watchdog checks.</summary>
+    private DateTime _lastRgbOpCompletedUtc = DateTime.UtcNow;
+
+    /// <summary>Queued work older than this with no command completing means the consumer is wedged.</summary>
+    private static readonly TimeSpan RgbStallTimeout = TimeSpan.FromSeconds(15);
+
     private void EnqueueRgbOp(string description, Action op)
     {
         EnsureRgbWorkerAlive();
+        RecoverIfRgbWorkerStalled();
 
         if (!_rgbQueue.TryAdd(op))
             Log($"[RGB→] queue full — dropped: {description}");
         else
             Log($"[RGB→] queued: {description} (waiting: {_rgbQueue.Count})");
+    }
+
+    /// <summary>
+    /// Detects a consumer that is ALIVE but no longer draining the queue, and replaces it.
+    ///
+    /// Bounding the lock acquisition was not enough: the consumer itself blocks inside the
+    /// OpenRGB socket call, so it never returns to take the next command and never reports as
+    /// completed — the queue just grows. The client's logs show exactly that: the first batch
+    /// drains, then the depth climbs 1..9..19 with nothing executing and no worker fault.
+    ///
+    /// A heartbeat is the only reliable signal here, because it does not depend on knowing where
+    /// the block is. Disposing the client makes the stuck socket call fail out, and a fresh
+    /// consumer drains whatever is queued.
+    /// </summary>
+    private void RecoverIfRgbWorkerStalled()
+    {
+        if (_rgbQueue.Count == 0) return;
+        if (DateTime.UtcNow - _lastRgbOpCompletedUtc < RgbStallTimeout) return;
+
+        lock (_rgbWorkerLock)
+        {
+            // Re-check inside the lock so two enqueues cannot both trigger a recovery.
+            if (DateTime.UtcNow - _lastRgbOpCompletedUtc < RgbStallTimeout) return;
+
+            Log($"[RGB→] Lighting has not responded for {RgbStallTimeout.TotalSeconds:F0}s with " +
+                $"{_rgbQueue.Count} command(s) waiting (worker state: {_rgbWorker?.Status.ToString() ?? "none"}). " +
+                "Dropping the stuck connection and starting a fresh worker.");
+
+            ResetStalledRgbConnection();     // unblocks the stuck socket call
+            _rgbWorker = Task.Factory.StartNew(ProcessRgbQueue, TaskCreationOptions.LongRunning);
+            _lastRgbOpCompletedUtc = DateTime.UtcNow;
+        }
     }
 
     /// <summary>Starts the queue consumer, or replaces one that has stopped.</summary>
@@ -808,6 +847,12 @@ public class HardwareControlService : IDisposable
         catch (Exception ex)
         {
             Log($"[RGB→] Worker operation failed: {ex.Message}");
+        }
+        finally
+        {
+            // Heartbeat for the stall watchdog — recorded even on failure, because a command that
+            // errors quickly is a live consumer, not a wedged one.
+            _lastRgbOpCompletedUtc = DateTime.UtcNow;
         }
     }
 
