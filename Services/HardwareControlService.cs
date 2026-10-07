@@ -496,6 +496,7 @@ public class HardwareControlService : IDisposable
                     Log($"[RGB] Total RGB devices detected: {devices.Length}");
                     WarnIfDeviceOrderChanged(devices);
                     _rgbDeviceCache = devices;   // writes size their LED arrays from this
+                    if (_reapplyAfterRestart) ReapplyLatestRgbStates();
                     for (int i = 0; i < devices.Length; i++)
                     {
                         var d = devices[i];
@@ -1139,6 +1140,7 @@ public class HardwareControlService : IDisposable
             Log($"  [RGB] PID={p.Id} — stopped answering; restarting OpenRGB to release the stuck device.");
 
         _restartOpenRgbOnReconnect = false;
+        _reapplyAfterRestart = true;
         _lastOpenRgbRestartUtc = DateTime.UtcNow;
         StopOpenRgbServer();
         System.Threading.Thread.Sleep(500);
@@ -1502,16 +1504,14 @@ public class HardwareControlService : IDisposable
     }
 
     /// <summary>
-    /// Writes a zone's LEDs, then writes them once more after a short pause. ENE DRAM
-    /// (the client's RGB RAM) is driven over SMBus and drops occasional LEDs on a single
-    /// write — he saw a colour change leave the top LEDs on their previous colour. A second
-    /// identical write catches the LEDs the first one missed. Caller already holds the RGB
-    /// client lock, and this runs on the RGB queue worker, so the pause never touches the UI.
+    /// Writes a zone's LEDs ONCE. This used to write every zone twice, 20 ms apart, to catch
+    /// DRAM LEDs a single write occasionally missed (round 14). That doubled the burst sent to
+    /// the motherboard's Polychrome USB controller, whose OpenRGB driver waits forever when the
+    /// board misses a request mid-burst — the root of "only the first colour works". Colour
+    /// changes now go through <see cref="ApplyRgbDeviceState"/> as one whole-device update.
     /// </summary>
     private void WriteZoneLedsReliably(int deviceId, int zoneId, OpenRGB.NET.Color[] leds)
     {
-        _rgbClient!.UpdateZoneLeds(deviceId, zoneId, leds);
-        System.Threading.Thread.Sleep(20);
         _rgbClient!.UpdateZoneLeds(deviceId, zoneId, leds);
     }
 
@@ -1544,6 +1544,181 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    // ── Device-level lighting state: ONE hardware update per device per change ──
+    //
+    // ROOT CAUSE of "only the first colour works" (client rounds 9-33, every OpenRGB version):
+    // OpenRGB's ASRock Polychrome USB driver waits for the board's reply with hid_read() and NO
+    // timeout, and sends its packets back-to-back with no delay. When the board's lighting chip
+    // misses a request in a burst, that OpenRGB thread waits forever. In OpenRGB 1.0rc2wr0 that
+    // stuck thread was the client's own (so only that connection went deaf); in 1.0 it is the
+    // device's worker thread, which holds the device lock, so EVERY later request that reads the
+    // device hangs on every connection (round 33). Our request/reply ordering in rounds 29-32
+    // pins it to the motherboard: its own mode switch in batch 1 was answered, and only its writes
+    // followed. OpenRGB issue #4133 reports the same Polychrome USB driver crashing on high LED
+    // counts; this board reports 80 LEDs per header.
+    //
+    // This app used to send far more than OpenRGB's own GUI per colour change: a mode switch,
+    // then every zone written separately and TWICE, 20 ms apart. Now each change is one request
+    // per device — the mode only if it actually changes, then all LEDs in a single update — paced
+    // between devices, and a newer request for a device supersedes one not yet sent.
+
+    /// <summary>Gap between hardware updates, so no controller receives a back-to-back burst.</summary>
+    private static readonly TimeSpan RgbDeviceSpacing = TimeSpan.FromMilliseconds(100);
+
+    private long _rgbRequestSequence;
+    private readonly Dictionary<int, long> _latestRgbRequest = new();
+
+    /// <summary>One device's most recently requested lighting state.</summary>
+    private sealed record RgbDeviceRequest(string ModeName, OpenRGB.NET.Color? ModeColor, OpenRGB.NET.Color[]? Leds);
+
+    /// <summary>
+    /// The latest state requested for every device, kept so it can be re-sent after OpenRGB is
+    /// restarted: a stuck OpenRGB loses whatever it had queued, and we cannot know which writes
+    /// it applied, so every device gets its latest state again.
+    /// </summary>
+    private readonly Dictionary<int, RgbDeviceRequest> _latestRgbState = new();
+
+    /// <summary>Set when OpenRGB has just been restarted; the next connect re-sends every device's state.</summary>
+    private volatile bool _reapplyAfterRestart;
+
+    /// <summary>
+    /// Sets a device's complete lighting state in ONE request: switches to
+    /// <paramref name="modeName"/> (skipped when the device is already in it and the mode carries
+    /// no colour) and, when <paramref name="leds"/> is given and the mode does not carry the colour
+    /// itself, writes every LED in a single update. A later request for the same device replaces
+    /// this one if it has not been sent yet, so rapid picks never queue up stale writes.
+    /// </summary>
+    /// <param name="deviceId">OpenRGB device index.</param>
+    /// <param name="modeName">Mode to put the device in (e.g. "Static", "Breathing").</param>
+    /// <param name="modeColor">Colour for modes that carry mode-specific colours.</param>
+    /// <param name="leds">Colour of every LED in device order, or null for an effect with no LED colours.</param>
+    public void ApplyRgbDeviceState(int deviceId, string modeName, OpenRGB.NET.Color? modeColor, OpenRGB.NET.Color[]? leds)
+    {
+        long ticket = System.Threading.Interlocked.Increment(ref _rgbRequestSequence);
+        lock (_latestRgbRequest)
+        {
+            _latestRgbRequest[deviceId] = ticket;
+            _latestRgbState[deviceId] = new RgbDeviceRequest(modeName, modeColor, leds);
+        }
+
+        string what = leds == null ? $"'{modeName}'" : $"'{modeName}' + {leds.Length} LEDs";
+        EnqueueRgbOp($"device state dev={deviceId} {what}",
+            () => RunRgbDeviceState(deviceId, ticket, modeName, modeColor, leds));
+    }
+
+    /// <summary>True when a newer request for this device has been queued since this one.</summary>
+    private bool IsSupersededRgbRequest(int deviceId, long ticket)
+    {
+        lock (_latestRgbRequest)
+            return _latestRgbRequest.TryGetValue(deviceId, out var latest) && latest != ticket;
+    }
+
+    private void RunRgbDeviceState(int deviceId, long ticket, string modeName,
+        OpenRGB.NET.Color? modeColor, OpenRGB.NET.Color[]? leds)
+    {
+        if (IsSupersededRgbRequest(deviceId, ticket))
+        {
+            Log($"[RGB→] dev={deviceId}: superseded by a newer change before it was sent — skipped.");
+            return;
+        }
+        if (!EnsureRgbConnectedForWrite()) return;
+        // Reconnecting may have restarted OpenRGB, which re-queues every device's latest state.
+        if (IsSupersededRgbRequest(deviceId, ticket)) return;
+
+        try
+        {
+            bool modeCarriedColour = ApplyRgbEffect(deviceId, modeName, modeColor);
+            bool wroteLeds = leds != null && (!modeCarriedColour || !IsUniform(leds));
+            if (wroteLeds) WriteDeviceLeds(deviceId, leds!);
+            ConfirmDeviceApplied(deviceId, wroteLeds ? leds : null);
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB→] Device update FAILED dev={deviceId} mode='{modeName}': {ex.Message}");
+            MarkRgbDeadIfTransportError(ex);
+            throw;   // RunRgbOp re-sends it once, on a fresh connection
+        }
+        finally
+        {
+            System.Threading.Thread.Sleep(RgbDeviceSpacing);
+        }
+    }
+
+    /// <summary>
+    /// Waits for OpenRGB to confirm the device has applied the change, by reading the device back.
+    ///
+    /// LED writes are send-only: they "succeed" the moment they reach the network buffer, even if
+    /// OpenRGB never applies them. In OpenRGB 1.0 each device's hardware work runs on its own
+    /// thread, so a device stuck in hardware I/O silently swallows every later write while the
+    /// other devices carry on — nothing on our side would ever notice. Reading the device waits
+    /// on that same device, so:
+    ///   • normally it returns as soon as the device has finished, which also paces the next
+    ///     device behind the real completion of this one, and logs a genuine "applied";
+    ///   • if the device is stuck, it never returns, and the stall watchdog restarts OpenRGB and
+    ///     re-sends every device's latest state.
+    /// </summary>
+    private void ConfirmDeviceApplied(int deviceId, OpenRGB.NET.Color[]? sentLeds)
+    {
+        OpenRGB.NET.Device? state = null;
+        if (!TryWithRgbClient($"confirm dev={deviceId}", () => state = _rgbClient!.GetControllerData(deviceId)) ||
+            state == null)
+            return;
+
+        var cache = _rgbDeviceCache;
+        if (deviceId >= 0 && deviceId < cache.Length) cache[deviceId] = state;
+
+        bool coloursMatch = sentLeds == null || SameColours(state.Colors, FitToDeviceLedCount(sentLeds, state));
+        Log($"[RGB✓] '{state.Name}': {(coloursMatch ? "applied" : "applied, but OpenRGB reports different colours")} " +
+            $"— mode '{ActiveModeName(state)}'.");
+    }
+
+    private static bool SameColours(OpenRGB.NET.Color[] a, OpenRGB.NET.Color[] b) =>
+        a.Length == b.Length && a.Zip(b).All(p => p.First.R == p.Second.R && p.First.G == p.Second.G && p.First.B == p.Second.B);
+
+    /// <summary>
+    /// After OpenRGB has been restarted, queues every device's latest requested state again.
+    /// The stuck instance lost whatever it had queued and we cannot know which writes it applied.
+    /// </summary>
+    private void ReapplyLatestRgbStates()
+    {
+        _reapplyAfterRestart = false;
+        List<KeyValuePair<int, RgbDeviceRequest>> states;
+        lock (_latestRgbRequest) states = _latestRgbState.ToList();
+        if (states.Count == 0) return;
+
+        Log($"[RGB→] Re-sending the latest state of {states.Count} device(s) to the restarted OpenRGB.");
+        foreach (var (deviceId, s) in states)
+            ApplyRgbDeviceState(deviceId, s.ModeName, s.ModeColor, s.Leds);
+    }
+
+    /// <summary>True when every LED has the same colour — i.e. no gradient to preserve.</summary>
+    private static bool IsUniform(OpenRGB.NET.Color[] leds) =>
+        leds.Length == 0 || leds.All(c => c.R == leds[0].R && c.G == leds[0].G && c.B == leds[0].B);
+
+    /// <summary>Writes every LED of a device in ONE update, sized to the device's real LED count.</summary>
+    private void WriteDeviceLeds(int deviceId, OpenRGB.NET.Color[] leds)
+    {
+        var device = GetCachedDevice(deviceId);
+        var sized = FitToDeviceLedCount(leds, device);
+        if (!TryWithRgbClient($"LED write dev={deviceId}", () => _rgbClient!.UpdateLeds(deviceId, sized)))
+            return;
+
+        MarkRgbConnectionWritten();
+        Log($"[RGB→] '{device?.Name ?? $"dev {deviceId}"}': wrote {sized.Length} LEDs in one update " +
+            $"({Hex(sized[0])}{(IsUniform(sized) ? "" : $" → {Hex(sized[^1])}")}).");
+    }
+
+    /// <summary>Pads (with the last colour) or trims the array to the device's LED count, which is
+    /// what the server expects for a whole-device update.</summary>
+    private static OpenRGB.NET.Color[] FitToDeviceLedCount(OpenRGB.NET.Color[] leds, OpenRGB.NET.Device? device)
+    {
+        int count = device?.Leds.Length ?? leds.Length;
+        if (count == leds.Length || leds.Length == 0) return leds;
+        var fitted = new OpenRGB.NET.Color[count];
+        for (int i = 0; i < count; i++) fitted[i] = leds[Math.Min(i, leds.Length - 1)];
+        return fitted;
+    }
+
     public void RequestRgbEffect(int deviceId, string effectName)
     {
         RequestRgbEffect(deviceId, effectName, null, force: true);
@@ -1564,55 +1739,43 @@ public class HardwareControlService : IDisposable
             return;
         }
 
-        EnqueueRgbOp($"mode switch dev={deviceId} '{effectName}'", () => RunRgbEffectSwitch(deviceId, effectName, color));
+        // Routed through the device-level path so a mode change and a colour change for the same
+        // device coalesce (latest wins) and share the pacing — see ApplyRgbDeviceState.
+        ApplyRgbDeviceState(deviceId, effectName, color, null);
     }
 
-    private void RunRgbEffectSwitch(int deviceId, string effectName, OpenRGB.NET.Color? color)
-    {
-        if (!EnsureRgbConnectedForWrite()) return;
-        try
-        {
-            ApplyRgbEffect(deviceId, effectName, color);
-        }
-        catch (Exception ex)
-        {
-            Log($"[RGB→] Mode switch FAILED dev={deviceId} mode='{effectName}': {ex.Message}");
-            MarkRgbDeadIfTransportError(ex);
-            // Rethrown so RunRgbOp's single retry re-sends it. Swallowing it here meant the retry
-            // never fired: in the client's round-32 log the cancelled Razer "Static" switch —
-            // the command that carries the keyboard's colour — was simply dropped.
-            throw;
-        }
-    }
-
-    private void ApplyRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
+    /// <summary>
+    /// Puts a device in <paramref name="effectName"/> unless it is already there and the mode
+    /// carries no colour. Returns true when the mode itself carries the colour (mode-specific
+    /// colour slots, e.g. the Razer's "Static"), in which case an LED write is unnecessary — and,
+    /// for some devices, would switch them back out of the stored mode.
+    /// </summary>
+    private bool ApplyRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
     {
         var device = GetCachedDevice(deviceId);
         if (device == null &&
             !TryWithRgbClient($"read device {deviceId}", () => device = _rgbClient!.GetControllerData(deviceId)))
-            return;
-        if (device == null) return;
+            return false;
+        if (device == null) return false;
 
         var modeIndex = Array.FindIndex(device.Modes, m => m.Name.Equals(effectName, StringComparison.OrdinalIgnoreCase));
         if (modeIndex < 0)
         {
             Log($"[RGB→] '{device.Name}': mode '{effectName}' NOT FOUND — device offers: " +
                 string.Join(", ", device.Modes.Select(m => m.Name)));
-            return;
+            return false;
         }
 
         var mode = device.Modes[modeIndex];
         var modeColors = BuildModeColors(mode, color);
         if (IsRedundantModeSwitch(deviceId, mode.Name, modeColors))
         {
-            Log($"[RGB→] '{device.Name}': already in '{mode.Name}' and this mode carries no " +
-                "colour — skipping the redundant switch; the zone write carries the colour.");
-            return;
+            Log($"[RGB→] '{device.Name}': already in '{mode.Name}' — no mode change needed.");
+            return false;
         }
 
         // UpdateMode is NOT fire-and-forget: OpenRGB.NET calls GetControllerData inside it and
-        // waits for the reply before sending the mode. It is the only reply-bearing call in an
-        // apply-to-all, and it is the call that hangs — see RefreshRgbConnectionIfQuietAfterWrites.
+        // waits for the reply before sending the mode — see RefreshRgbConnectionIfQuietAfterWrites.
         RefreshRgbConnectionIfQuietAfterWrites();
 
         if (!TryWithRgbClient($"mode switch dev={deviceId} '{mode.Name}'", () =>
@@ -1625,49 +1788,17 @@ public class HardwareControlService : IDisposable
             }
 
             _rgbClient!.UpdateMode(deviceId, modeIndex, colors: modeColors);
-        })) return;
+        })) return false;
 
         RememberAppliedMode(deviceId, mode.Name);
         MarkRgbConnectionWritten();
         Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
             $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
 
-        // The read-back is a diagnostic, and it costs a full GetControllerData round trip per
-        // device. During an apply-to-all that is four extra blocking reads over the SMBus in one
-        // burst — on this board the server stops answering partway through exactly such a burst.
-        // Skip it while commands are still waiting and take it when the queue is idle, so single
-        // changes still record whether the controller accepted the mode.
-        if (_rgbQueue.Count == 0)
-            LogModeReadback(deviceId, device.Name, mode.Name);
-    }
-
-    /// <summary>
-    /// Reads the device back LIVE after a mode switch and logs what it actually reports. Earlier
-    /// rounds guessed at DRAM behaviour from a cached snapshot and got it wrong; this records
-    /// whether the controller genuinely accepted the mode, so the next set of client logs is
-    /// evidence rather than inference.
-    /// </summary>
-    private void LogModeReadback(int deviceId, string deviceName, string requested)
-    {
-        try
-        {
-            OpenRGB.NET.Device? fresh = null;
-            if (!TryWithRgbClient($"mode read-back dev={deviceId}",
-                    () => fresh = _rgbClient!.GetControllerData(deviceId)) || fresh == null)
-                return;
-
-            // Refresh the cache too, so later log lines stop reporting a stale mode.
-            var cache = _rgbDeviceCache;
-            if (deviceId >= 0 && deviceId < cache.Length) cache[deviceId] = fresh;
-
-            string actual = ActiveModeName(fresh);
-            string verdict = actual.Equals(requested, StringComparison.OrdinalIgnoreCase) ? "ACCEPTED" : "REJECTED";
-            Log($"[RGB✓] '{deviceName}': requested '{requested}', device now reports '{actual}' — {verdict}");
-        }
-        catch (Exception ex)
-        {
-            Log($"[RGB✓] '{deviceName}': mode read-back failed: {ex.Message}");
-        }
+        // No live read-back here any more. It was a reply-bearing GetControllerData per device,
+        // and in OpenRGB 1.0 that waits on the device's worker thread — exactly the thread that
+        // gets stuck. It had done its job: every round's logs showed the modes ACCEPTED.
+        return modeColors != null;
     }
 
     /// <summary>

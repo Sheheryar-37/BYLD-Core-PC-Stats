@@ -60,10 +60,9 @@ public class RgbZoneViewModel : ViewModelBase
         {
             if (SetProperty(ref _selectedColor, value))
             {
-                // Switch the device into a colour-capable mode FIRST, otherwise a device sitting
-                // in an effect (Rainbow, etc.) ignores the per-LED write and the pick does nothing
-                // — only "apply to all" used to do this (client round 18, item 8).
-                Owner?.EnsureColorCapableMode(value);
+                // ApplyColor pushes the device's whole state — the colour-capable mode AND every
+                // LED — as one request, so a device sitting in an effect still shows the pick
+                // (client round 18, item 8) without a separate mode command.
                 ApplyColor();
             }
         }
@@ -119,37 +118,38 @@ public class RgbZoneViewModel : ViewModelBase
         _isGradient = false;
     }
 
-    private void ApplyColor(bool force = false)
+    /// <summary>
+    /// Sends this zone's colour to the hardware by pushing the owning device's complete state
+    /// (mode + every LED) as ONE request. Per-zone writes — each sent twice — were part of the
+    /// burst that left OpenRGB's motherboard driver waiting forever (client round 33).
+    /// </summary>
+    private void ApplyColor()
     {
         if (HardwareControlService.IsDemoMode) return;
 
-        if (IsGradient && LedCount > 1)
-        {
-            var colors = new OpenRGB.NET.Color[LedCount];
-            for (int i = 0; i < LedCount; i++)
-            {
-                float ratio = (float)i / (LedCount - 1);
-                byte r = (byte)(SelectedColor.R + ratio * (GradientEndColor.R - SelectedColor.R));
-                byte g = (byte)(SelectedColor.G + ratio * (GradientEndColor.G - SelectedColor.G));
-                byte b = (byte)(SelectedColor.B + ratio * (GradientEndColor.B - SelectedColor.B));
-                colors[i] = new OpenRGB.NET.Color(r, g, b);
-            }
-            _hardwareService.UpdateRgbZoneColors(_deviceId, _zoneId, colors, force);
-        }
-        else
-        {
-            var orgbColor = new OpenRGB.NET.Color(SelectedColor.R, SelectedColor.G, SelectedColor.B);
-            _hardwareService.UpdateRgbZoneColor(_deviceId, _zoneId, orgbColor, force);
-        }
-
-        // Persist the change
+        Owner?.PushColorStateToHardware();
         RgbSettingsPersistence.SaveCurrentState();
     }
+
+    /// <summary>This zone's LED colours: the selected colour, or a gradient to the end colour.</summary>
+    public IEnumerable<OpenRGB.NET.Color> BuildLedColors()
+    {
+        for (int i = 0; i < LedCount; i++)
+        {
+            float ratio = IsGradient && LedCount > 1 ? (float)i / (LedCount - 1) : 0f;
+            yield return new OpenRGB.NET.Color(
+                Blend(SelectedColor.R, GradientEndColor.R, ratio),
+                Blend(SelectedColor.G, GradientEndColor.G, ratio),
+                Blend(SelectedColor.B, GradientEndColor.B, ratio));
+        }
+    }
+
+    private static byte Blend(byte from, byte to, float ratio) => (byte)(from + ratio * (to - from));
 
     /// <summary>Re-sends the currently selected colours to the hardware, forcing
     /// the write through the duplicate guard — this is a deliberate user action
     /// (apply-to-all / colour pick), not the automatic binding cascade.</summary>
-    public void ReapplyColor() => ApplyColor(force: true);
+    public void ReapplyColor() => ApplyColor();
 
     /// <summary>
     /// Updates the colour properties WITHOUT triggering a hardware write, so a
@@ -252,46 +252,45 @@ public class RgbDeviceViewModel : ViewModelBase
     /// DRAM "Static" leaves each identical stick showing its own STORED colour —
     /// so two RAM sticks disagreed, one going dark (client round 9, item 8).
     /// </summary>
-    private void SendModeToHardware(string modeName)
-    {
-        bool colorMode = modeName.Equals("Static", StringComparison.OrdinalIgnoreCase) ||
-                         modeName.Equals("Direct", StringComparison.OrdinalIgnoreCase);
-        var firstZone = Zones.FirstOrDefault();
+    private void SendModeToHardware(string modeName) => PushStateToHardware(modeName);
 
-        if (colorMode && firstZone != null)
-        {
-            var c = firstZone.SelectedColor;
-            // force: a per-device mode change is a deliberate user action and must
-            // bypass the duplicate guard, or switching back to a mode the device is
-            // already nominally in does nothing (client round 11, item 5).
-            _hardwareService.RequestRgbEffect(DeviceId, modeName, new OpenRGB.NET.Color(c.R, c.G, c.B), force: true);
-        }
-        else
-        {
-            _hardwareService.RequestRgbEffect(DeviceId, modeName);
-        }
+    /// <summary>
+    /// Sends this device's complete lighting state as ONE request: the mode, plus — for colour
+    /// modes — every LED's colour in a single update (the zone colours carry with the mode, so a
+    /// switch to e.g. ENE DRAM "Static" never shows the stick's own stored colour, which is how
+    /// one RAM stick went dark in client round 9). The service coalesces requests per device and
+    /// paces them, so this is safe to call on every change.
+    /// </summary>
+    public void PushStateToHardware(string modeName)
+    {
+        if (HardwareControlService.IsDemoMode) return;
+
+        var firstZone = Zones.FirstOrDefault();
+        OpenRGB.NET.Color? modeColor = firstZone == null ? null
+            : new OpenRGB.NET.Color(firstZone.SelectedColor.R, firstZone.SelectedColor.G, firstZone.SelectedColor.B);
+        OpenRGB.NET.Color[]? leds = IsColorMode(modeName) ? Zones.SelectMany(z => z.BuildLedColors()).ToArray() : null;
+
+        _hardwareService.ApplyRgbDeviceState(DeviceId, modeName, modeColor, leds);
     }
 
     /// <summary>
-    /// Switches the lighting mode and sends the colour WITH the mode change, for
-    /// modes that carry mode-specific colours (e.g. ENE DRAM "Static"). Used by
-    /// apply-to-all so the device doesn't light up with its stale stored colour.
+    /// Shows the zone colours: puts the device in its colour-capable mode (preferring "Static",
+    /// which the hardware stores, over the volatile "Direct") and sends every LED in the same
+    /// request. Devices in a hardware effect (Rainbow, Breathing…) ignore LED colours otherwise.
+    /// No-op when the device offers neither mode.
     /// </summary>
-    /// <summary>
-    /// Switches the device into a colour-capable mode (preferring "Static", else
-    /// "Direct") and sends the colour WITH the switch, so a following per-LED write
-    /// actually displays. Devices sitting in a hardware effect (Rainbow, Breathing…)
-    /// ignore or black out on direct LED writes — ENE DRAM does. "Static" is
-    /// preferred because the hardware stores it, while "Direct" needs continuous
-    /// refresh and drops back to black on ENE DRAM once writes stop. No-op when the
-    /// device offers neither mode.
-    /// </summary>
-    public void EnsureColorCapableMode(System.Windows.Media.Color color)
+    public void PushColorStateToHardware()
     {
         var colorMode = PickColorCapableMode();
-        if (colorMode != null)
-            ApplyModeWithColor(colorMode, color);
+        if (colorMode == null) return;
+
+        SetProperty(ref _selectedMode, colorMode, nameof(SelectedMode));
+        PushStateToHardware(colorMode);
     }
+
+    private static bool IsColorMode(string mode) =>
+        mode.Equals("Static", StringComparison.OrdinalIgnoreCase) ||
+        mode.Equals("Direct", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>
     /// Chooses the mode used to display a chosen colour: "Static" (which the hardware stores)
@@ -308,20 +307,6 @@ public class RgbDeviceViewModel : ViewModelBase
         return Modes.FirstOrDefault(m => m == "Static") ?? Modes.FirstOrDefault(m => m == "Direct");
     }
 
-    public void ApplyModeWithColor(string modeName, System.Windows.Media.Color color)
-    {
-        if (!Modes.Contains(modeName)) return;
-
-        if (!HardwareControlService.IsDemoMode)
-        {
-            var orgb = new OpenRGB.NET.Color(color.R, color.G, color.B);
-            _hardwareService.RequestRgbEffect(DeviceId, modeName, orgb, force: true);
-        }
-
-        _selectedMode = modeName;
-        OnPropertyChanged(nameof(SelectedMode));
-        RgbSettingsPersistence.SaveCurrentState();
-    }
 
     public RgbDeviceViewModel(Device device, int deviceId, HardwareControlService hardwareService)
     {
@@ -477,17 +462,13 @@ public class RgbControlViewModel : ViewModelBase
     private static void ApplyColorToDevice(RgbDeviceViewModel device,
         System.Windows.Media.Color color, bool isGradient, System.Windows.Media.Color endColor)
     {
-        // Switch the device to a colour-capable mode first (shared with the
-        // per-zone picker), then write each zone once.
-        device.EnsureColorCapableMode(color);
-
+        // Set every zone silently, then send the device ONE request (colour mode + all LEDs).
+        // Property setters would each fire their own write; per-zone writes were part of the
+        // burst that wedged OpenRGB's motherboard driver (client round 33).
         foreach (var zone in device.Zones)
-        {
-            // Exactly ONE hardware write per zone — property setters would each
-            // fire their own write and hammer the DRAM controller's SMBus.
             zone.SetColorsSilently(color, isGradient, endColor);
-            zone.ReapplyColor();
-        }
+
+        device.PushColorStateToHardware();
     }
 
     private void CaptureSnapshotIfNeeded()
@@ -527,17 +508,16 @@ public class RgbControlViewModel : ViewModelBase
     {
         if (!_preApplySnapshot!.TryGetValue(SnapshotKey(device), out var snapshot)) return;
 
-        if (snapshot.Mode != null) device.SelectedMode = snapshot.Mode;
+        // Restore the zone colours silently, then send ONE request for the device — setting the
+        // properties one by one fired a hardware write each.
         for (int i = 0; i < device.Zones.Count && i < snapshot.Zones.Count; i++)
-            RestoreZone(device.Zones[i], snapshot.Zones[i]);
-    }
+        {
+            var z = snapshot.Zones[i];
+            device.Zones[i].SetColorsSilently(z.Color, z.IsGradient, z.EndColor);
+        }
 
-    private static void RestoreZone(RgbZoneViewModel zone, ZoneSnapshot snapshot)
-    {
-        zone.GradientEndColor = snapshot.EndColor;
-        zone.IsGradient = snapshot.IsGradient;
-        zone.SelectedColor = snapshot.Color;
-        zone.ReapplyColor();
+        if (snapshot.Mode != null) device.ApplyModeToHardware(snapshot.Mode);
+        else device.PushColorStateToHardware();
     }
 
     /// <summary>
@@ -920,33 +900,21 @@ public class RgbControlViewModel : ViewModelBase
             ReapplyDevice(device);
     }
 
+    /// <summary>
+    /// Re-applies a device's saved state as ONE request. A saved colour mode (Static/Direct)
+    /// sends the colour-capable mode with every LED; a saved effect (Rainbow, Breathing…) is
+    /// re-applied as-is (client round 18, item 9). Writing each zone afterwards as well, as this
+    /// used to, doubled the startup burst right after OpenRGB finished detecting devices.
+    /// </summary>
     private static void ReapplyDevice(RgbDeviceViewModel device)
     {
-        var firstZone = device.Zones.FirstOrDefault();
-        if (firstZone == null) return;
+        if (device.Zones.Count == 0 || device.SelectedMode is not { } mode) return;
 
-        ApplyDeviceMode(device, firstZone.SelectedColor);
-
-        foreach (var zone in device.Zones)
-            zone.ReapplyColor();
+        bool colorMode = mode.Equals("Static", StringComparison.OrdinalIgnoreCase) ||
+                         mode.Equals("Direct", StringComparison.OrdinalIgnoreCase);
+        if (colorMode) device.PushColorStateToHardware();
+        else device.ApplyModeToHardware(mode);
     }
-
-    /// <summary>
-    /// Re-applies a device's saved mode. A saved colour mode (Static/Direct) is routed through
-    /// <see cref="RgbDeviceViewModel.EnsureColorCapableMode"/> so the DRAM lands on Direct (which
-    /// actually shows the colour) rather than the stored-but-broken Static; a saved effect
-    /// (Rainbow, Breathing…) is re-applied as-is (client round 18, item 9).
-    /// </summary>
-    private static void ApplyDeviceMode(RgbDeviceViewModel device, System.Windows.Media.Color color)
-    {
-        if (device.SelectedMode is not { } mode) return;
-        if (IsColorMode(mode)) device.EnsureColorCapableMode(color);
-        else device.ApplyModeWithColor(mode, color);
-    }
-
-    private static bool IsColorMode(string mode) =>
-        mode.Equals("Static", StringComparison.OrdinalIgnoreCase) ||
-        mode.Equals("Direct", StringComparison.OrdinalIgnoreCase);
 }
 
 /// <summary>
