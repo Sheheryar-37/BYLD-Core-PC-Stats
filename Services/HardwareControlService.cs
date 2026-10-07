@@ -437,6 +437,10 @@ public class HardwareControlService : IDisposable
                 Log("[RGB] OpenRGB not running. Attempting to start it as Administrator...");
                 EnsureOpenRgbRunningAsAdmin();
             }
+            else if (_restartOpenRgbOnReconnect)
+            {
+                RestartStuckOpenRgb(rgbProcesses);
+            }
             else if (OwnsEveryRunningOpenRgb(rgbProcesses))
             {
                 // OUR server, still running and still healthy — only the socket went. Restarting
@@ -490,6 +494,8 @@ public class HardwareControlService : IDisposable
                 {
                     var devices = _rgbClient!.GetAllControllerData();
                     Log($"[RGB] Total RGB devices detected: {devices.Length}");
+                    WarnIfDeviceOrderChanged(devices);
+                    _rgbDeviceCache = devices;   // writes size their LED arrays from this
                     for (int i = 0; i < devices.Length; i++)
                     {
                         var d = devices[i];
@@ -527,6 +533,7 @@ public class HardwareControlService : IDisposable
         const int maxAttempts = 20;
         for (int attempt = 1; attempt <= maxAttempts; attempt++)
         {
+            RestartStallBudget();   // waiting for a (re)starting server is progress, not a stall
             if (TryConnectOnce(ip, port))
                 return true;
 
@@ -1070,7 +1077,107 @@ public class HardwareControlService : IDisposable
             $"({_rgbQueue.Count} more waiting; connection reader: {DescribeRgbReadLoop()}). " +
             "Dropping the stuck connection so it fails out; the worker reconnects and continues with the backlog.");
 
+        CaptureOpenRgbLog("openrgb_stall.log");   // what OpenRGB was doing while it stopped answering
+        RequestOpenRgbRestart();
         ResetStalledRgbConnection();
+    }
+
+    // ── Restarting a stuck OpenRGB ───────────────────────────────────────────
+    /// <summary>Set by the watchdog; makes the next connect replace OpenRGB instead of reusing it.</summary>
+    private volatile bool _restartOpenRgbOnReconnect;
+    private DateTime _lastOpenRgbRestartUtc = DateTime.MinValue;
+
+    /// <summary>Minimum gap between restarts, so a device that sticks every time cannot cause a loop.</summary>
+    private static readonly TimeSpan OpenRgbRestartCooldown = TimeSpan.FromSeconds(60);
+
+    /// <summary>
+    /// Asks for OpenRGB to be restarted on the next connect.
+    ///
+    /// A stalled command means OpenRGB has a thread stuck in hardware I/O (its Polychrome USB
+    /// driver's hid_read has no timeout). Reconnecting cannot free it: in round 33 every fresh
+    /// connection handshook fine and then hung on the next device read, five reconnects in a row.
+    /// Ending the process is the only thing that releases the device; a fresh OpenRGB re-detects
+    /// it and the queued, coalesced colour requests then apply. The cooldown keeps a device that
+    /// sticks every time from turning this into a restart loop (round 31's lesson).
+    /// </summary>
+    private void RequestOpenRgbRestart()
+    {
+        var sinceLast = DateTime.UtcNow - _lastOpenRgbRestartUtc;
+        if (sinceLast < OpenRgbRestartCooldown)
+        {
+            Log($"[RGB→] OpenRGB was restarted {sinceLast.TotalSeconds:F0}s ago — reconnecting only, " +
+                "to avoid a restart loop.");
+            return;
+        }
+
+        _restartOpenRgbOnReconnect = true;
+        Log("[RGB→] OpenRGB has stopped answering. A reconnect cannot free a lighting thread stuck in " +
+            "hardware I/O, so OpenRGB will be restarted and the latest colours re-applied.");
+    }
+
+    /// <summary>
+    /// Logs loudly if a (re)started OpenRGB lists devices in a different order from before.
+    /// Lighting requests address devices by index, so a reorder would send colours to the wrong
+    /// device. OpenRGB's detection order has been identical in every client log so far; this
+    /// makes any change visible rather than silent.
+    /// </summary>
+    private void WarnIfDeviceOrderChanged(OpenRGB.NET.Device[] devices)
+    {
+        var previous = _rgbDeviceCache;
+        if (previous.Length == 0) return;
+        bool same = previous.Length == devices.Length &&
+                    previous.Select(d => d.Name).SequenceEqual(devices.Select(d => d.Name));
+        if (same) return;
+        Log($"[RGB] ⚠ Device order changed: was [{string.Join(", ", previous.Select(d => d.Name))}], " +
+            $"now [{string.Join(", ", devices.Select(d => d.Name))}].");
+    }
+
+    /// <summary>Replaces a stuck OpenRGB with a fresh instance (caller is ConnectRgbServer).</summary>
+    private void RestartStuckOpenRgb(System.Diagnostics.Process[] running)
+    {
+        foreach (var p in running)
+            Log($"  [RGB] PID={p.Id} — stopped answering; restarting OpenRGB to release the stuck device.");
+
+        _restartOpenRgbOnReconnect = false;
+        _lastOpenRgbRestartUtc = DateTime.UtcNow;
+        StopOpenRgbServer();
+        System.Threading.Thread.Sleep(500);
+        EnsureOpenRgbRunningAsAdmin();
+    }
+
+    /// <summary>
+    /// Copies OpenRGB's own newest log into this app's logs folder. Our log only sees the socket;
+    /// OpenRGB's log shows what each device driver was doing, so when something sticks again the
+    /// client's log bundle contains the answer instead of inviting another theory.
+    /// </summary>
+    private void CaptureOpenRgbLog(string fileName)
+    {
+        if (!AppLogging.Enabled) return;
+        try
+        {
+            string source = System.IO.Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "OpenRGB", "logs");
+            var newest = new System.IO.DirectoryInfo(source).GetFiles("OpenRGB_*.log")
+                .OrderByDescending(f => f.LastWriteTimeUtc).FirstOrDefault();
+            if (newest == null) return;
+
+            string target = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs", fileName);
+            CopySharedFile(newest.FullName, target);
+            Log($"[RGB] Saved OpenRGB's own log ({newest.Name}) as logs\\{fileName}.");
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB] Could not copy OpenRGB's log: {ex.Message}");
+        }
+    }
+
+    /// <summary>Copies a file that its owner still has open for writing.</summary>
+    private static void CopySharedFile(string source, string target)
+    {
+        using var input = new System.IO.FileStream(source, System.IO.FileMode.Open, System.IO.FileAccess.Read,
+            System.IO.FileShare.ReadWrite | System.IO.FileShare.Delete);
+        using var output = new System.IO.FileStream(target, System.IO.FileMode.Create, System.IO.FileAccess.Write);
+        input.CopyTo(output);
     }
 
     /// <summary>Starts the queue consumer, or replaces one that has stopped.</summary>
@@ -1593,6 +1700,7 @@ public class HardwareControlService : IDisposable
         // A reused server accumulated SMBus state across sessions and came back with its
         // controls dead on the second launch (client round 14, item 10). The app relaunches
         // it on connect, which is the same clean state as a first run.
+        CaptureOpenRgbLog("openrgb.log");
         StopOpenRgbServer();
     }
 
@@ -1604,6 +1712,7 @@ public class HardwareControlService : IDisposable
     /// </summary>
     public void ShutdownOpenRgbServer()
     {
+        CaptureOpenRgbLog("openrgb.log");   // OpenRGB's view of the session, for the client's log bundle
         StopOpenRgbServer();
         // OpenRGB leaves WinRing0 registered behind it. Clear it here as well as at startup, so
         // a machine that never reopens this app is not left with the bus held (round 23).
