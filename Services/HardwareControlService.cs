@@ -791,16 +791,22 @@ public class HardwareControlService : IDisposable
     /// of colours applied perfectly, and every colour and effect afterwards did nothing, with no
     /// error anywhere because the code that logs is the code that never ran (client round 28).
     /// </summary>
-    /// <summary>When the consumer last finished a command — the heartbeat the watchdog checks.</summary>
-    private DateTime _lastRgbOpCompletedUtc = DateTime.UtcNow;
+    /// <summary>
+    /// Ticks (UTC) when the command currently executing started, or 0 when the worker is idle.
+    /// A long is used so the watchdog and the worker can read and update it atomically.
+    /// </summary>
+    private long _rgbOpInFlightSinceTicks;
 
-    /// <summary>Queued work older than this with no command completing means the consumer is wedged.</summary>
-    private static readonly TimeSpan RgbStallTimeout = TimeSpan.FromSeconds(15);
+    /// <summary>A single command still running after this long means the server has stopped
+    /// answering: every OpenRGB call is a blocking request/response with no timeout of its own.</summary>
+    private static readonly TimeSpan RgbStallTimeout = TimeSpan.FromSeconds(5);
+
+    /// <summary>Drives <see cref="CheckForStalledRgbCommand"/> independently of user activity.</summary>
+    private System.Threading.Timer? _rgbStallWatchdog;
 
     private void EnqueueRgbOp(string description, Action op)
     {
         EnsureRgbWorkerAlive();
-        RecoverIfRgbWorkerStalled();
 
         if (!_rgbQueue.TryAdd(op))
             Log($"[RGB→] queue full — dropped: {description}");
@@ -809,35 +815,47 @@ public class HardwareControlService : IDisposable
     }
 
     /// <summary>
-    /// Detects a consumer that is ALIVE but no longer draining the queue, and replaces it.
+    /// Frees a lighting command that is blocked waiting for a reply that is never coming.
     ///
-    /// Bounding the lock acquisition was not enough: the consumer itself blocks inside the
-    /// OpenRGB socket call, so it never returns to take the next command and never reports as
-    /// completed — the queue just grows. The client's logs show exactly that: the first batch
-    /// drains, then the depth climbs 1..9..19 with nothing executing and no worker fault.
+    /// OpenRGB.NET sends a request and then blocks on the matching response with NO timeout
+    /// (OpenRgbConnection.Receive waits on a BlockingCollection). When the server stops
+    /// answering mid-burst, the worker parks there forever, so every later colour and effect
+    /// queues behind it and nothing is logged — the code that logs is the code that never runs.
     ///
-    /// A heartbeat is the only reliable signal here, because it does not depend on knowing where
-    /// the block is. Disposing the client makes the stuck socket call fail out, and a fresh
-    /// consumer drains whatever is queued.
+    /// The client's round-30 log shows precisely this: batch 1 executes and drains; batch 2
+    /// takes ONE command (the depth stays at 1 across two enqueues) and stops; batches 2 and 3
+    /// then pile up to a depth of 19 with no fault and no "worker had stopped" line.
+    ///
+    /// Two things had to change from the previous attempt at this:
+    ///  • it was only invoked from EnqueueRgbOp, so recovery required the user to click AGAIN
+    ///    after the timeout had already elapsed — in that session he clicked at +4s and +8s and
+    ///    closed the app at +14s, so a 15s check on the enqueue path could never fire. It now
+    ///    runs on a timer, and a single hung command recovers with nothing queued behind it.
+    ///  • it started a replacement consumer unconditionally. The old one is BLOCKED, not dead:
+    ///    once the connection is dropped its call fails out and it carries on with the queue, so
+    ///    starting another left two consumers racing on one queue for the rest of the session.
+    ///
+    /// Disposing the client cancels the connection's token, which is what unblocks the waiting
+    /// call; the next command then reconnects (EnsureRgbConnectedForWrite) and the backlog drains.
     /// </summary>
-    private void RecoverIfRgbWorkerStalled()
+    private void CheckForStalledRgbCommand()
     {
-        if (_rgbQueue.Count == 0) return;
-        if (DateTime.UtcNow - _lastRgbOpCompletedUtc < RgbStallTimeout) return;
+        long startedTicks = System.Threading.Interlocked.Read(ref _rgbOpInFlightSinceTicks);
+        if (startedTicks == 0) return;
+        if (DateTime.UtcNow.Ticks - startedTicks < RgbStallTimeout.Ticks) return;
 
-        lock (_rgbWorkerLock)
-        {
-            // Re-check inside the lock so two enqueues cannot both trigger a recovery.
-            if (DateTime.UtcNow - _lastRgbOpCompletedUtc < RgbStallTimeout) return;
+        // Re-arm rather than clear: if dropping the connection does not free it, the next tick
+        // tries again instead of giving up on the command for the rest of the session. Only the
+        // thread that wins this exchange performs the reset.
+        if (System.Threading.Interlocked.CompareExchange(
+                ref _rgbOpInFlightSinceTicks, DateTime.UtcNow.Ticks, startedTicks) != startedTicks)
+            return;
 
-            Log($"[RGB→] Lighting has not responded for {RgbStallTimeout.TotalSeconds:F0}s with " +
-                $"{_rgbQueue.Count} command(s) waiting (worker state: {_rgbWorker?.Status.ToString() ?? "none"}). " +
-                "Dropping the stuck connection and starting a fresh worker.");
+        Log($"[RGB→] A lighting command has not completed in {RgbStallTimeout.TotalSeconds:F0}s " +
+            $"({_rgbQueue.Count} more waiting). " +
+            "Dropping the stuck connection so it fails out; the worker reconnects and continues with the backlog.");
 
-            ResetStalledRgbConnection();     // unblocks the stuck socket call
-            _rgbWorker = Task.Factory.StartNew(ProcessRgbQueue, TaskCreationOptions.LongRunning);
-            _lastRgbOpCompletedUtc = DateTime.UtcNow;
-        }
+        ResetStalledRgbConnection();
     }
 
     /// <summary>Starts the queue consumer, or replaces one that has stopped.</summary>
@@ -845,6 +863,8 @@ public class HardwareControlService : IDisposable
     {
         lock (_rgbWorkerLock)
         {
+            StartRgbStallWatchdog();
+
             if (_rgbWorker is { IsCompleted: false }) return;
 
             if (_rgbWorker != null)
@@ -877,22 +897,57 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    /// <summary>Starts the stall watchdog once, on the first lighting command of the session.
+    /// Caller holds <see cref="_rgbWorkerLock"/>.</summary>
+    private void StartRgbStallWatchdog()
+    {
+        _rgbStallWatchdog ??= new System.Threading.Timer(
+            _ => CheckForStalledRgbCommand(), null,
+            dueTime: TimeSpan.FromSeconds(1), period: TimeSpan.FromSeconds(1));
+    }
+
     private void RunRgbOp(Action op)
+    {
+        // Marks this command in flight so the watchdog can free it if the server stops replying.
+        System.Threading.Interlocked.Exchange(ref _rgbOpInFlightSinceTicks, DateTime.UtcNow.Ticks);
+        try
+        {
+            if (!TryRunRgbOp(op)) RetryRgbOpAfterRecovery(op);
+        }
+        finally
+        {
+            System.Threading.Interlocked.Exchange(ref _rgbOpInFlightSinceTicks, 0);
+        }
+    }
+
+    /// <summary>Runs one lighting command. False when it failed and is worth one retry.</summary>
+    private bool TryRunRgbOp(Action op)
     {
         try
         {
             op();
+            return true;
         }
         catch (Exception ex)
         {
             Log($"[RGB→] Worker operation failed: {ex.Message}");
+            return false;
         }
-        finally
-        {
-            // Heartbeat for the stall watchdog — recorded even on failure, because a command that
-            // errors quickly is a live consumer, not a wedged one.
-            _lastRgbOpCompletedUtc = DateTime.UtcNow;
-        }
+    }
+
+    /// <summary>
+    /// Sends a command once more after a failure. Freeing a stalled queue works by dropping the
+    /// connection, which makes the command that was waiting on it throw — so without this, the
+    /// very command the user was waiting on is the one command discarded by its own recovery.
+    /// The retry reconnects first (every write path calls EnsureRgbConnectedForWrite), and is
+    /// deliberately attempted only once so a command that always fails cannot loop.
+    /// </summary>
+    private void RetryRgbOpAfterRecovery(Action op)
+    {
+        // A fresh attempt gets its own stall budget rather than inheriting the failed one's.
+        System.Threading.Interlocked.Exchange(ref _rgbOpInFlightSinceTicks, DateTime.UtcNow.Ticks);
+        Log("[RGB→] Re-sending that command once, on a fresh connection.");
+        TryRunRgbOp(op);
     }
 
     /// <summary>How long a lighting command waits for the client before declaring it stuck.</summary>
@@ -920,8 +975,24 @@ public class HardwareControlService : IDisposable
             return false;
         }
 
+        // Time spent QUEUING for the client must not count against the stall budget: a device
+        // enumeration (GetAllControllerData) legitimately holds this lock for several seconds on
+        // an SMBus board, and without this the watchdog would drop a connection that is working
+        // perfectly well. Waiting too long for the lock is already handled above, on its own
+        // timeout. Only re-stamp for the worker, which is the thread that sets the marker.
+        RestartStallBudget();
+
         try { action(); return true; }
         finally { System.Threading.Monitor.Exit(_rgbClientLock); }
+    }
+
+    /// <summary>Restarts the in-flight command's stall budget, if one is in flight.</summary>
+    private void RestartStallBudget()
+    {
+        long inFlight = System.Threading.Interlocked.Read(ref _rgbOpInFlightSinceTicks);
+        if (inFlight == 0) return;
+        System.Threading.Interlocked.CompareExchange(
+            ref _rgbOpInFlightSinceTicks, DateTime.UtcNow.Ticks, inFlight);
     }
 
     /// <summary>
@@ -1174,7 +1245,13 @@ public class HardwareControlService : IDisposable
         Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
             $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
 
-        LogModeReadback(deviceId, device.Name, mode.Name);
+        // The read-back is a diagnostic, and it costs a full GetControllerData round trip per
+        // device. During an apply-to-all that is four extra blocking reads over the SMBus in one
+        // burst — on this board the server stops answering partway through exactly such a burst.
+        // Skip it while commands are still waiting and take it when the queue is idle, so single
+        // changes still record whether the controller accepted the mode.
+        if (_rgbQueue.Count == 0)
+            LogModeReadback(deviceId, device.Name, mode.Name);
     }
 
     /// <summary>
@@ -1222,6 +1299,8 @@ public class HardwareControlService : IDisposable
 
     public void Dispose()
     {
+        _rgbStallWatchdog?.Dispose();
+        _rgbStallWatchdog = null;
         _rgbQueue.CompleteAdding();
         _fanQueue.CompleteAdding();
         _computer.Close();
