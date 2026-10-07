@@ -398,7 +398,21 @@ public class HardwareControlService : IDisposable
     /// is already connected, returns immediately instead of replacing it — both
     /// view-models call this and client churn breaks in-flight writes.
     /// </summary>
+    /// <summary>Serialises connects: the lighting worker reconnects (and may restart OpenRGB) while
+    /// the view-model's periodic check can call this at the same moment.</summary>
+    private readonly object _rgbConnectLock = new();
+
+    /// <summary>
+    /// Connects to OpenRGB, launching (or, after a stall, restarting) it when needed. One caller at
+    /// a time: two overlapping connects could each replace the client, disposing the other's
+    /// mid-detection. A caller that waited simply finds the connection made and returns at once.
+    /// </summary>
     public bool ConnectRgbServer(string ip = "127.0.0.1", int port = 6742)
+    {
+        lock (_rgbConnectLock) return ConnectRgbServerCore(ip, port);
+    }
+
+    private bool ConnectRgbServerCore(string ip, int port)
     {
         lock (_rgbClientLock)
         {
