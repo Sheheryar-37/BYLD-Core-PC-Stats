@@ -73,19 +73,25 @@ Source: "d:\Github Repos\PC-Stats-Monitor\bin\Release\net10.0-windows\publish\*"
 ; skipifsourcedoesntexist keeps the compile working if the file is absent.
 Source: "d:\Github Repos\PC-Stats-Monitor\PawnIO_setup.exe"; DestDir: "{app}"; Flags: ignoreversion skipifsourcedoesntexist
 
-; OpenRGB bundled server — portable binaries in Tools folder
-; Download from https://openrgb.org/releases.html (Windows portable ZIP)
-; onlyifdoesntexist: OpenRGB ships its OWN WinRing0 kernel driver. Once loaded it
-; locks OpenRGB\WinRing0x64.sys, so replacing it on an upgrade fails with
-; "Access is denied". These files are static across our builds, so we keep the
-; existing copy rather than fighting the lock.
-Source: "d:\Github Repos\PC-Stats-Monitor\Tools\OpenRGB Windows 64-bit\*"; DestDir: "{app}\OpenRGB"; Flags: recursesubdirs createallsubdirs skipifsourcedoesntexist onlyifdoesntexist
+; OpenRGB bundled server — portable binaries in Tools folder.
+; OpenRGB 1.0 (2026-09-11, https://openrgb.org/releases.html), which reaches the SMBus through
+; PawnIO instead of WinRing0. The previous bundle (1.0rc2wr0) needed WinRing0, which stops loading
+; once Windows blocks it — after the client rebuilt his PC his G.Skill RAM vanished from RGB
+; control (client round 32, item 3). PawnIO is the driver this app already installs.
+; ignoreversion (NOT onlyifdoesntexist): the old flag kept an existing OpenRGB forever, so an
+; upgrade would never deliver 1.0. The old folder is wiped in [InstallDelete] first, and 1.0 ships
+; no kernel driver of its own, so nothing here is locked on later upgrades.
+Source: "d:\Github Repos\PC-Stats-Monitor\Tools\OpenRGB Windows 64-bit\*"; DestDir: "{app}\OpenRGB"; Flags: recursesubdirs createallsubdirs skipifsourcedoesntexist ignoreversion
 
 [InstallDelete]
 ; Remove the old root-level WinRing0x64.sys shipped by pre-PawnIO builds. It is no
 ; longer used (LibreHardwareMonitor reads hardware through PawnIO now), and leaving
 ; it behind is dead weight.
 Type: files; Name: "{app}\WinRing0x64.sys"
+; Clear the previous OpenRGB build (Qt5 runtime + WinRing0 driver files) before OpenRGB 1.0 is
+; copied in, so no stale DLLs sit beside the new executable. PrepareToInstall has already closed
+; OpenRGB and stopped its WinRing0 services so these files are unlocked.
+Type: filesandordirs; Name: "{app}\OpenRGB"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
@@ -199,6 +205,9 @@ begin
   // Stop the WinRing0 kernel service so the kernel unloads the driver and releases
   // its .sys file (OpenRGB registers WinRing0 under this default name).
   Exec('sc.exe', 'stop WinRing0_1_2_0', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+  // The older OpenRGB also registered its driver under this name (seen in the client's logs);
+  // stop it too so the old OpenRGB folder can be cleared for OpenRGB 1.0.
+  Exec('sc.exe', 'stop WinRing0x64', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
   Sleep(1500);
   Result := '';
 end;

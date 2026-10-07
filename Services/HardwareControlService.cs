@@ -409,6 +409,9 @@ public class HardwareControlService : IDisposable
         Log("═══════════════════════════════════════════════════════════");
         Log($"OPENRGB CONNECTION — Attempting {ip}:{port}...");
 
+        // Remembered so we can tell below whether THIS call launched a new server.
+        int serverPidBefore = _ownOpenRgbPid;
+
         // Check if OpenRGB process is running
         try
         {
@@ -463,6 +466,10 @@ public class HardwareControlService : IDisposable
             }
             Log($"[RGB] Connection success: {_isConnectedToRgb}");
 
+            bool launchedServer = _ownOpenRgbPid != 0 && _ownOpenRgbPid != serverPidBefore;
+            if (_isConnectedToRgb && launchedServer)
+                WaitForDeviceDetectionToSettle();
+
             if (_isConnectedToRgb)
             {
                 try
@@ -513,6 +520,71 @@ public class HardwareControlService : IDisposable
                 System.Threading.Thread.Sleep(1000);
         }
         return false;
+    }
+
+    // ── OpenRGB 1.0: the server answers before detection has finished ───────
+    /// <summary>A device count unchanged for this long, with devices found, means detection is done.</summary>
+    private static readonly TimeSpan DetectionSettleWindow = TimeSpan.FromSeconds(5);
+
+    /// <summary>How long a count of ZERO must hold before concluding the PC has no lighting devices.</summary>
+    private static readonly TimeSpan DetectionNoDevicesWindow = TimeSpan.FromSeconds(15);
+
+    /// <summary>Upper bound on the wait, however detection behaves.</summary>
+    private static readonly TimeSpan DetectionMaxWait = TimeSpan.FromSeconds(30);
+
+    /// <summary>
+    /// Waits for a freshly launched OpenRGB to finish detecting devices before the device list
+    /// is read.
+    ///
+    /// OpenRGB 1.0 (bundled from round 32, for PawnIO) starts its SDK server BEFORE device
+    /// detection; the build it replaces started it after. Measured on the dev machine: network
+    /// thread at 9 ms, detection starting at 13 ms, client accepted at ~0.5 s, detection completed
+    /// at 1.6 s — longer on a PC with SMBus RAM and USB lighting to scan. Reading the list straight
+    /// after connecting would therefore return a partial or EMPTY list, and an empty list makes the
+    /// view-model restart OpenRGB (RetryDevicesAsAdmin), which would kill detection mid-scan on every
+    /// launch. So the count is polled until it has stopped changing. Only used when this call
+    /// launched the server — a socket-only reconnect finds detection long finished.
+    /// </summary>
+    private void WaitForDeviceDetectionToSettle()
+    {
+        var started = DateTime.UtcNow;
+        var lastChange = started;
+        int count = ReadControllerCount();
+        var progression = new List<int> { count };
+
+        while (!DetectionHasSettled(count, DateTime.UtcNow - lastChange, DateTime.UtcNow - started))
+        {
+            System.Threading.Thread.Sleep(500);
+            RestartStallBudget();   // on the lighting worker, this wait is progress, not a stall
+            int now = ReadControllerCount();
+            if (now == count) continue;
+            count = now;
+            lastChange = DateTime.UtcNow;
+            progression.Add(now);
+        }
+
+        Log($"[RGB] Device detection settled after {(DateTime.UtcNow - started).TotalSeconds:F1}s " +
+            $"(device count: {string.Join(" → ", progression)}).");
+    }
+
+    /// <summary>The server's current device count, or -1 if the connection cannot answer.</summary>
+    private int ReadControllerCount()
+    {
+        try
+        {
+            lock (_rgbClientLock) return _rgbClient?.GetControllerCount() ?? -1;
+        }
+        catch
+        {
+            return -1;
+        }
+    }
+
+    /// <summary>True once the count has held steady long enough, the connection failed, or the cap hit.</summary>
+    private static bool DetectionHasSettled(int count, TimeSpan unchangedFor, TimeSpan elapsed)
+    {
+        if (count < 0 || elapsed >= DetectionMaxWait) return true;
+        return unchangedFor >= (count > 0 ? DetectionSettleWindow : DetectionNoDevicesWindow);
     }
 
     // ── Fresh connection before a reply-bearing command ─────────────────────
