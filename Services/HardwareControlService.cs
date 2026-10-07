@@ -901,7 +901,32 @@ public class HardwareControlService : IDisposable
     private int _lastRgbDeviceCount = -1;
     private bool _loggedRgbDisconnected;
 
-    public List<OpenRGB.NET.Device> GetRgbDevices()
+    /// <summary>
+    /// The number of devices OpenRGB currently has, or null if it could not be read. A count
+    /// request touches no device, so — unlike a full device read — it cannot get stuck behind a
+    /// device whose driver is busy or wedged. Used for the periodic "did the device list change?"
+    /// check, which used to read every device every 30 seconds.
+    /// </summary>
+    public int? GetRgbDeviceCount()
+    {
+        if (!_isConnectedToRgb || _rgbClient == null) return null;
+        try
+        {
+            lock (_rgbClientLock) return _rgbClient.GetControllerCount();
+        }
+        catch (Exception ex)
+        {
+            Log($"[RGB] Could not read the device count: {ex.Message}");
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Reads every device from OpenRGB. Returns an EMPTY list when not connected, and NULL when
+    /// the read failed — callers must keep what they have on null. Treating a failed read as
+    /// "no devices" is what cleared the RGB section in round 33 ("RGB control crashed and went away").
+    /// </summary>
+    public List<OpenRGB.NET.Device>? GetRgbDevices()
     {
         if (!_isConnectedToRgb || _rgbClient == null)
         {
@@ -923,8 +948,8 @@ public class HardwareControlService : IDisposable
         }
         catch (Exception ex)
         {
-            Log($"[RGB] Error fetching OpenRGB devices: {ex.Message}");
-            return new List<OpenRGB.NET.Device>();
+            Log($"[RGB] Error fetching OpenRGB devices: {ex.Message} — keeping the current device list.");
+            return null;
         }
     }
 

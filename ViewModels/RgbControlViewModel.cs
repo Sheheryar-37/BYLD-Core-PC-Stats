@@ -757,9 +757,15 @@ public class RgbControlViewModel : ViewModelBase
         // expensive part: it makes OpenRGB re-read every controller over the SMBus.
         if (!EnableDeviceListPolling) return;
 
-        // Network round-trip on the thread pool; UI updates back on the dispatcher.
+        // Cheap count check first: a full device read waits on every device's driver, and in
+        // OpenRGB 1.0 one busy or stuck driver blocks it (and every lighting write behind it).
+        var count = await Task.Run(() => _hardwareService.GetRgbDeviceCount());
+        if (count == null || count == Devices.Count) return;
+
+        // Network round-trip on the thread pool; UI updates back on the dispatcher. A FAILED read
+        // (null) keeps the current list — clearing it is what made the RGB section vanish (round 33).
         var devices = await Task.Run(() => _hardwareService.GetRgbDevices());
-        if (!HasDeviceListChanged(devices)) return;
+        if (devices == null || !HasDeviceListChanged(devices)) return;
 
         Devices.Clear();
         for (int i = 0; i < devices.Count; i++)
@@ -856,7 +862,7 @@ public class RgbControlViewModel : ViewModelBase
         else
         {
             // Fetch on the thread pool — GetRgbDevices is a network round-trip.
-            var devices = await Task.Run(() => _hardwareService.GetRgbDevices());
+            var devices = await Task.Run(() => _hardwareService.GetRgbDevices()) ?? new List<Device>();
 
             // If we connected but found 0 devices, it's highly likely OpenRGB
             // needs to run as Admin to see SMBus/USB RGB controllers.
@@ -895,7 +901,7 @@ public class RgbControlViewModel : ViewModelBase
         _hardwareService.RestartOpenRgbAsAdmin();
         System.Threading.Thread.Sleep(3000);
         return _hardwareService.ConnectRgbServer()
-            ? _hardwareService.GetRgbDevices()
+            ? _hardwareService.GetRgbDevices() ?? new List<Device>()
             : new List<Device>();
     }
 
