@@ -29,16 +29,20 @@ SolidCompression=yes
 ; Modern, per-monitor-DPI-aware wizard. The task/launch checkboxes are restored
 ; (round 18, item 2) — the client wants the options back, just not clipped.
 ;
-; CLIPPING NOTES (client rounds 16-19): the task checkbox renders as a sliver with no
-; label on his 5120x2880 display.
-;   * WizardResizable was REMOVED - Inno Setup 7 reports it as obsolete and ignores it.
-;   * WizardSizePercent=120,120 was REMOVED - enlarging the wizard is a prime suspect for
-;     the mis-measured checkbox, so this returns the pages to their natural size.
-;   * BUILD WITH THE STABLE INNO SETUP 6 COMPILER, NOT the 7.0 preview that is also on this
-;     machine. A preview compiler was the remaining suspect for the undersized checkbox glyph
-;     at 200% DPI. Use:
-;         "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" PcStatsMonitor_Installer.iss
-;     (Inno Setup 6.7.3, installed via winget as JRSoftware.InnoSetup.)
+; CLIPPING NOTES (client rounds 16-31): the task checkbox renders as a sliver with no
+; label on his 5120x2880 @ 200% display, intermittently, across builds with an IDENTICAL
+; script. Theories tried and DISPROVED by later builds:
+;   * WizardResizable - removed; Inno Setup 7 reports it obsolete and ignores it.
+;   * WizardSizePercent=120,120 - removed; clipping continued without it.
+;   * "the 7.0-preview compiler causes it" - DISPROVED: 2.7.0 was built with stable 6.7.3
+;     and clipped anyway. Stop attributing this to the compiler.
+; The remaining script-controlled cause is the ROW HEIGHT of the check lists: a "sliver
+; with no label" is a collapsed item row, and TNewCheckListBox derives that height from
+; font metrics that scale unreliably at 200%. Both lists are now given an explicit,
+; DPI-scaled minimum row height in [Code] (see SetCheckListRowHeights), which does not
+; depend on that measurement.
+; STILL BUILD WITH STABLE INNO SETUP 6.7.3, not the 7.0 preview also on this machine:
+;     "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" PcStatsMonitor_Installer.iss
 WizardStyle=modern
 ; Skips the "Ready to Install" summary, which appeared as a large grey review box
 ; (client round 19, item 2). Install starts straight after the task selection.
@@ -120,6 +124,36 @@ Type: dirifempty; Name: "{app}"
 Type: dirifempty; Name: "{autopf}\{#MyAppPublisher}"
 
 [Code]
+// Gives both wizard check lists an explicit, DPI-scaled row height.
+//
+// The client has reported the task checkbox as "a sliver with no label" at 200% display
+// scaling across many builds, intermittently, with a byte-identical script and the same
+// compiler — so it is not a build difference. A sliver is a COLLAPSED ROW: TNewCheckListBox
+// sizes its rows from font metrics, and when that measurement comes back short at 200% the
+// row cannot fit the checkbox glyph or its caption. MinItemHeight overrides that measurement
+// with a fixed, scaled value, so the row cannot collapse regardless of what the font reports.
+//
+// TasksList is the "create a desktop shortcut" page; RunList is the "launch now" checkbox on
+// the finish page. Both have been reported clipped, so both are set.
+procedure SetCheckListRowHeights;
+begin
+  WizardForm.TasksList.MinItemHeight := ScaleY(24);
+  WizardForm.RunList.MinItemHeight := ScaleY(24);
+end;
+
+procedure InitializeWizard;
+begin
+  SetCheckListRowHeights;
+end;
+
+// The wizard re-lays out its pages as they are shown, so re-apply on the two pages that
+// carry a check list rather than trusting the initial value to survive.
+procedure CurPageChanged(CurPageID: Integer);
+begin
+  if (CurPageID = wpSelectTasks) or (CurPageID = wpFinished) then
+    SetCheckListRowHeights;
+end;
+
 // This section must exist: Inno Setup raises "Internal error: PathRedir: Not
 // initialized" on every uninstall log entry when the script has no [Code]
 // section (bug present in the 7.0 previews).
