@@ -36,6 +36,22 @@ public class HardwareControlService : IDisposable
     /// </summary>
     public void LogUiEvent(string message) => Log(message);
 
+    /// <summary>Serialises hardware-log writes. File.AppendAllText opens the file exclusively,
+    /// so two threads appending at once made one of them throw — and the catch below discarded
+    /// the line silently.</summary>
+    private static readonly object _logFileLock = new();
+
+    /// <summary>
+    /// Appends one line to the hardware log, and does NOT lose it under concurrency.
+    ///
+    /// The UI thread (button/picker events) and the lighting worker (command execution) write
+    /// here at the same time during an apply-to-all. File.AppendAllText takes an exclusive
+    /// handle, so the loser threw IOException "used by another process" and the line was
+    /// dropped — the client's round-30 log contains exactly that exception, at the same second
+    /// as the first colour batch, and its command lines are visibly out of order as a result.
+    /// Several rounds of theories were built on this log; it has to be trustworthy, so writes
+    /// are now serialised and retried rather than silently discarded.
+    /// </summary>
     private void Log(string message)
     {
         if (!AppLogging.Enabled) return;
@@ -45,9 +61,32 @@ public class HardwareControlService : IDisposable
             string logDir = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "logs");
             if (!System.IO.Directory.Exists(logDir)) System.IO.Directory.CreateDirectory(logDir);
             string logFile = System.IO.Path.Combine(logDir, "hardware.log");
-            System.IO.File.AppendAllText(logFile, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
+            AppendLine(logFile, $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {message}\n");
         }
         catch { }
+    }
+
+    /// <summary>Appends under a lock, retrying briefly if another process holds the file.</summary>
+    private static void AppendLine(string logFile, string line)
+    {
+        lock (_logFileLock)
+        {
+            for (int attempt = 0; attempt < 3; attempt++)
+            {
+                try
+                {
+                    using var stream = new System.IO.FileStream(
+                        logFile, System.IO.FileMode.Append, System.IO.FileAccess.Write, System.IO.FileShare.ReadWrite);
+                    using var writer = new System.IO.StreamWriter(stream);
+                    writer.Write(line);
+                    return;
+                }
+                catch (System.IO.IOException)
+                {
+                    System.Threading.Thread.Sleep(15);
+                }
+            }
+        }
     }
 
     /// <summary>
