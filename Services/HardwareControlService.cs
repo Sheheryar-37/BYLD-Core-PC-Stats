@@ -420,12 +420,21 @@ public class HardwareControlService : IDisposable
                 Log("[RGB] OpenRGB not running. Attempting to start it as Administrator...");
                 EnsureOpenRgbRunningAsAdmin();
             }
+            else if (OwnsEveryRunningOpenRgb(rgbProcesses))
+            {
+                // OUR server, still running and still healthy — only the socket went. Restarting
+                // it here is what turned a recoverable stall into "the RGB section disappeared":
+                // the stall watchdog reconnects mid-session, this code called that live server an
+                // orphan, killed it, and the replacement took ~9s to scan the SMBus, by which time
+                // the watchdog fired again and killed THAT one too (client round 31, item 3).
+                Log($"[RGB] Reusing the server this app started (PID={_ownOpenRgbPid}) — " +
+                    "reconnecting the socket only.");
+            }
             else
             {
-                // An OpenRGB already running at this point is an ORPHAN from a previous session
-                // (older builds started it detached, so it survived exit and kept loading the
-                // SMBus). Replace it with one we own, so this install self-heals and the server
-                // can never outlive the app again.
+                // A server we did NOT start is an ORPHAN from a previous session (older builds
+                // started it detached, so it survived exit and kept loading the SMBus). Replace it
+                // with one we own, so this install self-heals and the server cannot outlive the app.
                 foreach (var p in rgbProcesses)
                     Log($"  [RGB] PID={p.Id} — orphaned server from an earlier session; replacing it.");
 
@@ -645,6 +654,28 @@ public class HardwareControlService : IDisposable
         }
     }
 
+    /// <summary>PID of the OpenRGB server THIS app started, or 0 when it has not started one.
+    /// Used to tell our own live server apart from an orphan left by an earlier session.</summary>
+    private int _ownOpenRgbPid;
+
+    /// <summary>
+    /// True when every running OpenRGB is the server this app started and it is still alive.
+    /// Only then is a reconnect safe to make without replacing the process — killing our own
+    /// server mid-session drops the device list and takes ~9s of SMBus scanning to come back.
+    /// </summary>
+    private bool OwnsEveryRunningOpenRgb(System.Diagnostics.Process[] running)
+    {
+        if (_ownOpenRgbPid == 0 || running.Length == 0) return false;
+        return running.All(p => p.Id == _ownOpenRgbPid && !HasExited(p));
+    }
+
+    /// <summary>Whether the process has exited, treating an inaccessible process as gone.</summary>
+    private static bool HasExited(System.Diagnostics.Process process)
+    {
+        try { return process.HasExited; }
+        catch { return true; }
+    }
+
     public void EnsureOpenRgbRunningAsAdmin()
     {
         try
@@ -689,6 +720,7 @@ public class HardwareControlService : IDisposable
                 if (child != null)
                 {
                     bool tracked = _openRgbJob.Assign(child);
+                    _ownOpenRgbPid = child.Id;
                     Log($"[RGB] Launched OpenRGB.exe from {openRgbPath} in server mode " +
                         $"(PID={child.Id}, auto-terminates with this app: {tracked}).");
                 }
@@ -1334,6 +1366,7 @@ public class HardwareControlService : IDisposable
     {
         try
         {
+            _ownOpenRgbPid = 0;      // whatever we started is going away with the rest
             foreach (var proc in System.Diagnostics.Process.GetProcessesByName("OpenRGB"))
                 TryKillOpenRgb(proc);
         }
