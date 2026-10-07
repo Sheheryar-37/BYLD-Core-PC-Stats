@@ -156,6 +156,12 @@ public interface IHardwareMonitorService
     // of every second cuts continuous I/O without any visible change (client round 17: throttling).
     private const int StorageRefreshEveryTicks = 5;
 
+    /// <summary>True for an individual memory stick (LibreHardwareMonitor "/memory/dimm/N"), as opposed
+    /// to the "Total Memory" and "Virtual Memory" entries the RAM gauge reads from Windows.</summary>
+    private static bool IsMemoryStick(IHardware hardware) =>
+        hardware.HardwareType == HardwareType.Memory &&
+        hardware.Identifier.ToString().StartsWith("/memory/dimm", StringComparison.OrdinalIgnoreCase);
+
     /// <summary>True when this hardware should be refreshed on the current tick. Everything is
     /// refreshed every tick except Storage, which is throttled to every few seconds. The CPU is
     /// deliberately never throttled — stale CPU sensors force a slow, sometimes-hanging WMI fallback.</summary>
@@ -204,6 +210,14 @@ public interface IHardwareMonitorService
             // filter) and updating them all every second was a real, continuous
             // CPU cost (client round 11). Skip them entirely when not shown.
             if (!networkEnabled && hardware.HardwareType == HardwareType.Network)
+                continue;
+
+            // Memory STICKS (SPD temperature sensors) are read over the SMBus — the same bus
+            // OpenRGB drives the RAM lighting on. Nothing in the app shows them, yet refreshing
+            // them every second put our own traffic on that bus while the client's RAM lighting
+            // was being written (round 33: one stick went blank mid-write). Skipping them also
+            // stops their empty "memory used" readings overwriting the real RAM figures.
+            if (IsMemoryStick(hardware))
                 continue;
 
             // Refresh before reading. Storage is the exception (see ShouldRefresh): its
