@@ -1035,6 +1035,7 @@ public class HardwareControlService : IDisposable
     private void ResetStalledRgbConnection()
     {
         _isConnectedToRgb = false;
+        ForgetAppliedModes();        // a reconnected server may not hold the same device state
         try { _rgbClient?.Dispose(); }
         catch { /* already dead — that is the point */ }
         _rgbClient = null;
@@ -1080,6 +1081,48 @@ public class HardwareControlService : IDisposable
     {
         bool valid = device.ActiveModeIndex >= 0 && device.ActiveModeIndex < device.Modes.Length;
         return valid ? device.Modes[device.ActiveModeIndex].Name : "?";
+    }
+
+    // ── Redundant mode-switch suppression ───────────────────────────────────
+    // The mode WE last put each device into, on the CURRENT connection. Authoritative because
+    // we set it ourselves and the read-back confirmed it, unlike the cached device snapshot.
+    private readonly Dictionary<int, string> _lastAppliedMode = new();
+
+    /// <summary>
+    /// True when sending this mode would change nothing on the device and can be skipped.
+    ///
+    /// Every apply-to-all re-sends "Static" to all four devices, even when the previous
+    /// apply-to-all already put them there. On the DRAM and motherboard controllers that mode
+    /// switch carries no colour at all (modeColors=unchanged — the colour is delivered by the
+    /// zone write that follows), so it is a pure no-op that still costs a blocking SMBus round
+    /// trip. In every round of the client's logs it is that redundant switch, on the SECOND
+    /// apply-to-all, that the server stops answering. Skipping it removes the call that hangs
+    /// and four SMBus round trips per apply.
+    ///
+    /// Only skipped when the mode carries no colours; a mode that DOES carry colours is always
+    /// sent, so nothing that could change the lighting is ever suppressed.
+    /// </summary>
+    private bool IsRedundantModeSwitch(int deviceId, string modeName, OpenRGB.NET.Color[]? modeColors)
+    {
+        if (modeColors != null) return false;
+        lock (_lastAppliedMode)
+        {
+            return _lastAppliedMode.TryGetValue(deviceId, out var applied) &&
+                   applied.Equals(modeName, StringComparison.OrdinalIgnoreCase);
+        }
+    }
+
+    /// <summary>Records the mode a device is now in, after the switch succeeded.</summary>
+    private void RememberAppliedMode(int deviceId, string modeName)
+    {
+        lock (_lastAppliedMode) _lastAppliedMode[deviceId] = modeName;
+    }
+
+    /// <summary>Forgets what we believe each device's mode is. Called whenever the connection is
+    /// dropped or replaced: a reconnected (or restarted) server may not hold the same state.</summary>
+    private void ForgetAppliedModes()
+    {
+        lock (_lastAppliedMode) _lastAppliedMode.Clear();
     }
 
     /// <summary>True while the OpenRGB client holds a live connection. Flips to false when a
@@ -1262,6 +1305,13 @@ public class HardwareControlService : IDisposable
 
         var mode = device.Modes[modeIndex];
         var modeColors = BuildModeColors(mode, color);
+        if (IsRedundantModeSwitch(deviceId, mode.Name, modeColors))
+        {
+            Log($"[RGB→] '{device.Name}': already in '{mode.Name}' and this mode carries no " +
+                "colour — skipping the redundant switch; the zone write carries the colour.");
+            return;
+        }
+
         if (!TryWithRgbClient($"mode switch dev={deviceId} '{mode.Name}'", () =>
         {
             // Only force Custom Mode if we are switching to direct LED control
@@ -1274,6 +1324,7 @@ public class HardwareControlService : IDisposable
             _rgbClient!.UpdateMode(deviceId, modeIndex, colors: modeColors);
         })) return;
 
+        RememberAppliedMode(deviceId, mode.Name);
         Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
             $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
 
