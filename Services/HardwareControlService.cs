@@ -451,6 +451,9 @@ public class HardwareControlService : IDisposable
             // it scans the SMBus first, which is slow on some boards. A single fixed wait +
             // one attempt either stalled or failed outright (client round 14: "takes a very
             // long time, sometimes doesn't connect"). Retry until it answers instead.
+            _rgbIp = ip;
+            _rgbPort = port;
+            _lastRgbWriteUtc = DateTime.MinValue;   // a new connection has carried nothing yet
             if (!ConnectWithRetries(ip, port))
             {
                 Log("[RGB] OpenRGB did not accept a connection after retries.");
@@ -510,6 +513,75 @@ public class HardwareControlService : IDisposable
                 System.Threading.Thread.Sleep(1000);
         }
         return false;
+    }
+
+    // ── Fresh connection before a reply-bearing command ─────────────────────
+    // Where the current connection lives, so a refresh reconnects to the same server.
+    private string _rgbIp = "127.0.0.1";
+    private int _rgbPort = 6742;
+
+    /// <summary>UTC time the current connection last carried a write; MinValue if none yet.</summary>
+    private DateTime _lastRgbWriteUtc = DateTime.MinValue;
+
+    /// <summary>Writes further apart than this are separate user actions, not one burst.</summary>
+    private static readonly TimeSpan RgbWriteBurstGap = TimeSpan.FromSeconds(1);
+
+    /// <summary>Records that the current connection has just carried a lighting write.</summary>
+    private void MarkRgbConnectionWritten() => _lastRgbWriteUtc = DateTime.UtcNow;
+
+    /// <summary>
+    /// Opens a fresh connection before a command that has to wait for a reply, when the current
+    /// connection has carried writes and then gone quiet.
+    ///
+    /// Every round of the client's logs (29, 30, 31 and 32) shows the same invariant, on every
+    /// device — ENE DRAM over SMBus in earlier rounds, the Razer keyboard over USB in round 32:
+    ///   • a connection that has only done reads handles a whole apply-to-all perfectly, including
+    ///     reply-bearing calls made milliseconds after that batch's own writes;
+    ///   • the FIRST reply-bearing call of the NEXT apply-to-all, seconds later, never gets a reply;
+    ///   • a new connection to the SAME server process answers immediately (round 32, 17:11:36).
+    /// OpenRGB.NET matches replies to requests only by command type, and its read loop survives
+    /// nothing but cancellation, so a connection in that state stays deaf until it is replaced.
+    ///
+    /// Rather than wait for the watchdog to detect it (a 5s pause the client reads as "nothing
+    /// happened"), the connection is replaced up front, before it is relied on. Within one burst
+    /// the writes are milliseconds apart, so this only happens once per user action. The device
+    /// cache and remembered modes are kept: it is the same server process, so device indices and
+    /// device state are unchanged — only the socket is new.
+    /// </summary>
+    private void RefreshRgbConnectionIfQuietAfterWrites()
+    {
+        if (_lastRgbWriteUtc == DateTime.MinValue) return;
+        if (DateTime.UtcNow - _lastRgbWriteUtc < RgbWriteBurstGap) return;
+
+        string oldReader = DescribeRgbReadLoop();
+        bool ok = TryConnectOnce(_rgbIp, _rgbPort);
+        _lastRgbWriteUtc = DateTime.MinValue;
+        Log(ok
+            ? $"[RGB→] Opened a fresh connection for this action (previous connection's reader: {oldReader})."
+            : $"[RGB→] Could not open a fresh connection (previous reader: {oldReader}); the next write will retry.");
+    }
+
+    /// <summary>
+    /// Reports the state of OpenRGB.NET's background reply reader for the current connection
+    /// ("Running", or "Faulted: …" with the error that stopped it). Diagnostic only: it tells the
+    /// next set of logs whether a deaf connection is caused on the client side (a dead reader)
+    /// or on the server side (a live reader that is simply never sent a reply).
+    /// </summary>
+    private string DescribeRgbReadLoop()
+    {
+        try
+        {
+            var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+            var connection = typeof(OpenRGB.NET.OpenRgbClient).GetField("_connection", flags)?.GetValue(_rgbClient);
+            var reader = connection?.GetType().GetField("_readLoopTask", flags)?.GetValue(connection) as Task;
+            if (reader == null) return "unknown";
+            string error = reader.Exception?.GetBaseException().Message ?? "";
+            return error.Length == 0 ? reader.Status.ToString() : $"{reader.Status}: {error}";
+        }
+        catch
+        {
+            return "unknown";
+        }
     }
 
     private bool TryConnectOnce(string ip, int port)
@@ -884,7 +956,7 @@ public class HardwareControlService : IDisposable
             return;
 
         Log($"[RGB→] A lighting command has not completed in {RgbStallTimeout.TotalSeconds:F0}s " +
-            $"({_rgbQueue.Count} more waiting). " +
+            $"({_rgbQueue.Count} more waiting; connection reader: {DescribeRgbReadLoop()}). " +
             "Dropping the stuck connection so it fails out; the worker reconnects and continues with the backlog.");
 
         ResetStalledRgbConnection();
@@ -1196,6 +1268,7 @@ public class HardwareControlService : IDisposable
                 var leds = Enumerable.Repeat(color, (int)ledCount).ToArray();
                 WriteZoneLedsReliably(deviceId, zoneId, leds);
             })) return;
+            MarkRgbConnectionWritten();
             // NB: the mode here comes from the CACHED device snapshot taken at the last device
             // scan, not a live read — labelled accordingly so it is not misread as the device's
             // current mode (that misreading caused a wrong DRAM diagnosis in round 18).
@@ -1242,6 +1315,7 @@ public class HardwareControlService : IDisposable
         {
             if (!TryWithRgbClient($"gradient write dev={deviceId} zone={zoneId}",
                     () => WriteZoneLedsReliably(deviceId, zoneId, colors))) return;
+            MarkRgbConnectionWritten();
             Log($"[RGB→] dev={deviceId} zone={zoneId}: wrote {colors.Length} LEDs gradient {Hex(colors[0])} → {Hex(colors[^1])}");
         }
         catch (Exception ex)
@@ -1318,6 +1392,11 @@ public class HardwareControlService : IDisposable
             return;
         }
 
+        // UpdateMode is NOT fire-and-forget: OpenRGB.NET calls GetControllerData inside it and
+        // waits for the reply before sending the mode. It is the only reply-bearing call in an
+        // apply-to-all, and it is the call that hangs — see RefreshRgbConnectionIfQuietAfterWrites.
+        RefreshRgbConnectionIfQuietAfterWrites();
+
         if (!TryWithRgbClient($"mode switch dev={deviceId} '{mode.Name}'", () =>
         {
             // Only force Custom Mode if we are switching to direct LED control
@@ -1331,6 +1410,7 @@ public class HardwareControlService : IDisposable
         })) return;
 
         RememberAppliedMode(deviceId, mode.Name);
+        MarkRgbConnectionWritten();
         Log($"[RGB→] '{device.Name}': mode → '{mode.Name}' " +
             $"(modeColors={(modeColors == null ? "unchanged" : $"{modeColors.Length}×{Hex(modeColors[0])}")})");
 
