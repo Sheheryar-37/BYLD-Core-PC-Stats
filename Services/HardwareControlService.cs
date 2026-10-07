@@ -1206,6 +1206,7 @@ public class HardwareControlService : IDisposable
         {
             Log($"[RGB→] Zone write FAILED dev={deviceId} zone={zoneId} color={Hex(color)}: {ex.Message}");
             MarkRgbDeadIfTransportError(ex);
+            throw;   // let RunRgbOp retry it once on a fresh connection
         }
     }
 
@@ -1247,6 +1248,7 @@ public class HardwareControlService : IDisposable
         {
             Log($"[RGB→] Gradient zone write FAILED dev={deviceId} zone={zoneId}: {ex.Message}");
             MarkRgbDeadIfTransportError(ex);
+            throw;   // let RunRgbOp retry it once on a fresh connection
         }
     }
 
@@ -1284,6 +1286,10 @@ public class HardwareControlService : IDisposable
         {
             Log($"[RGB→] Mode switch FAILED dev={deviceId} mode='{effectName}': {ex.Message}");
             MarkRgbDeadIfTransportError(ex);
+            // Rethrown so RunRgbOp's single retry re-sends it. Swallowing it here meant the retry
+            // never fired: in the client's round-32 log the cancelled Razer "Static" switch —
+            // the command that carries the keyboard's colour — was simply dropped.
+            throw;
         }
     }
 
