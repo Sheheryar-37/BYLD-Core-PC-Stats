@@ -1584,9 +1584,9 @@ public class HardwareControlService : IDisposable
     /// <summary>
     /// Sets a device's complete lighting state in ONE request: switches to
     /// <paramref name="modeName"/> (skipped when the device is already in it and the mode carries
-    /// no colour) and, when <paramref name="leds"/> is given and the mode does not carry the colour
-    /// itself, writes every LED in a single update. A later request for the same device replaces
-    /// this one if it has not been sent yet, so rapid picks never queue up stale writes.
+    /// no colour) and, when <paramref name="leds"/> is given, writes every LED in a single update,
+    /// then confirms both the mode and the colours with OpenRGB. A later request for the same
+    /// device replaces this one if it has not been sent yet, so rapid picks never queue up stale writes.
     /// </summary>
     /// <param name="deviceId">OpenRGB device index.</param>
     /// <param name="modeName">Mode to put the device in (e.g. "Static", "Breathing").</param>
@@ -1632,7 +1632,7 @@ public class HardwareControlService : IDisposable
             // "carried" the colour left the keyboard with no colour at all whenever the mode
             // switch itself was not applied (client round 34).
             if (leds != null) WriteDeviceLeds(deviceId, leds);
-            ConfirmDeviceApplied(deviceId, leds);
+            ConfirmDeviceApplied(deviceId, modeName, leds);
         }
         catch (Exception ex)
         {
@@ -1659,19 +1659,73 @@ public class HardwareControlService : IDisposable
     ///   • if the device is stuck, it never returns, and the stall watchdog restarts OpenRGB and
     ///     re-sends every device's latest state.
     /// </summary>
-    private void ConfirmDeviceApplied(int deviceId, OpenRGB.NET.Color[]? sentLeds)
+    /// <remarks>
+    /// Also verifies the MODE. OpenRGB 1.0 silently drops a mode change it does not accept (the
+    /// packet is acknowledged, the device keeps its old mode), which is how the client's RAM
+    /// stayed in "Rainbow" through every colour change in round 34. If the device still reports
+    /// another mode, it is read once more after a short pause (the server applies modes on the
+    /// device's own thread); if it still differs, the refusal is logged and — for a colour — the
+    /// device is put into OpenRGB's own per-LED mode (SetCustomMode, which carries no mode data
+    /// to reject) and the colours are written again, so the colour shows either way.
+    /// </remarks>
+    private void ConfirmDeviceApplied(int deviceId, string requestedMode, OpenRGB.NET.Color[]? sentLeds)
+    {
+        var state = ReadDeviceState(deviceId);
+        if (state == null) return;
+
+        if (!IsInMode(state, requestedMode))
+        {
+            System.Threading.Thread.Sleep(250);
+            state = ReadDeviceState(deviceId) ?? state;
+        }
+
+        // Remember what the device REALLY reports, so the "already in this mode" shortcut never
+        // skips a switch that was not applied.
+        RememberAppliedMode(deviceId, ActiveModeName(state));
+
+        bool coloursMatch = sentLeds == null || SameColours(state.Colors, FitToDeviceLedCount(sentLeds, state));
+        if (IsInMode(state, requestedMode))
+        {
+            Log($"[RGB✓] '{state.Name}': applied — mode '{ActiveModeName(state)}'" +
+                $"{(coloursMatch ? "" : ", but OpenRGB reports different colours")}.");
+            return;
+        }
+
+        Log($"[RGB✗] '{state.Name}': OpenRGB REJECTED the switch to '{requestedMode}' — device is still in " +
+            $"'{ActiveModeName(state)}'.");
+        if (sentLeds != null) FallBackToCustomMode(deviceId, sentLeds);
+    }
+
+    /// <summary>Reads one device's current state from OpenRGB and refreshes the cache; null if unreadable.</summary>
+    private OpenRGB.NET.Device? ReadDeviceState(int deviceId)
     {
         OpenRGB.NET.Device? state = null;
-        if (!TryWithRgbClient($"confirm dev={deviceId}", () => state = _rgbClient!.GetControllerData(deviceId)) ||
-            state == null)
-            return;
+        if (!TryWithRgbClient($"confirm dev={deviceId}", () => state = _rgbClient!.GetControllerData(deviceId)))
+            return null;
+        if (state == null) return null;
 
         var cache = _rgbDeviceCache;
         if (deviceId >= 0 && deviceId < cache.Length) cache[deviceId] = state;
+        return state;
+    }
 
-        bool coloursMatch = sentLeds == null || SameColours(state.Colors, FitToDeviceLedCount(sentLeds, state));
-        Log($"[RGB✓] '{state.Name}': {(coloursMatch ? "applied" : "applied, but OpenRGB reports different colours")} " +
-            $"— mode '{ActiveModeName(state)}'.");
+    private static bool IsInMode(OpenRGB.NET.Device state, string modeName) =>
+        ActiveModeName(state).Equals(modeName, StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Shows the colour when a colour mode was refused: SetCustomMode makes OpenRGB itself pick the
+    /// device's per-LED mode (Direct, Custom or Static) — it sends no mode data, so there is nothing
+    /// to reject — then the LEDs are written again and the outcome logged.
+    /// </summary>
+    private void FallBackToCustomMode(int deviceId, OpenRGB.NET.Color[] leds)
+    {
+        if (!TryWithRgbClient($"custom mode dev={deviceId}", () => _rgbClient!.SetCustomMode(deviceId))) return;
+        WriteDeviceLeds(deviceId, leds);
+
+        var state = ReadDeviceState(deviceId);
+        if (state == null) return;
+        RememberAppliedMode(deviceId, ActiveModeName(state));
+        Log($"[RGB✓] '{state.Name}': colour applied through OpenRGB's per-LED mode '{ActiveModeName(state)}'.");
     }
 
     private static bool SameColours(OpenRGB.NET.Color[] a, OpenRGB.NET.Color[] b) =>
@@ -1749,8 +1803,8 @@ public class HardwareControlService : IDisposable
     /// <summary>
     /// Puts a device in <paramref name="effectName"/> unless it is already there and the mode
     /// carries no colour. Returns true when the mode itself carries the colour (mode-specific
-    /// colour slots, e.g. the Razer's "Static"), in which case an LED write is unnecessary — and,
-    /// for some devices, would switch them back out of the stored mode.
+    /// colour slots, e.g. the Razer's "Static"). Whether the switch was actually applied is
+    /// checked afterwards by <see cref="ConfirmDeviceApplied"/>.
     /// </summary>
     private bool ApplyRgbEffect(int deviceId, string effectName, OpenRGB.NET.Color? color)
     {
