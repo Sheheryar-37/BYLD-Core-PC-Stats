@@ -1627,10 +1627,12 @@ public class HardwareControlService : IDisposable
 
         try
         {
-            bool modeCarriedColour = ApplyRgbEffect(deviceId, modeName, modeColor);
-            bool wroteLeds = leds != null && (!modeCarriedColour || !IsUniform(leds));
-            if (wroteLeds) WriteDeviceLeds(deviceId, leds!);
-            ConfirmDeviceApplied(deviceId, wroteLeds ? leds : null);
+            ApplyRgbEffect(deviceId, modeName, modeColor);
+            // Colour modes always get their LEDs written. Skipping the write when the mode
+            // "carried" the colour left the keyboard with no colour at all whenever the mode
+            // switch itself was not applied (client round 34).
+            if (leds != null) WriteDeviceLeds(deviceId, leds);
+            ConfirmDeviceApplied(deviceId, leds);
         }
         catch (Exception ex)
         {
