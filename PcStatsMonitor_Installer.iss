@@ -26,22 +26,19 @@ OutputBaseFilename=BYLD_PC_Stats_Monitor_Setup
 SetupIconFile=Assets\byld-icon.ico
 Compression=lzma
 SolidCompression=yes
-; Modern, per-monitor-DPI-aware wizard. The task/launch checkboxes are restored
-; (round 18, item 2) — the client wants the options back, just not clipped.
+; Modern, per-monitor-DPI-aware wizard. The desktop-shortcut and launch options are kept
+; (round 18, item 2) — the client wants them, just not clipped.
 ;
-; CLIPPING NOTES (client rounds 16-31): the task checkbox renders as a sliver with no
-; label on his 5120x2880 @ 200% display, intermittently, across builds with an IDENTICAL
-; script. Theories tried and DISPROVED by later builds:
-;   * WizardResizable - removed; Inno Setup 7 reports it obsolete and ignores it.
-;   * WizardSizePercent=120,120 - removed; clipping continued without it.
-;   * "the 7.0-preview compiler causes it" - DISPROVED: 2.7.0 was built with stable 6.7.3
-;     and clipped anyway. Stop attributing this to the compiler.
-; The remaining script-controlled cause is the ROW HEIGHT of the check lists: a "sliver
-; with no label" is a collapsed item row, and TNewCheckListBox derives that height from
-; font metrics that scale unreliably at 200%. Both lists are now given an explicit,
-; DPI-scaled minimum row height in [Code] (see SetCheckListRowHeights), which does not
-; depend on that measurement.
-; STILL BUILD WITH STABLE INNO SETUP 6.7.3, not the 7.0 preview also on this machine:
+; CLIPPING (client rounds 16-34). His round-34 screenshot finally showed it exactly: at 200%
+; the checkbox SQUARE is cut off on its left side while the caption draws correctly. Both
+; options lived in Inno Setup's own owner-drawn check list (TNewCheckListBox: the [Tasks] page
+; and the finish page's postinstall list), which positions that glyph wrongly at 200%. Theories
+; tried earlier and disproved: WizardResizable, WizardSizePercent, the 7.0-preview compiler
+; (a 6.7.3 build clipped too), and the list's row height (MinItemHeight changed nothing).
+; Both options are now ordinary Windows checkboxes (TNewCheckBox) created in [Code] — drawn by
+; Windows itself, as in every other installer, at any scaling. There is therefore no [Tasks]
+; section and no postinstall [Run] entry; see the [Code] section.
+; Build with stable Inno Setup 6.7.3, not the 7.0 preview also on this machine:
 ;     "%LOCALAPPDATA%\Programs\Inno Setup 6\ISCC.exe" PcStatsMonitor_Installer.iss
 WizardStyle=modern
 ; Skips the "Ready to Install" summary, which appeared as a large grey review box
@@ -53,14 +50,6 @@ UninstallDisplayIcon={app}\{#MyAppExeName}
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
-
-[Tasks]
-; KEEP THIS. The client confirmed "Installer scales perfectly now!" on the first build
-; compiled with the STABLE Inno Setup 6.7.3 toolchain and this exact section, on his
-; 5120x2880 @ 200% display. The clipping reports came from builds made with the 7.0-preview
-; compiler and/or WizardSizePercent set — not from this checkbox itself. Do not remove it;
-; build with 6.7.3 (see the note above) and it renders correctly.
-Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
 [Files]
 ; Main application files
@@ -95,7 +84,8 @@ Type: filesandordirs; Name: "{app}\OpenRGB"
 
 [Icons]
 Name: "{group}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; WorkingDir: "{app}"
-Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon; WorkingDir: "{app}"
+; Created when the "Create a desktop shortcut" checkbox is ticked (see [Code]).
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Check: WantsDesktopIcon; WorkingDir: "{app}"
 
 [Run]
 ; Install the PawnIO driver silently BEFORE the app first launches. PawnIO is the
@@ -104,8 +94,8 @@ Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: de
 ; (Services/PawnIoDriverService.cs), so this step is a no-op if PawnIO is present.
 Filename: "{app}\PawnIO_setup.exe"; Parameters: "-install -silent"; Flags: runhidden waituntilterminated; Check: PawnIoSetupNeeded; StatusMsg: "Installing PawnIO hardware driver..."
 ; NOTE: OpenRGB is NOT started here — the app manages the OpenRGB server itself.
-; Launch main application (finish-page checkbox restored — round 18, item 2)
-Filename: "{app}\{#MyAppExeName}"; Description: "{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}"; Flags: nowait postinstall skipifsilent shellexec; WorkingDir: "{app}"
+; The "Launch" option is a standard checkbox on the finish page, handled in [Code]
+; (CurStepChanged / ssDone) — a postinstall entry here would bring back the clipped list.
 
 [UninstallRun]
 ; Kill the app and OpenRGB, then stop OpenRGB's WinRing0 kernel service so its
@@ -130,34 +120,87 @@ Type: dirifempty; Name: "{app}"
 Type: dirifempty; Name: "{autopf}\{#MyAppPublisher}"
 
 [Code]
-// Gives both wizard check lists an explicit, DPI-scaled row height.
-//
-// The client has reported the task checkbox as "a sliver with no label" at 200% display
-// scaling across many builds, intermittently, with a byte-identical script and the same
-// compiler — so it is not a build difference. A sliver is a COLLAPSED ROW: TNewCheckListBox
-// sizes its rows from font metrics, and when that measurement comes back short at 200% the
-// row cannot fit the checkbox glyph or its caption. MinItemHeight overrides that measurement
-// with a fixed, scaled value, so the row cannot collapse regardless of what the font reports.
-//
-// TasksList is the "create a desktop shortcut" page; RunList is the "launch now" checkbox on
-// the finish page. Both have been reported clipped, so both are set.
-procedure SetCheckListRowHeights;
+// ── Desktop-shortcut and Launch options as STANDARD Windows checkboxes ──────────────────
+// Inno's owner-drawn check list cut the checkbox square off on its left side at 200% scaling
+// (client round 34 screenshot). TNewCheckBox is a normal Windows checkbox, drawn by Windows at
+// whatever scaling the display uses — which is why no other installer shows the problem.
+var
+  DesktopIconCheck: TNewCheckBox;
+  LaunchCheck: TNewCheckBox;
+
+// A full-width standard checkbox with a DPI-scaled height, so neither the box nor the caption
+// can be clipped.
+function NewOptionCheckBox(Parent: TWinControl; Top: Integer; Caption: String; Checked: Boolean): TNewCheckBox;
 begin
-  WizardForm.TasksList.MinItemHeight := ScaleY(24);
-  WizardForm.RunList.MinItemHeight := ScaleY(24);
+  Result := TNewCheckBox.Create(WizardForm);
+  Result.Parent := Parent;
+  Result.Left := 0;
+  Result.Top := Top;
+  Result.Width := Parent.ClientWidth;
+  Result.Height := ScaleY(24);
+  Result.Caption := Caption;
+  Result.Checked := Checked;
+end;
+
+// A word-wrapped label of the given width; returns it so the next control can sit below it.
+function NewWrappedLabel(Parent: TWinControl; Top: Integer; Caption: String): TNewStaticText;
+begin
+  Result := TNewStaticText.Create(WizardForm);
+  Result.Parent := Parent;
+  Result.Top := Top;
+  Result.WordWrap := True;
+  Result.Width := Parent.ClientWidth;
+  Result.Caption := Caption;
+  Result.AdjustHeight;
+end;
+
+// The "Select Additional Tasks" page, rebuilt with a standard checkbox. Same title, wording
+// and default (unticked) as the [Tasks] page it replaces.
+procedure CreateTasksPage;
+var
+  Page: TWizardPage;
+  Intro, Group: TNewStaticText;
+begin
+  Page := CreateCustomPage(wpSelectDir, SetupMessage(msgWizardSelectTasks), SetupMessage(msgSelectTasksDesc));
+  Intro := NewWrappedLabel(Page.Surface, 0,
+    'Select the additional tasks you would like Setup to perform while installing {#MyAppName}, then click Next.');
+  Group := NewWrappedLabel(Page.Surface, Intro.Top + Intro.Height + ScaleY(16), ExpandConstant('{cm:AdditionalIcons}'));
+  DesktopIconCheck := NewOptionCheckBox(Page.Surface, Group.Top + Group.Height + ScaleY(8),
+    ExpandConstant('{cm:CreateDesktopIcon}'), False);
 end;
 
 procedure InitializeWizard;
 begin
-  SetCheckListRowHeights;
+  CreateTasksPage;
+  LaunchCheck := NewOptionCheckBox(WizardForm.FinishedPage, 0,
+    ExpandConstant('{cm:LaunchProgram,{#StringChange(MyAppName, '&', '&&')}}'), True);
 end;
 
-// The wizard re-lays out its pages as they are shown, so re-apply on the two pages that
-// carry a check list rather than trusting the initial value to survive.
+// The finish text's height is only final when the page is shown, so the Launch checkbox is
+// placed under it then.
 procedure CurPageChanged(CurPageID: Integer);
 begin
-  if (CurPageID = wpSelectTasks) or (CurPageID = wpFinished) then
-    SetCheckListRowHeights;
+  if CurPageID <> wpFinished then Exit;
+  LaunchCheck.Left := WizardForm.FinishedLabel.Left;
+  LaunchCheck.Top := WizardForm.FinishedLabel.Top + WizardForm.FinishedLabel.Height + ScaleY(16);
+  LaunchCheck.Width := WizardForm.FinishedPage.ClientWidth - LaunchCheck.Left - ScaleX(8);
+end;
+
+// [Icons] check: create the desktop shortcut only when ticked.
+function WantsDesktopIcon: Boolean;
+begin
+  Result := (DesktopIconCheck <> nil) and DesktopIconCheck.Checked;
+end;
+
+// Launches the app after Finish when ticked — what the postinstall [Run] entry used to do
+// (skipped for silent installs, as "skipifsilent" did).
+procedure CurStepChanged(CurStep: TSetupStep);
+var
+  ErrorCode: Integer;
+begin
+  if (CurStep <> ssDone) or WizardSilent or (LaunchCheck = nil) or not LaunchCheck.Checked then Exit;
+  ShellExec('', ExpandConstant('{app}\{#MyAppExeName}'), '', ExpandConstant('{app}'),
+    SW_SHOWNORMAL, ewNoWait, ErrorCode);
 end;
 
 // This section must exist: Inno Setup raises "Internal error: PathRedir: Not
