@@ -1787,7 +1787,7 @@ public class HardwareControlService : IDisposable
                 _rgbClient!.SetCustomMode(deviceId);
             }
 
-            _rgbClient!.UpdateMode(deviceId, modeIndex, colors: modeColors);
+            SendUpdateMode(deviceId, modeIndex, mode, modeColors);
         })) return false;
 
         RememberAppliedMode(deviceId, mode.Name);
@@ -1813,6 +1813,102 @@ public class HardwareControlService : IDisposable
         int slots = (int)Math.Max(mode.ColorMax, (uint)(mode.Colors?.Length ?? 0));
         if (slots == 0) return null;
         return Enumerable.Repeat(color.Value, slots).ToArray();
+    }
+
+    // ── Mode switch packet ──────────────────────────────────────────────────
+    //
+    // ROOT CAUSE of "RGB didn't work at all" (client round 34) and of effects never applying on
+    // OpenRGB 1.0: OpenRGB.NET 3.1.1 decodes "this mode has no direction" as Direction.None =
+    // 0xFFFFFFFF and writes that value back in every UpdateMode packet. OpenRGB 1.0 added strict
+    // validation of incoming modes (RGBController::SetModeValuesFromMode) which requires direction
+    // 0 for a mode without a direction flag; when validation fails it simply does not change the
+    // active mode — no error, the packet is still acknowledged. So every switch to Static,
+    // Breathing, etc. was dropped, and the RAM sat in Rainbow ignoring every colour. Older
+    // OpenRGB had no such validation, which is why the same call worked before.
+    //
+    // Proven against the bundled OpenRGB 1.0: the identical packet with direction 0xFFFFFFFF was
+    // rejected, and with direction 0 accepted. The packet is therefore built here, with the
+    // direction OpenRGB expects, in the layout of the protocol version this connection negotiated.
+
+    private const uint NetPacketIdUpdateMode = 1101;
+    private const uint ModeDirectionLeft = 0, ModeDirectionUp = 2, ModeDirectionHorizontal = 4;
+
+    /// <summary>Sends a mode switch (NET_PACKET_ID_RGBCONTROLLER_UPDATEMODE) with a valid direction.
+    /// Caller holds the client lock, so nothing else writes to the socket meanwhile.</summary>
+    private void SendUpdateMode(int deviceId, int modeIndex, OpenRGB.NET.Mode mode, OpenRGB.NET.Color[]? colors)
+    {
+        bool withBrightness = _rgbClient!.CommonProtocolVersion.SupportsBrightnessAndSaveMode;
+        var modeColors = colors ?? mode.Colors ?? Array.Empty<OpenRGB.NET.Color>();
+        byte[] packet = BuildUpdateModePacket(deviceId, modeIndex, mode, modeColors, withBrightness);
+        RgbSocket().Send(packet);
+    }
+
+    /// <summary>The OpenRGB client's socket. OpenRGB.NET exposes no way to send a corrected mode.</summary>
+    private System.Net.Sockets.Socket RgbSocket()
+    {
+        var flags = System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Instance;
+        var connection = typeof(OpenRGB.NET.OpenRgbClient).GetField("_connection", flags)?.GetValue(_rgbClient)
+            ?? throw new InvalidOperationException("OpenRGB connection not available.");
+        return connection.GetType().GetField("_socket", flags)?.GetValue(connection) as System.Net.Sockets.Socket
+            ?? throw new InvalidOperationException("OpenRGB socket not available.");
+    }
+
+    /// <summary>Header ("ORGB", device, packet id, size) + [data size][mode index][mode description].</summary>
+    private static byte[] BuildUpdateModePacket(int deviceId, int modeIndex, OpenRGB.NET.Mode mode,
+        OpenRGB.NET.Color[] colors, bool withBrightness)
+    {
+        var description = new List<byte>();
+        AppendModeDescription(description, mode, colors, withBrightness);
+
+        var payload = new List<byte>();
+        payload.AddRange(BitConverter.GetBytes((uint)(4 + 4 + description.Count)));
+        payload.AddRange(BitConverter.GetBytes(modeIndex));
+        payload.AddRange(description);
+
+        var packet = new List<byte>(System.Text.Encoding.ASCII.GetBytes("ORGB"));
+        packet.AddRange(BitConverter.GetBytes((uint)deviceId));
+        packet.AddRange(BitConverter.GetBytes(NetPacketIdUpdateMode));
+        packet.AddRange(BitConverter.GetBytes((uint)payload.Count));
+        packet.AddRange(payload);
+        return packet.ToArray();
+    }
+
+    /// <summary>The mode description in the SDK field order (brightness fields from protocol 3).</summary>
+    private static void AppendModeDescription(List<byte> buffer, OpenRGB.NET.Mode mode,
+        OpenRGB.NET.Color[] colors, bool withBrightness)
+    {
+        void U32(uint value) => buffer.AddRange(BitConverter.GetBytes(value));
+
+        byte[] name = System.Text.Encoding.UTF8.GetBytes(mode.Name + "\0");
+        buffer.AddRange(BitConverter.GetBytes((ushort)name.Length));
+        buffer.AddRange(name);
+        U32((uint)mode.Value);
+        U32((uint)mode.Flags);
+        U32(mode.SpeedMin);
+        U32(mode.SpeedMax);
+        if (withBrightness) { U32(mode.BrightnessMin); U32(mode.BrightnessMax); }
+        U32(mode.ColorMin);
+        U32(mode.ColorMax);
+        U32(mode.Speed);
+        if (withBrightness) U32(mode.Brightness);
+        U32(WireDirection(mode));
+        U32((uint)mode.ColorMode);
+        buffer.AddRange(BitConverter.GetBytes((ushort)colors.Length));
+        foreach (var c in colors) buffer.AddRange(new byte[] { c.R, c.G, c.B, 0 });
+    }
+
+    /// <summary>The direction OpenRGB 1.0 accepts: 0 for a mode with no direction flag, otherwise
+    /// the mode's own direction (or the first valid one for its flag if it was decoded as None).</summary>
+    private static uint WireDirection(OpenRGB.NET.Mode mode)
+    {
+        const OpenRGB.NET.ModeFlags anyDirection = OpenRGB.NET.ModeFlags.HasDirectionLR |
+            OpenRGB.NET.ModeFlags.HasDirectionUD | OpenRGB.NET.ModeFlags.HasDirectionHV;
+
+        if ((mode.Flags & anyDirection) == 0) return ModeDirectionLeft;
+        if (mode.Direction != OpenRGB.NET.Direction.None) return (uint)mode.Direction;
+        if (mode.Flags.HasFlag(OpenRGB.NET.ModeFlags.HasDirectionHV)) return ModeDirectionHorizontal;
+        if (mode.Flags.HasFlag(OpenRGB.NET.ModeFlags.HasDirectionUD)) return ModeDirectionUp;
+        return ModeDirectionLeft;
     }
 
     public void Dispose()
